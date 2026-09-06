@@ -1,0 +1,11 @@
+{
+  "name": "valtaris-product",
+  "version": "1.0.0",
+  "build": {
+    "output": "dist",
+    "entry": "product/main.tsx"
+  },
+  "env": {
+    "VITE_API_URL": "https://api.valtaris.io"
+  }
+}
