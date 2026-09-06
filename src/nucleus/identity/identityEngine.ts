@@ -2,93 +2,49 @@
 // Unified constitutional identity engine for the entire Valtaris ecosystem.
 
 import { randomUUID } from "crypto";
+import { nucleusAudit } from "../audit/auditEngine";
+import { nucleusBilling } from "../billing/billingEngine";
 
 export type IdentityRecord = {
   id: string;
   org: string;
-  subject: string; // user, service, subsystem
-  roles: string[];
-  permissions: string[];
+  subsystem: string;
+  name: string;
+  metadata: Record<string, any>;
   createdAt: number;
-  updatedAt: number;
 };
 
 export class IdentityEngine {
   private identities: Map<string, IdentityRecord> = new Map();
 
-  private makeKey(org: string, subject: string) {
-    return `${org}.${subject}`;
-  }
+  create(org: string, subsystem: string, name: string, metadata: Record<string, any>) {
+    const id = randomUUID();
 
-  register(
-    org: string,
-    subject: string,
-    roles: string[] = [],
-    permissions: string[] = []
-  ) {
-    const key = this.makeKey(org, subject);
-
-    const record: IdentityRecord = {
-      id: randomUUID(),
+    const identity: IdentityRecord = {
+      id,
       org,
-      subject,
-      roles,
-      permissions,
+      subsystem,
+      name,
+      metadata,
       createdAt: Date.now(),
-      updatedAt: Date.now(),
     };
 
-    this.identities.set(key, record);
+    this.identities.set(id, identity);
 
-    const prefix = `[IDENTITY][${subject.toUpperCase()}]`;
-    console.log(prefix, `Identity registered`);
+    console.log(`[IDENTITY][${subsystem.toUpperCase()}] Created: ${name}`);
 
-    return record;
+    nucleusAudit.log(org, subsystem, `identity.create.${name}`, "identity-engine", { metadata });
+    nucleusBilling.recordEvent(org, subsystem, `identity.create.${name}`, 1, 0.002, { metadata });
+
+    return identity;
   }
 
-  update(
-    org: string,
-    subject: string,
-    roles?: string[],
-    permissions?: string[]
-  ) {
-    const key = this.makeKey(org, subject);
-    const existing = this.identities.get(key);
-
-    if (!existing) return null;
-
-    const updated: IdentityRecord = {
-      ...existing,
-      roles: roles ?? existing.roles,
-      permissions: permissions ?? existing.permissions,
-      updatedAt: Date.now(),
-    };
-
-    this.identities.set(key, updated);
-
-    const prefix = `[IDENTITY][${subject.toUpperCase()}]`;
-    console.log(prefix, `Identity updated`);
-
-    return updated;
-  }
-
-  get(org: string, subject: string) {
-    const key = this.makeKey(org, subject);
-    return this.identities.get(key) ?? null;
-  }
-
-  hasRole(org: string, subject: string, role: string) {
-    const id = this.get(org, subject);
-    return id ? id.roles.includes(role) : false;
-  }
-
-  hasPermission(org: string, subject: string, permission: string) {
-    const id = this.get(org, subject);
-    return id ? id.permissions.includes(permission) : false;
-  }
-
-  getAll() {
-    return [...this.identities.values()];
+  get(org?: string, subsystem?: string) {
+    return [...this.identities.values()].filter((i) => {
+      if (org && i.org !== org) return false;
+      if (subsystem && i.subsystem !== subsystem) return false;
+      return true;
+    });
   }
 
   clear() {
