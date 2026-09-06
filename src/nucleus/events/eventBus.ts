@@ -1,34 +1,61 @@
-// Phase 19 — EventBus with identity propagation and enforcement
+// src/nucleus/events/eventBus.ts
+// Unified constitutional event bus for the entire Valtaris ecosystem.
 
-import { NucleusEvent } from "./nucleusEvent";
+import { randomUUID } from "crypto";
 
-type EventHandler = (event: NucleusEvent) => void;
+export type NucleusEvent = {
+  id: string;
+  org: string;
+  subsystem: string;
+  type: string;
+  version: string;
+  payload: any;
+  timestamp: number;
+};
 
-class EventBus {
-  private handlers: EventHandler[] = [];
+export class EventBus {
+  private listeners: Map<string, ((event: NucleusEvent) => void)[]> = new Map();
 
-  subscribe(handler: EventHandler) {
-    this.handlers.push(handler);
+  emit(org: string, subsystem: string, type: string, version: string, payload: any) {
+    const event: NucleusEvent = {
+      id: randomUUID(),
+      org,
+      subsystem,
+      type,
+      version,
+      payload,
+      timestamp: Date.now(),
+    };
+
+    const key = `${subsystem}.${type}`;
+    const handlers = this.listeners.get(key);
+
+    if (handlers) {
+      for (const handler of handlers) {
+        try {
+          handler(event);
+        } catch (err) {
+          console.error(`[EventBus] Handler error for ${key}:`, err);
+        }
+      }
+    }
+
+    return event;
   }
 
-  emit(event: NucleusEvent) {
-    const ctx = event.context;
+  on(subsystem: string, type: string, handler: (event: NucleusEvent) => void) {
+    const key = `${subsystem}.${type}`;
 
-    if (!ctx.tenantId) throw new Error("Missing tenantId");
-    if (!ctx.environmentId) throw new Error("Missing environmentId");
-    if (!ctx.projectId) throw new Error("Missing projectId");
-
-    if (ctx.actorId && typeof ctx.actorId !== "string") {
-      throw new Error("Invalid actorId");
+    if (!this.listeners.has(key)) {
+      this.listeners.set(key, []);
     }
 
-    if (!ctx.subsystem) throw new Error("Missing subsystem");
-    if (!ctx.capability) throw new Error("Missing capability");
+    this.listeners.get(key)!.push(handler);
+  }
 
-    for (const handler of this.handlers) {
-      handler(event);
-    }
+  clear() {
+    this.listeners.clear();
   }
 }
 
-export const eventBus = new EventBus();
+export const nucleusEventBus = new EventBus();
