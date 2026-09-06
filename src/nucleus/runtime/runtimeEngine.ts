@@ -2,116 +2,55 @@
 // Unified constitutional runtime engine for the entire Valtaris ecosystem.
 
 import { randomUUID } from "crypto";
-import { nucleusEventBus, EventRecord } from "../events/eventBus";
+import { nucleusAudit } from "../audit/auditEngine";
+import { nucleusBilling } from "../billing/billingEngine";
 
-export type RuntimeTask = {
+export type RuntimeState = {
   id: string;
   org: string;
-  subsystem: string;
-  type: string;
-  handler: (event: EventRecord) => Promise<any> | any;
-  createdAt: number;
-};
-
-export type RuntimeExecution = {
-  id: string;
-  taskId: string;
-  org: string;
-  subsystem: string;
-  type: string;
-  status: "success" | "error";
-  result?: any;
-  error?: any;
+  status: "booting" | "running" | "shutting-down" | "offline";
+  env: Record<string, string>;
   timestamp: number;
 };
 
 export class RuntimeEngine {
-  private tasks: RuntimeTask[] = [];
-  private executions: RuntimeExecution[] = [];
+  private state: RuntimeState | null = null;
 
-  register(
-    org: string,
-    subsystem: string,
-    type: string,
-    handler: RuntimeTask["handler"]
-  ) {
-    const task: RuntimeTask = {
+  boot(org: string, env: Record<string, string>) {
+    this.state = {
       id: randomUUID(),
       org,
-      subsystem,
-      type,
-      handler,
-      createdAt: Date.now(),
+      status: "booting",
+      env,
+      timestamp: Date.now(),
     };
 
-    this.tasks.push(task);
+    console.log(`[RUNTIME] Booting`);
 
-    const prefix = `[RUNTIME][${subsystem.toUpperCase()}]`;
-    console.log(prefix, `Task registered: ${type}`);
+    nucleusAudit.log(org, "runtime", "runtime.boot", "runtime-engine", { env });
+    nucleusBilling.recordEvent(org, "runtime", "runtime.boot", 1, 0.005, { env });
 
-    // Subscribe to event bus
-    nucleusEventBus.subscribe(subsystem, type, (event) => {
-      this.execute(task, event);
-    });
-
-    return task;
+    this.state.status = "running";
+    return this.state;
   }
 
-  private async execute(task: RuntimeTask, event: EventRecord) {
-    const prefix = `[RUNTIME][${task.subsystem.toUpperCase()}]`;
+  shutdown(org: string) {
+    if (!this.state) return null;
 
-    try {
-      const result = await task.handler(event);
+    this.state.status = "shutting-down";
+    this.state.timestamp = Date.now();
 
-      const execution: RuntimeExecution = {
-        id: randomUUID(),
-        taskId: task.id,
-        org: task.org,
-        subsystem: task.subsystem,
-        type: task.type,
-        status: "success",
-        result,
-        timestamp: Date.now(),
-      };
+    console.log(`[RUNTIME] Shutting down`);
 
-      this.executions.push(execution);
+    nucleusAudit.log(org, "runtime", "runtime.shutdown", "runtime-engine", {});
+    nucleusBilling.recordEvent(org, "runtime", "runtime.shutdown", 1, 0.004, {});
 
-      console.log(prefix, `Executed ${task.type} successfully`);
-      return execution;
-    } catch (err) {
-      const execution: RuntimeExecution = {
-        id: randomUUID(),
-        taskId: task.id,
-        org: task.org,
-        subsystem: task.subsystem,
-        type: task.type,
-        status: "error",
-        error: err,
-        timestamp: Date.now(),
-      };
-
-      this.executions.push(execution);
-
-      console.error(prefix, `Execution error for ${task.type}:`, err);
-      return execution;
-    }
+    this.state.status = "offline";
+    return this.state;
   }
 
-  getTasks() {
-    return [...this.tasks];
-  }
-
-  getExecutions() {
-    return [...this.executions];
-  }
-
-  getExecutionsBySubsystem(subsystem: string) {
-    return this.executions.filter((e) => e.subsystem === subsystem);
-  }
-
-  clear() {
-    this.tasks = [];
-    this.executions = [];
+  getState() {
+    return this.state;
   }
 }
 
