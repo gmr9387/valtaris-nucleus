@@ -1,13 +1,18 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
 
-import { DashboardPage } from "../ui/pages/DashboardPage";
-import { WorkflowPage } from "../ui/pages/WorkflowPage";
-import { PaymentsPage } from "../ui/pages/PaymentsPage";
-import { MonitoringPage } from "../ui/pages/MonitoringPage";
-import { SecurityPage } from "../ui/pages/SecurityPage";
-import { IdentityPage } from "../ui/pages/IdentityPage";
-import { SettingsPage } from "../ui/pages/SettingsPage";
+import { Dashboard } from "./pages/Dashboard";
+import { Workflows } from "./pages/Workflows";
+import { Payments } from "./pages/Payments";
+import { Monitoring } from "./pages/Monitoring";
+import { Security } from "./pages/Security";
+import { Identity } from "./pages/Identity";
+import { Settings } from "./pages/Settings";
+
+import { Login } from "./pages/Login";
+import { Org } from "./pages/Org";
+
+import { useSession } from "./auth/SessionProvider";
 
 const navItems = [
   { id: "dashboard", label: "Dashboard" },
@@ -16,39 +21,47 @@ const navItems = [
   { id: "monitoring", label: "Monitoring" },
   { id: "security", label: "Security" },
   { id: "identity", label: "Identity" },
-  { id: "settings", label: "Settings" },
+  { id: "settings", label: "Settings" }
 ];
 
 export const AppRoutes = () => {
+  const session = useSession();
   const [active, setActive] = React.useState("dashboard");
 
-  const withShell = (Page) => (
-    <Page
-      navItems={navItems}
-      active={active}
-      onSelect={setActive}
-
-      metrics={[]}
-      workflows={[]}
-      payments={[]}
-      events={[]}
-      identities={[]}
-      form={{ values: {}, errors: {}, set: () => {}, onSubmit: () => {} }}
-    />
-  );
+  if (session.loading) return <div>Loading...</div>;
+  if (!session.user) return <Login />;
+  if (!session.org) return <Org />;
 
   return (
     <Routes>
-      <Route path="/dashboard" element={withShell(DashboardPage)} />
-      <Route path="/workflows" element={withShell(WorkflowPage)} />
-      <Route path="/payments" element={withShell(PaymentsPage)} />
-      <Route path="/monitoring" element={withShell(MonitoringPage)} />
-      <Route path="/security" element={withShell(SecurityPage)} />
-      <Route path="/identity" element={withShell(IdentityPage)} />
-      <Route path="/settings" element={withShell(SettingsPage)} />
-
-      <Route path="/login" element={<div>Login</div>} />
-      <Route path="/org" element={<div>Org Selection</div>} />
+      <Route
+        path="/dashboard"
+        element={<Dashboard navItems={navItems} active={active} onSelect={setActive} />}
+      />
+      <Route
+        path="/workflows"
+        element={<Workflows navItems={navItems} active={active} onSelect={setActive} />}
+      />
+      <Route
+        path="/payments"
+        element={<Payments navItems={navItems} active={active} onSelect={setActive} />}
+      />
+      <Route
+        path="/monitoring"
+        element={<Monitoring navItems={navItems} active={active} onSelect={setActive} />}
+      />
+      <Route
+        path="/security"
+        element={<Security navItems={navItems} active={active} onSelect={setActive} />}
+      />
+      <Route
+        path="/identity"
+        element={<Identity navItems={navItems} active={active} onSelect={setActive} />}
+      />
+      <Route
+        path="/settings"
+        element={<Settings navItems={navItems} active={active} onSelect={setActive} />}
+      />
     </Routes>
   );
 };
