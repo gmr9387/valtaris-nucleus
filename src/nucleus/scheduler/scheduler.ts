@@ -2,84 +2,81 @@
 // Unified constitutional scheduler for the entire Valtaris ecosystem.
 
 import { randomUUID } from "crypto";
+import { nucleusQueue } from "../queue/queueEngine";
+import { nucleusAudit } from "../audit/auditEngine";
+import { nucleusBilling } from "../billing/billingEngine";
 
 export type ScheduledTask = {
   id: string;
   org: string;
   subsystem: string;
-  type: string;
-  runAt: number; // timestamp
-  payload?: any;
+  name: string;
+  intervalMs: number;
+  payload: any;
   createdAt: number;
 };
 
 export class Scheduler {
-  private tasks: ScheduledTask[] = [];
-  private interval: NodeJS.Timeout | null = null;
+  private tasks: Map<string, ScheduledTask> = new Map();
+  private timers: Map<string, NodeJS.Timeout> = new Map();
 
-  constructor() {
-    this.start();
-  }
-
-  private start() {
-    if (this.interval) return;
-
-    // Check every second for due tasks.
-    this.interval = setInterval(() => {
-      const now = Date.now();
-
-      const due = this.tasks.filter((t) => t.runAt <= now);
-      if (due.length === 0) return;
-
-      // Remove due tasks from queue.
-      this.tasks = this.tasks.filter((t) => t.runAt > now);
-
-      // Execute due tasks.
-      for (const task of due) {
-        try {
-          this.execute(task);
-        } catch (err) {
-          console.error(`[Scheduler] Task execution error:`, err);
-        }
-      }
-    }, 1000);
-  }
-
-  schedule(
+  register(
     org: string,
     subsystem: string,
-    type: string,
-    runAt: number,
-    payload?: any
+    name: string,
+    intervalMs: number,
+    payload: any
   ) {
+    const id = randomUUID();
+
     const task: ScheduledTask = {
-      id: randomUUID(),
+      id,
       org,
       subsystem,
-      type,
-      runAt,
+      name,
+      intervalMs,
       payload,
       createdAt: Date.now(),
     };
 
-    this.tasks.push(task);
+    this.tasks.set(id, task);
+
+    console.log(`[SCHEDULER][${subsystem.toUpperCase()}] Registered: ${name}`);
+
+    const timer = setInterval(() => {
+      nucleusQueue.enqueue(org, subsystem, payload);
+    }, intervalMs);
+
+    this.timers.set(id, timer);
+
+    // Audit
+    nucleusAudit.log(
+      org,
+      subsystem,
+      `scheduler.${name}`,
+      "scheduler-engine",
+      { intervalMs, payload }
+    );
+
+    // Billing
+    nucleusBilling.recordEvent(
+      org,
+      subsystem,
+      `scheduler.${name}`,
+      1,
+      0.002, // $0.002 per scheduled cycle
+      { intervalMs }
+    );
+
     return task;
   }
 
-  private execute(task: ScheduledTask) {
-    const prefix = `[SCHEDULER][${task.subsystem.toUpperCase()}]`;
-    console.log(prefix, `Executing ${task.type}`, task.payload ?? "");
-
-    // Later: route into unified event bus.
-    // For now: emit console signal only.
-  }
-
-  getAll() {
-    return [...this.tasks];
-  }
-
   clear() {
-    this.tasks = [];
+    for (const timer of this.timers.values()) {
+      clearInterval(timer);
+    }
+    this.tasks.clear();
+    this.timers.clear();
   }
 }
 
