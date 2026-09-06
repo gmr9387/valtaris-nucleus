@@ -1,41 +1,57 @@
 // src/nucleus/telemetry/telemetry.ts
+// Unified telemetry spine for the entire Valtaris ecosystem.
 
-/**
- * Telemetry (Phase 14 — T1)
- *
- * Pure eventBus telemetry.
- * No console logs.
- * No sinks.
- * No managers.
- */
-
-import { eventBus } from "../events/eventBus";
+import { randomUUID } from "crypto";
 
 export type TelemetrySignal = {
+  id: string;
+  org: string;
   subsystem: string;
-  contract: string;
-  claimId: string;
-  organizationId: string;
+  type: string;
+  level: "info" | "warn" | "error";
+  message: string;
+  payload?: any;
   timestamp: number;
-  payload: Record<string, any>;
 };
 
-export function recordTelemetry(
-  subsystem: string,
-  contract: string,
-  claimId: string,
-  organizationId: string,
-  payload: Record<string, any>
-) {
-  const signal: TelemetrySignal = {
-    subsystem,
-    contract,
-    claimId,
-    organizationId,
-    timestamp: Date.now(),
-    payload,
-  };
+export class Telemetry {
+  private signals: TelemetrySignal[] = [];
 
-  eventBus.emit(`telemetry.${subsystem}.${contract}`, signal);
-  return signal;
+  emit(
+    org: string,
+    subsystem: string,
+    type: string,
+    level: "info" | "warn" | "error",
+    message: string,
+    payload?: any
+  ) {
+    const signal: TelemetrySignal = {
+      id: randomUUID(),
+      org,
+      subsystem,
+      type,
+      level,
+      message,
+      payload,
+      timestamp: Date.now(),
+    };
+
+    this.signals.push(signal);
+
+    // For now, print to console. Later: route to metrics system.
+    const prefix = `[${subsystem.toUpperCase()}][${level.toUpperCase()}]`;
+    console.log(prefix, message, payload ?? "");
+
+    return signal;
+  }
+
+  getAll() {
+    return [...this.signals];
+  }
+
+  clear() {
+    this.signals = [];
+  }
 }
+
+export const nucleusTelemetry = new Telemetry();
