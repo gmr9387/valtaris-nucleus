@@ -8,9 +8,8 @@ export type AuditRecord = {
   org: string;
   subsystem: string;
   action: string;
-  category: "pipeline" | "workflow" | "governance" | "payment" | "runtime" | "certification";
-  status: "success" | "failure";
-  details?: any;
+  actor: string; // user, service, subsystem
+  metadata?: any;
   timestamp: number;
 };
 
@@ -21,26 +20,23 @@ export class AuditEngine {
     org: string,
     subsystem: string,
     action: string,
-    category: AuditRecord["category"],
-    status: AuditRecord["status"],
-    details?: any
+    actor: string,
+    metadata?: any
   ) {
     const record: AuditRecord = {
       id: randomUUID(),
       org,
       subsystem,
       action,
-      category,
-      status,
-      details,
+      actor,
+      metadata,
       timestamp: Date.now(),
     };
 
     this.records.push(record);
 
-    // For now, print to console. Later: route to audit reports + proofs.
-    const prefix = `[AUDIT][${subsystem.toUpperCase()}][${status.toUpperCase()}]`;
-    console.log(prefix, action, details ?? "");
+    const prefix = `[AUDIT][${subsystem.toUpperCase()}]`;
+    console.log(prefix, `${action} by ${actor}`);
 
     return record;
   }
@@ -49,12 +45,20 @@ export class AuditEngine {
     return [...this.records];
   }
 
+  getByOrg(org: string) {
+    return this.records.filter((r) => r.org === org);
+  }
+
   getBySubsystem(subsystem: string) {
     return this.records.filter((r) => r.subsystem === subsystem);
   }
 
-  getByCategory(category: AuditRecord["category"]) {
-    return this.records.filter((r) => r.category === category);
+  getByActor(actor: string) {
+    return this.records.filter((r) => r.actor === actor);
+  }
+
+  getByAction(action: string) {
+    return this.records.filter((r) => r.action === action);
   }
 
   clear() {
