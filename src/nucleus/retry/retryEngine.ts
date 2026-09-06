@@ -2,98 +2,129 @@
 // Unified constitutional retry engine for the entire Valtaris ecosystem.
 
 import { randomUUID } from "crypto";
+import { nucleusAudit } from "../audit/auditEngine";
+import { nucleusBilling } from "../billing/billingEngine";
 
-export type RetryTask = {
+export type RetryPolicy = {
   id: string;
   org: string;
   subsystem: string;
-  type: string;
-  attempt: number;
+  name: string;
   maxAttempts: number;
-  delayMs: number;
-  payload?: any;
+  backoffMs: number;
+  jitterMs: number;
+  handler: () => Promise<boolean> | boolean;
   createdAt: number;
-  nextRunAt: number;
+};
+
+export type RetryAttempt = {
+  id: string;
+  policyId: string;
+  org: string;
+  subsystem: string;
+  name: string;
+  attempt: number;
+  success: boolean;
+  timestamp: number;
 };
 
 export class RetryEngine {
-  private tasks: RetryTask[] = [];
-  private interval: NodeJS.Timeout | null = null;
+  private policies: Map<string, RetryPolicy> = new Map();
+  private attempts: RetryAttempt[] = [];
 
-  constructor() {
-    this.start();
-  }
-
-  private start() {
-    if (this.interval) return;
-
-    // Check every second for due retry tasks.
-    this.interval = setInterval(() => {
-      const now = Date.now();
-
-      const due = this.tasks.filter((t) => t.nextRunAt <= now);
-      if (due.length === 0) return;
-
-      // Remove due tasks from queue.
-      this.tasks = this.tasks.filter((t) => t.nextRunAt > now);
-
-      // Execute due tasks.
-      for (const task of due) {
-        this.execute(task);
-      }
-    }, 1000);
-  }
-
-  scheduleRetry(
+  register(
     org: string,
     subsystem: string,
-    type: string,
+    name: string,
     maxAttempts: number,
-    delayMs: number,
-    payload?: any
+    backoffMs: number,
+    jitterMs: number,
+    handler: RetryPolicy["handler"]
   ) {
-    const task: RetryTask = {
-      id: randomUUID(),
+    const id = randomUUID();
+
+    const policy: RetryPolicy = {
+      id,
       org,
       subsystem,
-      type,
-      attempt: 1,
+      name,
       maxAttempts,
-      delayMs,
-      payload,
+      backoffMs,
+      jitterMs,
+      handler,
       createdAt: Date.now(),
-      nextRunAt: Date.now() + delayMs,
     };
 
-    this.tasks.push(task);
-    return task;
+    this.policies.set(id, policy);
+
+    console.log(`[RETRY][${subsystem.toUpperCase()}] Registered policy: ${name}`);
+
+    return policy;
   }
 
-  private execute(task: RetryTask) {
-    const prefix = `[RETRY][${task.subsystem.toUpperCase()}]`;
-    console.log(prefix, `Attempt ${task.attempt}/${task.maxAttempts}`, task.payload ?? "");
+  async execute(policyId: string) {
+    const policy = this.policies.get(policyId);
+    if (!policy) return null;
 
-    // Later: route into unified event bus.
-    // For now: console only.
+    for (let attempt = 1; attempt <= policy.maxAttempts; attempt++) {
+      const success = await policy.handler();
 
-    if (task.attempt < task.maxAttempts) {
-      // Reschedule
-      const nextTask: RetryTask = {
-        ...task,
-        attempt: task.attempt + 1,
-        nextRunAt: Date.now() + task.delayMs,
+      const record: RetryAttempt = {
+        id: randomUUID(),
+        policyId,
+        org: policy.org,
+        subsystem: policy.subsystem,
+        name: policy.name,
+        attempt,
+        success,
+        timestamp: Date.now(),
       };
 
-      this.tasks.push(nextTask);
+      this.attempts.push(record);
+
+      console.log(
+        `[RETRY][${policy.subsystem.toUpperCase()}] Attempt ${attempt} → ${success ? "SUCCESS" : "FAIL"}`
+      );
+
+      // Audit
+      nucleusAudit.log(
+        policy.org,
+        policy.subsystem,
+        `retry.${policy.name}`,
+        "retry-engine",
+        { attempt, success }
+      );
+
+      // Billing
+      nucleusBilling.recordEvent(
+        policy.org,
+        policy.subsystem,
+        `retry.${policy.name}`,
+        1,
+        0.001, // $0.001 per retry attempt
+        { attempt, success }
+      );
+
+      if (success) return true;
+
+      const jitter = Math.floor(Math.random() * policy.jitterMs);
+      await new Promise((res) => setTimeout(res, policy.backoffMs + jitter));
     }
+
+    return false;
   }
 
-  getAll() {
-    return [...this.tasks];
+  getPolicies() {
+    return [...this.policies.values()];
+  }
+
+  getAttempts() {
+    return [...this.attempts];
   }
 
   clear() {
-    this.tasks = [];
+    this.policies.clear();
+    this.attempts = [];
   }
 }
 
