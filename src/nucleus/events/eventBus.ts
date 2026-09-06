@@ -3,58 +3,79 @@
 
 import { randomUUID } from "crypto";
 
-export type NucleusEvent = {
+export type EventPayload = any;
+
+export type EventRecord = {
   id: string;
   org: string;
   subsystem: string;
   type: string;
-  version: string;
-  payload: any;
+  payload: EventPayload;
   timestamp: number;
 };
 
-export class EventBus {
-  private listeners: Map<string, ((event: NucleusEvent) => void)[]> = new Map();
+export type EventHandler = (event: EventRecord) => void;
 
-  emit(org: string, subsystem: string, type: string, version: string, payload: any) {
-    const event: NucleusEvent = {
+export class EventBus {
+  private handlers: Map<string, EventHandler[]> = new Map();
+  private events: EventRecord[] = [];
+
+  publish(org: string, subsystem: string, type: string, payload: EventPayload) {
+    const event: EventRecord = {
       id: randomUUID(),
       org,
       subsystem,
       type,
-      version,
       payload,
       timestamp: Date.now(),
     };
 
-    const key = `${subsystem}.${type}`;
-    const handlers = this.listeners.get(key);
+    this.events.push(event);
 
-    if (handlers) {
-      for (const handler of handlers) {
-        try {
-          handler(event);
-        } catch (err) {
-          console.error(`[EventBus] Handler error for ${key}:`, err);
-        }
+    const key = `${subsystem}.${type}`;
+    const handlers = this.handlers.get(key) || [];
+
+    const prefix = `[EVENT][${subsystem.toUpperCase()}]`;
+    console.log(prefix, `Published: ${type}`, payload ?? "");
+
+    for (const handler of handlers) {
+      try {
+        handler(event);
+      } catch (err) {
+        console.error(prefix, `Handler error for ${type}:`, err);
       }
     }
 
     return event;
   }
 
-  on(subsystem: string, type: string, handler: (event: NucleusEvent) => void) {
+  subscribe(subsystem: string, type: string, handler: EventHandler) {
     const key = `${subsystem}.${type}`;
 
-    if (!this.listeners.has(key)) {
-      this.listeners.set(key, []);
+    if (!this.handlers.has(key)) {
+      this.handlers.set(key, []);
     }
 
-    this.listeners.get(key)!.push(handler);
+    this.handlers.get(key)!.push(handler);
+
+    const prefix = `[EVENT][${subsystem.toUpperCase()}]`;
+    console.log(prefix, `Subscribed to: ${type}`);
+  }
+
+  getEvents() {
+    return [...this.events];
+  }
+
+  getEventsBySubsystem(subsystem: string) {
+    return this.events.filter((e) => e.subsystem === subsystem);
+  }
+
+  getEventsByType(type: string) {
+    return this.events.filter((e) => e.type === type);
   }
 
   clear() {
-    this.listeners.clear();
+    this.events = [];
   }
 }
 
