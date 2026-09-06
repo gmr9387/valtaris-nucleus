@@ -2,59 +2,117 @@
 // Unified constitutional diagnostics engine for the entire Valtaris ecosystem.
 
 import { randomUUID } from "crypto";
+import { nucleusAudit } from "../audit/auditEngine";
+import { nucleusBilling } from "../billing/billingEngine";
 
-export type DiagnosticRecord = {
+export type DiagnosticCheck = {
   id: string;
   org: string;
   subsystem: string;
-  check: string;
-  status: "pass" | "fail" | "warn";
-  details?: any;
+  name: string;
+  description: string;
+  run: () => Promise<boolean> | boolean;
+  createdAt: number;
+};
+
+export type DiagnosticResult = {
+  id: string;
+  checkId: string;
+  org: string;
+  subsystem: string;
+  name: string;
+  healthy: boolean;
   timestamp: number;
 };
 
 export class DiagnosticsEngine {
-  private records: DiagnosticRecord[] = [];
+  private checks: Map<string, DiagnosticCheck> = new Map();
+  private results: DiagnosticResult[] = [];
 
-  runCheck(
+  register(
     org: string,
     subsystem: string,
-    check: string,
-    status: DiagnosticRecord["status"],
-    details?: any
+    name: string,
+    description: string,
+    run: DiagnosticCheck["run"]
   ) {
-    const record: DiagnosticRecord = {
-      id: randomUUID(),
+    const id = randomUUID();
+
+    const check: DiagnosticCheck = {
+      id,
       org,
       subsystem,
-      check,
-      status,
-      details,
+      name,
+      description,
+      run,
+      createdAt: Date.now(),
+    };
+
+    this.checks.set(id, check);
+
+    console.log(`[DIAG][${subsystem.toUpperCase()}] Registered check: ${name}`);
+
+    return check;
+  }
+
+  async execute(checkId: string) {
+    const check = this.checks.get(checkId);
+    if (!check) {
+      console.error(`[DIAG] Check not found: ${checkId}`);
+      return null;
+    }
+
+    const healthy = await check.run();
+
+    const result: DiagnosticResult = {
+      id: randomUUID(),
+      checkId,
+      org: check.org,
+      subsystem: check.subsystem,
+      name: check.name,
+      healthy,
       timestamp: Date.now(),
     };
 
-    this.records.push(record);
+    this.results.push(result);
 
-    const prefix = `[DIAGNOSTICS][${subsystem.toUpperCase()}]`;
-    console.log(prefix, `${check} → ${status.toUpperCase()}`, details ?? "");
+    const prefix = `[DIAG][${check.subsystem.toUpperCase()}]`;
+    console.log(prefix, `${check.name} → ${healthy ? "HEALTHY" : "UNHEALTHY"}`);
 
-    return record;
+    // Audit
+    nucleusAudit.log(
+      check.org,
+      check.subsystem,
+      `diagnostics.${check.name}`,
+      "diagnostics-engine",
+      { healthy }
+    );
+
+    // Billing (diagnostic checks cost money)
+    nucleusBilling.recordEvent(
+      check.org,
+      check.subsystem,
+      `diagnostics.${check.name}`,
+      1,
+      0.001, // $0.001 per diagnostic check
+      { healthy }
+    );
+
+    return result;
   }
 
-  getAll() {
-    return [...this.records];
+  getChecks() {
+    return [...this.checks.values()];
   }
 
-  getBySubsystem(subsystem: string) {
-    return this.records.filter((r) => r.subsystem === subsystem);
-  }
-
-  getByStatus(status: DiagnosticRecord["status"]) {
-    return this.records.filter((r) => r.status === status);
+  getResults(checkId?: string) {
+    if (!checkId) return [...this.results];
+    return this.results.filter((r) => r.checkId === checkId);
   }
 
   clear() {
-    this.records = [];
+    this.checks.clear();
+    this.results = [];
   }
 }
 
