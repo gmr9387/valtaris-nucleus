@@ -2,85 +2,132 @@
 // Unified constitutional recovery engine for the entire Valtaris ecosystem.
 
 import { randomUUID } from "crypto";
+import { nucleusHealth } from "../health/healthEngine";
+import { nucleusAudit } from "../audit/auditEngine";
+import { nucleusBilling } from "../billing/billingEngine";
 
 export type RecoveryAction = {
   id: string;
   org: string;
   subsystem: string;
-  type: string;
-  reason: string;
-  payload?: any;
+  name: string;
+  description: string;
+  run: () => Promise<boolean> | boolean;
   createdAt: number;
-  executed: boolean;
+};
+
+export type RecoveryResult = {
+  id: string;
+  actionId: string;
+  org: string;
+  subsystem: string;
+  name: string;
+  success: boolean;
+  timestamp: number;
 };
 
 export class RecoveryEngine {
-  private actions: RecoveryAction[] = [];
+  private actions: Map<string, RecoveryAction> = new Map();
+  private results: RecoveryResult[] = [];
 
   register(
     org: string,
     subsystem: string,
-    type: string,
-    reason: string,
-    payload?: any
+    name: string,
+    description: string,
+    run: RecoveryAction["run"]
   ) {
+    const id = randomUUID();
+
     const action: RecoveryAction = {
-      id: randomUUID(),
+      id,
       org,
       subsystem,
-      type,
-      reason,
-      payload,
+      name,
+      description,
+      run,
       createdAt: Date.now(),
-      executed: false,
     };
 
-    this.actions.push(action);
+    this.actions.set(id, action);
+
+    console.log(`[RECOVERY][${subsystem.toUpperCase()}] Registered action: ${name}`);
+
     return action;
   }
 
-  execute(actionId: string) {
-    const action = this.actions.find((a) => a.id === actionId);
-    if (!action) {
-      console.error(`[Recovery] No action found for ID ${actionId}`);
+  async attemptRecovery(org: string, subsystem: string) {
+    const health = await nucleusHealth.check(org, subsystem);
+
+    if (health.status === "healthy") {
+      console.log(`[RECOVERY][${subsystem.toUpperCase()}] No recovery needed`);
       return null;
     }
 
-    if (action.executed) {
-      console.log(`[Recovery] Action ${actionId} already executed.`);
-      return action;
+    const actions = [...this.actions.values()].filter(
+      (a) => a.org === org && a.subsystem === subsystem
+    );
+
+    let success = false;
+
+    for (const action of actions) {
+      const result = await action.run();
+
+      const record: RecoveryResult = {
+        id: randomUUID(),
+        actionId: action.id,
+        org,
+        subsystem,
+        name: action.name,
+        success: result,
+        timestamp: Date.now(),
+      };
+
+      this.results.push(record);
+
+      console.log(
+        `[RECOVERY][${subsystem.toUpperCase()}] Action ${action.name} → ${result ? "SUCCESS" : "FAIL"}`
+      );
+
+      // Audit
+      nucleusAudit.log(
+        org,
+        subsystem,
+        `recovery.${action.name}`,
+        "recovery-engine",
+        { success: result }
+      );
+
+      // Billing (recovery attempts cost money)
+      nucleusBilling.recordEvent(
+        org,
+        subsystem,
+        `recovery.${action.name}`,
+        1,
+        0.004, // $0.004 per recovery attempt
+        { success: result }
+      );
+
+      if (result) {
+        success = true;
+        break;
+      }
     }
 
-    const prefix = `[RECOVERY][${action.subsystem.toUpperCase()}]`;
-    console.log(prefix, `Recovering from: ${action.reason}`, action.payload ?? "");
-
-    // Later: route into unified event bus.
-    // For now: console only.
-
-    action.executed = true;
-    return action;
+    return success;
   }
 
-  executeAllPending() {
-    const pending = this.actions.filter((a) => !a.executed);
-
-    for (const action of pending) {
-      this.execute(action.id);
-    }
-
-    return pending;
+  getActions() {
+    return [...this.actions.values()];
   }
 
-  getAll() {
-    return [...this.actions];
-  }
-
-  getPending() {
-    return this.actions.filter((a) => !a.executed);
+  getResults() {
+    return [...this.results];
   }
 
   clear() {
-    this.actions = [];
+    this.actions.clear();
+    this.results = [];
   }
 }
 
