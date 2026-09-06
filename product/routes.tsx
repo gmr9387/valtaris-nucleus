@@ -12,6 +12,8 @@ import { Settings } from "./pages/Settings";
 import { Login } from "./pages/Login";
 import { Org } from "./pages/Org";
 
+import { AdminPage } from "./admin/AdminPage";
+
 import { useSession } from "./auth/SessionProvider";
 
 const navItems = [
@@ -21,7 +23,8 @@ const navItems = [
   { id: "monitoring", label: "Monitoring" },
   { id: "security", label: "Security" },
   { id: "identity", label: "Identity" },
-  { id: "settings", label: "Settings" }
+  { id: "settings", label: "Settings" },
+  { id: "admin", label: "Admin" }
 ];
 
 export const AppRoutes = () => {
@@ -61,6 +64,10 @@ export const AppRoutes = () => {
       <Route
         path="/settings"
         element={<Settings navItems={navItems} active={active} onSelect={setActive} />}
+      />
+      <Route
+        path="/admin"
+        element={<AdminPage />}
       />
     </Routes>
   );
