@@ -1,37 +1,68 @@
-// Phase 23 — State Store
+// src/nucleus/state/stateStore.ts
+// Unified constitutional state store for the entire Valtaris ecosystem.
 
-import { ResourceState } from "../resources/resourceState";
-import { LineageEntry } from "../lineage/lineageEntry";
-import { TelemetryEntry } from "../telemetry/telemetryEntry";
+import { randomUUID } from "crypto";
+
+export type StateRecord = {
+  id: string;
+  org: string;
+  subsystem: string;
+  key: string;
+  value: any;
+  version: number;
+  updatedAt: number;
+};
 
 export class StateStore {
-  private resources: ResourceState[] = [];
-  private lineage: LineageEntry[] = [];
-  private telemetry: TelemetryEntry[] = [];
+  private store: Map<string, StateRecord> = new Map();
 
-  addResource(resource: ResourceState) {
-    this.resources.push(resource);
+  private makeKey(org: string, subsystem: string, key: string) {
+    return `${org}.${subsystem}.${key}`;
   }
 
-  addLineage(entry: LineageEntry) {
-    this.lineage.push(entry);
+  set(org: string, subsystem: string, key: string, value: any) {
+    const compositeKey = this.makeKey(org, subsystem, key);
+
+    const existing = this.store.get(compositeKey);
+
+    const record: StateRecord = {
+      id: existing?.id ?? randomUUID(),
+      org,
+      subsystem,
+      key,
+      value,
+      version: existing ? existing.version + 1 : 1,
+      updatedAt: Date.now(),
+    };
+
+    this.store.set(compositeKey, record);
+    return record;
   }
 
-  addTelemetry(entry: TelemetryEntry) {
-    this.telemetry.push(entry);
+  get(org: string, subsystem: string, key: string) {
+    const compositeKey = this.makeKey(org, subsystem, key);
+    return this.store.get(compositeKey) ?? null;
   }
 
-  getResources() {
-    return [...this.resources];
+  delete(org: string, subsystem: string, key: string) {
+    const compositeKey = this.makeKey(org, subsystem, key);
+    return this.store.delete(compositeKey);
   }
 
-  getLineage() {
-    return [...this.lineage];
+  getAllForSubsystem(org: string, subsystem: string) {
+    const prefix = `${org}.${subsystem}.`;
+    return [...this.store.values()].filter((r) =>
+      r.id.startsWith(prefix)
+    );
   }
 
-  getTelemetry() {
-    return [...this.telemetry];
+  getAll() {
+    return [...this.store.values()];
+  }
+
+  clear() {
+    this.store.clear();
   }
 }
 
-export const stateStore = new StateStore();
+export const nucleusState = new StateStore();
