@@ -14,6 +14,7 @@ import { Org } from "./pages/Org";
 
 import { AdminPage } from "./admin/AdminPage";
 import { AnalyticsPage } from "./analytics/AnalyticsPage";
+import { ExtensionsPage } from "./extensions/ExtensionsPage";
 
 import { useSession } from "./auth/SessionProvider";
 
@@ -26,7 +27,8 @@ const navItems = [
   { id: "identity", label: "Identity" },
   { id: "settings", label: "Settings" },
   { id: "admin", label: "Admin" },
-  { id: "analytics", label: "Analytics" }
+  { id: "analytics", label: "Analytics" },
+  { id: "extensions", label: "Extensions" }
 ];
 
 export const AppRoutes = () => {
@@ -74,6 +76,10 @@ export const AppRoutes = () => {
       <Route
         path="/analytics"
         element={<AnalyticsPage />}
+      />
+      <Route
+        path="/extensions"
+        element={<ExtensionsPage />}
       />
     </Routes>
   );
