@@ -16,6 +16,7 @@ import { AdminPage } from "./admin/AdminPage";
 import { AnalyticsPage } from "./analytics/AnalyticsPage";
 import { ExtensionsPage } from "./extensions/ExtensionsPage";
 import { SDKDemo } from "./pages/SDKDemo";
+import { MarketplacePage } from "./marketplace/MarketplacePage";
 
 import { useSession } from "./auth/SessionProvider";
 
@@ -30,7 +31,8 @@ const navItems = [
   { id: "admin", label: "Admin" },
   { id: "analytics", label: "Analytics" },
   { id: "extensions", label: "Extensions" },
-  { id: "sdk", label: "SDK" }
+  { id: "sdk", label: "SDK" },
+  { id: "marketplace", label: "Marketplace" }
 ];
 
 export const AppRoutes = () => {
@@ -86,6 +88,10 @@ export const AppRoutes = () => {
       <Route
         path="/sdk"
         element={<SDKDemo />}
+      />
+      <Route
+        path="/marketplace"
+        element={<MarketplacePage />}
       />
     </Routes>
   );
