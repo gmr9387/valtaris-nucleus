@@ -21,6 +21,7 @@ import { PacksPage } from "./workflowpacks/PacksPage";
 import { MonitorPage } from "./monitorpacks/MonitorPage";
 import { SecurityPage } from "./securitypacks/SecurityPage";
 import { IdentityPage as IdentityPacksPage } from "./identitypacks/IdentityPage";
+import { AuditPage } from "./audit/AuditPage";
 
 import { useSession } from "./auth/SessionProvider";
 
@@ -40,7 +41,8 @@ const navItems = [
   { id: "workflowpacks", label: "Workflow Packs" },
   { id: "monitorpacks", label: "Monitoring Packs" },
   { id: "securitypacks", label: "Security Packs" },
-  { id: "identitypacks", label: "Identity Packs" }
+  { id: "identitypacks", label: "Identity Packs" },
+  { id: "audit", label: "Audit Logs" }
 ];
 
 export const AppRoutes = () => {
@@ -116,6 +118,10 @@ export const AppRoutes = () => {
       <Route
         path="/identitypacks"
         element={<IdentityPacksPage />}
+      />
+      <Route
+        path="/audit"
+        element={<AuditPage />}
       />
     </Routes>
   );
