@@ -1,35 +1,83 @@
-// src/lib/workflows/runtime.ts
-// Full file swap — Phase 14 unified workflow → Nucleus execution path
+import { NucleusWorkflowAdapter } from "../../nucleus/workflows/NucleusWorkflowAdapter";
 
-import { NucleusWorkflowAdapter } from "../../nucleus/workflows/nucleusWorkflowAdapter";
+const adapter = new NucleusWorkflowAdapter();
 
-export async function startWorkflow(workflow: any, organizationId: string) {
-  const adapter = new NucleusWorkflowAdapter(
-    organizationId,
-    process.env.VITE_NUCLEUS_SUPABASE_URL!,
-    process.env.VITE_NUCLEUS_SUPABASE_ANON_KEY!
-  );
+/**
+ * Start a workflow run
+ */
+export async function startWorkflow(params: {
+  organizationId: string;
+  workflowId: string;
+  input: any;
+}) {
+  return adapter.startWorkflow(params);
+}
 
-  const results: any[] = [];
+/**
+ * Complete a workflow run
+ */
+export async function completeWorkflow(params: {
+  organizationId: string;
+  runId: string;
+  output: any;
+}) {
+  return adapter.completeWorkflow(params);
+}
 
-  for (const step of workflow.steps) {
-    const event = {
-      type: step.type,
-      version: step.version,
-      payload: {
-        ...step.payload,
-        organizationId,
-      },
-    };
+/**
+ * Fail a workflow run
+ */
+export async function failWorkflow(params: {
+  organizationId: string;
+  runId: string;
+  reason: string;
+}) {
+  return adapter.failWorkflow(params);
+}
 
-    const lineage = await adapter.handleWorkflowEvent(event);
-    results.push(lineage);
-  }
+/**
+ * Cancel a workflow run
+ */
+export async function cancelWorkflow(params: {
+  organizationId: string;
+  runId: string;
+  reason?: string;
+}) {
+  return adapter.cancelWorkflow(params);
+}
 
-  return {
-    ok: true,
-    workflowId: workflow.id,
-    steps: workflow.steps.length,
-    lineage: results,
-  };
+/**
+ * Start a workflow step
+ */
+export async function startStep(params: {
+  organizationId: string;
+  runId: string;
+  stepId: string;
+  input: any;
+}) {
+  return adapter.startStep(params);
+}
+
+/**
+ * Complete a workflow step
+ */
+export async function completeStep(params: {
+  organizationId: string;
+  runId: string;
+  stepId: string;
+  output: any;
+}) {
+  return adapter.completeStep(params);
+}
+
+/**
+ * Fail a workflow step
+ */
+export async function failStep(params: {
+  organizationId: string;
+  runId: string;
+  stepId: string;
+  reason: string;
+}) {
+  return adapter.failStep(params);
 }
