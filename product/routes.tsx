@@ -19,6 +19,7 @@ import { SDKDemo } from "./pages/SDKDemo";
 import { MarketplacePage } from "./marketplace/MarketplacePage";
 import { PacksPage } from "./workflowpacks/PacksPage";
 import { MonitorPage } from "./monitorpacks/MonitorPage";
+import { SecurityPage } from "./securitypacks/SecurityPage";
 
 import { useSession } from "./auth/SessionProvider";
 
@@ -36,7 +37,8 @@ const navItems = [
   { id: "sdk", label: "SDK" },
   { id: "marketplace", label: "Marketplace" },
   { id: "workflowpacks", label: "Workflow Packs" },
-  { id: "monitorpacks", label: "Monitoring Packs" }
+  { id: "monitorpacks", label: "Monitoring Packs" },
+  { id: "securitypacks", label: "Security Packs" }
 ];
 
 export const AppRoutes = () => {
@@ -104,6 +106,10 @@ export const AppRoutes = () => {
       <Route
         path="/monitorpacks"
         element={<MonitorPage />}
+      />
+      <Route
+        path="/securitypacks"
+        element={<SecurityPage />}
       />
     </Routes>
   );
