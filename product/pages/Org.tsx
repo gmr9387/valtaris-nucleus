@@ -1,9 +1,11 @@
 import React from "react";
+import { OrgSwitcher } from "../org/OrgSwitcher";
 
 export const Org = () => {
   return (
     <div style={{ padding: 40 }}>
-      <div>Select Organization</div>
+      <h1>Select Organization</h1>
+      <OrgSwitcher />
     </div>
   );
 };
