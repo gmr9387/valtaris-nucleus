@@ -20,6 +20,7 @@ import { MarketplacePage } from "./marketplace/MarketplacePage";
 import { PacksPage } from "./workflowpacks/PacksPage";
 import { MonitorPage } from "./monitorpacks/MonitorPage";
 import { SecurityPage } from "./securitypacks/SecurityPage";
+import { IdentityPage as IdentityPacksPage } from "./identitypacks/IdentityPage";
 
 import { useSession } from "./auth/SessionProvider";
 
@@ -38,7 +39,8 @@ const navItems = [
   { id: "marketplace", label: "Marketplace" },
   { id: "workflowpacks", label: "Workflow Packs" },
   { id: "monitorpacks", label: "Monitoring Packs" },
-  { id: "securitypacks", label: "Security Packs" }
+  { id: "securitypacks", label: "Security Packs" },
+  { id: "identitypacks", label: "Identity Packs" }
 ];
 
 export const AppRoutes = () => {
@@ -110,6 +112,10 @@ export const AppRoutes = () => {
       <Route
         path="/securitypacks"
         element={<SecurityPage />}
+      />
+      <Route
+        path="/identitypacks"
+        element={<IdentityPacksPage />}
       />
     </Routes>
   );
