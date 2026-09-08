@@ -4,7 +4,7 @@
 
 alter table opportunity enable row level security;
 alter table recommendation enable row level security;
-alter table authorization enable row level security;
+alter table authorization_contract enable row level security;
 alter table execution enable row level security;
 alter table payment enable row level security;
 
@@ -26,7 +26,7 @@ create policy "org-isolation-recommendation"
   with check (organization_id = auth.jwt()->>'organization_id');
 
 create policy "org-isolation-authorization"
-  on authorization
+  on authorization_contract
   for select using (auth.uid() is not null and organization_id = auth.jwt()->>'organization_id')
   with check (organization_id = auth.jwt()->>'organization_id');
 
