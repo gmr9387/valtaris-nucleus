@@ -1,14 +1,7 @@
-// valtaris-nucleus/src/nucleus/integrations/runtime.ts
-
-/**
- * Integration Runtime
- * -------------------
- * This file previously referenced masterBoot.ts, which no longer exists.
- * The correct boot surface is nucleusBoot.ts inside the runtime directory.
- */
+// src/nucleus/integrations/runtime.ts
 
 import { nucleusBoot } from "../runtime/nucleusBoot";
 
-export function startIntegrationRuntime() {
-  return nucleusBoot();
+export function startIntegrationRuntime(subsystem: string, organizationId: string) {
+  return nucleusBoot(subsystem, organizationId);
 }
