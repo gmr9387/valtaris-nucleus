@@ -5,10 +5,10 @@ import { APIController } from "./apiController";
 
 const router = express.Router();
 
-/**
- * POST /claim
- * External orgs submit claims here.
- */
+router.get("/health", (_req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 router.post("/claim", APIController.submitClaim);
 
 export { router as APIRouter };
