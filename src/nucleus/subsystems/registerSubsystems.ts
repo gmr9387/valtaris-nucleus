@@ -1,17 +1,14 @@
-// valtaris-nucleus/src/nucleus/subsystems/registerSubsystems.ts
+// src/nucleus/subsystems/registerSubsystems.ts
 
 import { registerSubsystem } from "./subsystemRegistry";
 
 import { GuardianRuntime } from "./guardian/guardianRuntime";
 import { GlueRuntime } from "./glue/glueRuntime";
 import { WeaverRuntime } from "./weaver/weaverRuntime";
-import { DualPayRuntime } from "./dualpay/dualpayRuntime";
+import { DualPayRuntime } from "./dualpay/dualPayRuntime";
 import { ContractsRuntime } from "./contracts/contractsRuntime";
+import { TelemetryRuntime } from "./telemetry/telemetryRuntime";
 
-/**
- * Authoritative subsystem registration.
- * Called during Nucleus boot.
- */
 export function registerAllSubsystems() {
   registerSubsystem({
     id: "guardian",
@@ -46,5 +43,12 @@ export function registerAllSubsystems() {
     label: "DualPay Payment Intelligence",
     enabled: true,
     runtime: DualPayRuntime,
+  });
+
+  registerSubsystem({
+    id: "telemetry",
+    label: "Telemetry Subsystem",
+    enabled: true,
+    runtime: TelemetryRuntime,
   });
 }
