@@ -4,20 +4,21 @@
   "description": "Valtaris Nucleus — Constitutional Runtime for Workflow-Driven Systems",
   "license": "MIT",
   "type": "module",
-
   "scripts": {
     "dev": "bun server.ts",
     "start": "bun server.ts",
     "nucleus": "bun nucleus",
     "build": "tsc -p tsconfig.json",
     "lint": "eslint . --ext .ts,.tsx",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "test": "vitest run",
+    "ci": "ts-node src/nucleus/ci/runCI.ts",
+    "shell": "ts-node src/nucleus/shell/shell.ts",
+    "dashboard": "ts-node src/nucleus/dashboard/startDashboard.ts"
   },
-
   "bin": {
     "nucleus": "./nucleus"
   },
-
   "dependencies": {
     "express": "^4.19.2",
     "cors": "^2.8.5",
@@ -26,29 +27,11 @@
     "uuid": "^9.0.1",
     "@supabase/supabase-js": "^2.45.0"
   },
-
   "devDependencies": {
     "typescript": "^5.6.3",
     "ts-node": "^10.9.2",
     "eslint": "^9.11.0",
-    "prettier": "^3.3.3"
-  }
-}
-
-{
-  "scripts": {
-    "ci": "ts-node src/nucleus/ci/runCI.ts"
-  }
-}
-
-{
-  "scripts": {
-    "shell": "ts-node src/nucleus/shell/shell.ts"
-  }
-}
-
-{
-  "scripts": {
-    "dashboard": "ts-node src/nucleus/dashboard/startDashboard.ts"
+    "prettier": "^3.3.3",
+    "vitest": "^2.0.0"
   }
 }
