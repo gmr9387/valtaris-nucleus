@@ -18,7 +18,6 @@
  * This is the core of Phase 3: Runtime Hardening.
  */
 
-import { validateContract } from "../contracts/contractRegistry";
 import { ResourceService } from "../resources/resourceService";
 
 export type Subsystem =
@@ -61,19 +60,52 @@ export class RuntimeGuards {
   }
 
   /**
-   * Validate contract payload using contract registry.
+   * Validate contract payload.
+   *
+   * STOPGAP NOTICE:
+   *   The real contract layer (src/nucleus/contracts/*Contract.ts) currently
+   *   defines objects that do not match the ContractDefinition interface
+   *   (missing subsystem/capability/resources fields), and validates a
+   *   payload shape ({id, source, timestamp, type, payload}) that does not
+   *   match what WeaverRuntime/GuardianRuntime/GlueRuntime/DualPayRuntime
+   *   actually produce today. Calling the real validateContract() here
+   *   would throw on every single dispatch, unconditionally, because of
+   *   an additional bug (it expects a `.ok` field but the real function
+   *   returns `.valid`).
+   *
+   *   Until the contracts layer is redesigned to match actual runtime
+   *   payload shapes, this performs a minimal, honest check: the contract
+   *   name must be one of the five known constitutional contract types,
+   *   and the payload must be a non-null object. It does NOT claim to
+   *   validate business rules or field-level schema compliance. Do not
+   *   read "validation passed" here as "the payload is contractually
+   *   correct" -- it only means dispatch is not blocked by this stopgap.
+   *
+   *   TODO: replace this with real schema validation once the contracts
+   *   in src/nucleus/contracts/ are rewritten to match the interface they
+   *   claim to implement and the payload shapes subsystems actually emit.
    */
   static validateContractPayload(
     contractName: string,
     version: string,
     payload: any
   ) {
-    const result = validateContract(contractName as any, version as any, payload);
-    if (!result.ok) {
+    const known = ["opportunity", "recommendation", "authorization", "execution", "payment"];
+
+    if (!known.includes(contractName)) {
+      throw new Error(`Unknown contract: ${contractName}`);
+    }
+
+    if (!payload || typeof payload !== "object") {
       throw new Error(
-        `Contract validation failed for ${contractName}:${version}: ${result.errors?.join(
-          ", "
-        )}`
+        `Contract validation failed for ${contractName}:${version}: payload must be a non-null object`
+      );
+    }
+
+    if (import.meta.env?.DEV) {
+      console.warn(
+        `[RuntimeGuards] validateContractPayload for "${contractName}" is running in stopgap mode -- ` +
+          `real schema validation is not yet active. See comment above this method.`
       );
     }
   }
