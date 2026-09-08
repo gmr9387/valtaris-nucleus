@@ -107,7 +107,11 @@ function RunDetailPage() {
                   <button
                     onClick={() =>
                       withBusy(async () => {
-                        await completeWorkflow(orgId!, r.id);
+                        await completeWorkflow({
+                          organizationId: orgId!,
+                          runId: r.id,
+                          output: null,
+                        });
                         await invalidate();
                       })
                     }
@@ -120,7 +124,11 @@ function RunDetailPage() {
                   <button
                     onClick={() =>
                       withBusy(async () => {
-                        await failWorkflow(orgId!, r.id, { message: "Marked failed from console" });
+                        await failWorkflow({
+                          organizationId: orgId!,
+                          runId: r.id,
+                          reason: "Marked failed from console",
+                        });
                         await invalidate();
                       })
                     }
@@ -135,7 +143,11 @@ function RunDetailPage() {
                   <button
                     onClick={() =>
                       withBusy(async () => {
-                        await cancelWorkflow(orgId!, r.id, "Cancelled from console");
+                        await cancelWorkflow({
+                          organizationId: orgId!,
+                          runId: r.id,
+                          reason: "Cancelled from console",
+                        });
                         await invalidate();
                       })
                     }
@@ -180,7 +192,12 @@ function RunDetailPage() {
                     disabled={busy || !stepKey.trim()}
                     onClick={() =>
                       withBusy(async () => {
-                        await startStep({ run_id: r.id, step_key: stepKey.trim() });
+                        await startStep({
+                          organizationId: orgId!,
+                          runId: r.id,
+                          stepId: stepKey.trim(),
+                          input: null,
+                        });
                         setStepKey("");
                         await invalidate();
                       })
@@ -218,7 +235,12 @@ function RunDetailPage() {
                             disabled={busy}
                             onClick={() =>
                               withBusy(async () => {
-                                await completeStep({ run_id: r.id, step_key: s.step_key });
+                                await completeStep({
+                                  organizationId: orgId!,
+                                  runId: r.id,
+                                  stepId: s.step_key,
+                                  output: null,
+                                });
                                 await invalidate();
                               })
                             }
@@ -231,9 +253,10 @@ function RunDetailPage() {
                             onClick={() =>
                               withBusy(async () => {
                                 await failStep({
-                                  run_id: r.id,
-                                  step_key: s.step_key,
-                                  error: { message: "Marked failed" },
+                                  organizationId: orgId!,
+                                  runId: r.id,
+                                  stepId: s.step_key,
+                                  reason: "Marked failed",
                                 });
                                 await invalidate();
                               })
