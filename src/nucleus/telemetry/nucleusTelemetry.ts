@@ -1,7 +1,11 @@
 // src/nucleus/telemetry/nucleusTelemetry.ts
 // Full file swap — Nucleus Telemetry Engine
 
-import { NucleusDBBridge } from "../db/nucleusDbBridge";
+// FIXED: real file is "nucleusDBBridge.ts" (capital DB). This imported
+// "nucleusDbBridge" (lowercase b) -- resolves fine on case-insensitive
+// filesystems (Mac/Windows dev machines) but fails on Linux/CI/prod.
+// Confirmed by actually running the boot chain, not just compiling it.
+import { NucleusDBBridge } from "../db/nucleusDBBridge";
 
 export type TelemetryLevel = "info" | "warn" | "error" | "debug";
 
