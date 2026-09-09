@@ -3,7 +3,10 @@
 import { NucleusIdentity } from "../identity/nucleusIdentity";
 import { eventSimulation } from "../simulation/eventSimulation";
 import { contractSimulation } from "../simulation/contractSimulation";
-import { stateEngine } from "../state/stateEngine";
+// FIXED: real export is "nucleusState", not "stateEngine". Confirmed
+// by actually running the boot chain -- this threw a SyntaxError at
+// import time, not just a runtime error.
+import { nucleusState } from "../state/stateEngine";
 
 export abstract class SubsystemRuntime {
   constructor(public subsystem: NucleusIdentity["subsystem"]) {}
@@ -29,7 +32,13 @@ export abstract class SubsystemRuntime {
       { identity: { ...identity, subsystem: this.subsystem }, simulated: true }
     );
 
-    stateEngine.applyEvent(event);
+    // FIXED: StateEngine has no applyEvent() method, only
+    // set(org, subsystem, key, value). Using tenantId as the org
+    // identifier here since that's the field NucleusIdentity/NucleusEvent
+    // actually carries (not organizationId, which is used elsewhere in
+    // the codebase -- these two naming conventions coexist and haven't
+    // been reconciled; flagging rather than silently picking one).
+    nucleusState.set(identity.tenantId, this.subsystem, type, event);
     return event;
   }
 
@@ -46,7 +55,7 @@ export abstract class SubsystemRuntime {
       { identity: { ...identity, subsystem: this.subsystem }, simulated: true }
     );
 
-    stateEngine.applyEvent(event);
+    nucleusState.set(identity.tenantId, this.subsystem, name, event);
     return event;
   }
 }
