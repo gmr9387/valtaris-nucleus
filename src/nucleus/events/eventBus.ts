@@ -58,18 +58,28 @@ export class EventBus {
    * "eventBus.emit is not a function" on the very first call
    * without this.
    *
-   * Every real call site uses a type string shaped like
-   * "{subsystem}.{event}.{qualifier}" (e.g. "weaver.opportunity.processed")
-   * and a payload that carries organizationId. This shim infers
-   * subsystem and org from that existing convention and forwards
-   * to publish(), rather than requiring six call sites to be
-   * rewritten to a four-argument signature they were never written
-   * against.
+   * UPDATED: a second calling convention was found while tracing the
+   * boot chain further -- eventSimulation.ts calls
+   * eventBus.emit(event) with a single pre-built NucleusEvent object
+   * ({type, source, context: {tenantId, ...}, payload}), not
+   * (type, payload). This now detects which shape it was called with
+   * rather than assuming one.
    */
-  emit(type: string, payload: EventPayload) {
-    const subsystem = type.split(".")[0] || "unknown";
-    const org = payload?.organizationId ?? "unknown";
-    return this.publish(org, subsystem, type, payload);
+  emit(typeOrEvent: string | EventRecord, maybePayload?: EventPayload) {
+    if (typeof typeOrEvent === "string") {
+      const type = typeOrEvent;
+      const payload = maybePayload;
+      const subsystem = type.split(".")[0] || "unknown";
+      const org = payload?.organizationId ?? "unknown";
+      return this.publish(org, subsystem, type, payload);
+    }
+
+    // Single pre-built event object (e.g. a NucleusEvent from
+    // eventSimulation.ts): { type, source, context: { tenantId }, payload }
+    const event = typeOrEvent as any;
+    const subsystem = event.source ?? event.subsystem ?? "unknown";
+    const org = event.context?.tenantId ?? event.organizationId ?? "unknown";
+    return this.publish(org, subsystem, event.type, event.payload);
   }
 
   subscribe(subsystem: string, type: string, handler: EventHandler) {
