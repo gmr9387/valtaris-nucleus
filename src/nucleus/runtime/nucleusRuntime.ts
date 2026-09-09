@@ -24,15 +24,17 @@ export class NucleusRuntime {
     // is an instance method on the nucleusState singleton, not the class.
     nucleusState.set(this.organizationId, this.subsystem, "boot", "ok");
 
-    // FIXED: TelemetryEngine.record() does not exist under any name.
-    // The real method is recordEvent(), and it lives on the nucleusTelemetry
-    // singleton instance, not as a static on the class.
-    nucleusTelemetry.recordEvent({
-      organizationId: this.organizationId,
-      subsystem: this.subsystem,
-      type: "runtime.boot",
-      payload: { subsystem: this.subsystem, organizationId: this.organizationId },
-    });
+    // FIXED (self-correction): recordEvent() takes four positional
+    // arguments (org, subsystem, type, payload) -- it was called here
+    // with a single object, which left `subsystem` undefined inside
+    // recordEvent() and crashed on subsystem.toUpperCase(). Caught by
+    // actually running the boot chain, not by inspection.
+    nucleusTelemetry.recordEvent(
+      this.organizationId,
+      this.subsystem,
+      "runtime.boot",
+      { subsystem: this.subsystem, organizationId: this.organizationId }
+    );
 
     // FIXED: eventBus.publish() requires four positional arguments
     // (org, subsystem, type, payload) -- it was being called with a
