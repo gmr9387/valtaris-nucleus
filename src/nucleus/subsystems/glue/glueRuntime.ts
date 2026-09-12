@@ -13,22 +13,32 @@ export class GlueRuntime {
   }
 
   private static handleExecution(payload: any) {
-    const { authorization, recommendation } = payload;
+    const { authorization } = payload;
 
     const decision = authorization?.decision ?? "deny";
-    const action = recommendation?.action ?? "review";
-    const confidence = recommendation?.confidence ?? 0;
 
+    // FIXED: previously also gated on recommendation.action !== "deny"
+    // and recommendation.confidence >= 0.3. Both values are hardcoded
+    // constants in weaverRuntime.ts ("approve" and 0.7, always) --
+    // neither can ever fail this check today, so it looked like a real
+    // secondary safety gate while providing zero actual signal.
+    //
+    // Guardian's authorization.decision is the only real signal in the
+    // pipeline right now (it reflects actual adjudication against real
+    // member accumulator data). Gating on it alone is honest about what
+    // this system currently verifies.
+    //
+    // TODO: once Weaver's opportunity/recommendation scoring is based on
+    // real claim risk signals instead of hardcoded values, reintroduce a
+    // real confidence-based gate here -- don't just restore the old
+    // condition, since the old thresholds (0.3) were never validated
+    // against anything real either.
     let status = "skipped";
     let reason = "Authorization denied";
 
     if (decision === "allow") {
-      if (action !== "deny" && confidence >= 0.3) {
-        status = "executed";
-        reason = "Execution allowed";
-      } else {
-        reason = "Weaver confidence insufficient";
-      }
+      status = "executed";
+      reason = "Execution allowed";
     }
 
     const result = {
