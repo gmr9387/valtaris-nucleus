@@ -3,10 +3,6 @@
 import { eventBus } from "../events/eventBus";
 import { nucleusState } from "../state/stateEngine";
 import { nucleusTelemetry } from "../telemetry/telemetryEngine";
-import { weaverRuntime } from "../subsystems/weaverRuntime";
-import { guardianRuntime } from "../subsystems/guardianRuntime";
-import { glueRuntime } from "../subsystems/glueRuntime";
-import { dualpayRuntime } from "../subsystems/dualpayRuntime";
 
 export class NucleusRuntime {
   private subsystem: string;
@@ -45,27 +41,14 @@ export class NucleusRuntime {
     });
   }
 
-  // RESTORED: removed in the last rewrite, but 32+ files under
-  // verification/, activation/, orchestration/, certification/,
-  // audit/, and stress/ call nucleus.weaver.discover(),
-  // nucleus.guardian.authorize(), nucleus.glue.bind(),
-  // nucleus.dualpay.charge(), etc. Without these accessors every
-  // one of those files throws "Cannot read properties of undefined".
-  get weaver() {
-    return weaverRuntime;
-  }
-
-  get guardian() {
-    return guardianRuntime;
-  }
-
-  get glue() {
-    return glueRuntime;
-  }
-
-  get dualpay() {
-    return dualpayRuntime;
-  }
+  // REMOVED: weaver/guardian/glue/dualpay accessors and their backing
+  // files (subsystems/weaverRuntime.ts, guardianRuntime.ts, glueRuntime.ts,
+  // dualpayRuntime.ts, subsystemRuntime.ts, subsystems/index.ts) were
+  // deleted -- their only real callers were the 20 orphaned diagnostic
+  // files under verification/, certification/, audit/, stress/, and
+  // orchestration/, which were also deleted. Confirmed by grep across
+  // the full codebase that nothing outside this file referenced these
+  // accessors once those 20 files were gone.
 }
 
 // Legacy singleton compatibility
