@@ -13,6 +13,18 @@ export type DualPayInput = {
 
   authorization?: {
     decision: "allow" | "deny";
+    // FIXED: added -- Guardian now attaches the real adjudication result
+    // (deductible/coinsurance/benefit-limit math) to every authorization
+    // it emits. plan_paid is in cents, matching the calculation engine's
+    // convention throughout.
+    adjudication?: {
+      status: string;
+      allowed: number;
+      plan_paid: number;
+      member_responsibility: number;
+      deductible_applied: number;
+      coinsurance: number;
+    };
   };
 
   recommendation?: {
@@ -29,7 +41,7 @@ export type DualPayOutput = {
 
 export class DualPayEngine {
   static react(input: DualPayInput): DualPayOutput {
-    const { execution, opportunity, authorization, recommendation } = input;
+    const { execution, authorization } = input;
 
     if (authorization?.decision === "deny") {
       return {
@@ -56,16 +68,34 @@ export class DualPayEngine {
     }
 
     if (execution?.status === "executed") {
-      const baseAmount = 25;
-      const score = opportunity?.score ?? 50;
-      const confidence = recommendation?.confidence ?? 0.5;
+      // FIXED: previously computed a fabricated amount from
+      // baseAmount(25) * (score/100) * (0.5 + confidence/2) -- a formula
+      // with no relationship to the claim's actual financials. Now uses
+      // the real plan_paid amount Guardian's adjudication already
+      // calculated (deductible applied, coinsurance, benefit limits).
+      const adjudication = authorization?.adjudication;
 
-      const multiplier = (score / 100) * (0.5 + confidence / 2);
+      if (!adjudication) {
+        // Authorization was allowed but carries no real adjudication
+        // data -- fail closed rather than guess at an amount.
+        return {
+          financialAction: "hold",
+          amount: 0,
+          reason: "Execution allowed but no adjudication data available to determine payment"
+        };
+      }
+
+      // plan_paid is in cents (calculation engine convention); convert
+      // to dollars for the amount this engine reports.
+      const amountDollars = Math.round(adjudication.plan_paid) / 100;
 
       return {
-        financialAction: "charge",
-        amount: Math.round(baseAmount * multiplier),
-        reason: "Workflow executed successfully"
+        financialAction: amountDollars > 0 ? "charge" : "hold",
+        amount: amountDollars,
+        reason:
+          amountDollars > 0
+            ? `Plan payment per adjudication: $${amountDollars.toFixed(2)}`
+            : `No plan payment due (status: ${adjudication.status})`
       };
     }
 
