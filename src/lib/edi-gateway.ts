@@ -14,6 +14,9 @@ import { validateX12 } from '@/engine/edi-validator';
 import { normalize835, normalize837, type CanonicalClaim837 } from '@/engine/edi-normalizer';
 import { remittancesToParsedRows } from '@/engine/edi-to-claim-adapter';
 import { rowToClaim } from '@/engine/import-to-claim';
+import { detectUnderpayment } from '@/engine/contract-underpayment';
+import { maybeGenerateDispute } from '@/engine/dispute-generator';
+import { findActiveContractIdForPayer, fetchContractTerms } from '@/engine/contract-to-terms';
 import { saveClaim } from '@/data/repository';
 import { appendOpsEvent } from '@/lib/ops-events';
 import type { CanonicalRemittance } from '@/types/import';
@@ -130,6 +133,38 @@ export async function ingestEdiFile(file: { name: string; content: string }): Pr
         const { claim } = rowToClaim(row, 'remittance_835', transaction_id);
         await saveClaim(claim);
         promoted_claim_count++;
+
+        // FIXED: detectUnderpayment/maybeGenerateDispute existed and
+        // were fully correct, but nothing anywhere called them -- an
+        // underpaid claim got scored (via ClaimIntel) but never became
+        // an actual dispute record, so Workflow 3 (appeal generation)
+        // had nothing to act on. Wired here, right where the real
+        // billed/allowed/paid amounts are already known.
+        const rem = remittances[row.index];
+        const contractId = await findActiveContractIdForPayer(rem.payer_name, rem.service_date);
+        const contract = contractId ? await fetchContractTerms(contractId) : null;
+        // NOTE: CanonicalRemittance has no per-line procedure_code today,
+        // so detectUnderpayment runs without a real fee-schedule lookup
+        // (falls back to its medicare/allowed-based estimate instead).
+        // Real fee-schedule-based underpayment detection needs 835 line
+        // detail (SVC segments), not just claim-level totals -- flagging
+        // as a real next step, not silently approximating it here.
+
+        const underpayment = detectUnderpayment({
+          billed_cents: rem.billed_cents,
+          allowed_cents: rem.allowed_cents,
+          paid_cents: rem.paid_cents,
+        });
+
+        await maybeGenerateDispute({
+          claim_id: claim.claim_id,
+          payer_name: rem.payer_name,
+          procedure_code: null,
+          contract: contract ? ({ contract_id: contract.contract_id } as import('@/types/contracts').PayerContract) : null,
+          allowed_cents: rem.allowed_cents,
+          paid_cents: rem.paid_cents,
+          underpayment,
+        });
       } catch (err) {
         promotion_errors++;
         console.error('[edi] claim promotion failed for', row.normalized.claim_id, err);
