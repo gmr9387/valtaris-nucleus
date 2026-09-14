@@ -1,7 +1,7 @@
 // src/nucleus/cli/commands/telemetry.ts
 // Full file — nucleus telemetry <org>
 
-import { NucleusDBBridge } from "../../db/nucleusDbBridge";
+import { NucleusDBBridge } from "../../db/nucleusDBBridge";
 
 export class TelemetryCommand {
   static async run(args: string[]) {

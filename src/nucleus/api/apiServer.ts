@@ -18,3 +18,7 @@ export class APIServer {
     return app;
   }
 }
+
+// Alias matching the module-name convention deploymentProviders.ts uses
+// (calls apiServer.start(), a static method, so this aliases the class itself).
+export const apiServer = APIServer;

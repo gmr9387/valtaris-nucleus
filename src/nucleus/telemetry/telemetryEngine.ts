@@ -149,6 +149,12 @@ export class TelemetryEngine {
     this.events = [];
     this.spans.clear();
   }
+
+  list(): TelemetryEvent[] {
+    return this.getEvents();
+  }
 }
 
 export const nucleusTelemetry = new TelemetryEngine();
+// Alias matching the module-name convention several callers already use.
+export const telemetryEngine = nucleusTelemetry;

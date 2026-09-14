@@ -13,8 +13,9 @@ import { environmentActivationEngine } from "../activationEnv/environmentActivat
 import { federationEngine } from "../federation/federationEngine";
 import { autonomyEngine } from "../autonomy/autonomyEngine";
 import { sovereigntyRuntime } from "../sovereignty/sovereigntyRuntime";
+import { legacyAdapterRegistry } from "../adaptersLegacy/legacyAdapterRegistry";
 
-export const adapterRegistry = {
+export const adapterRegistry: Record<string, unknown> = {
   "weaver.adapter": weaverEngine,
   "guardian.adapter": guardianEngine,
   "glue.adapter": glueEngine,
@@ -28,11 +29,7 @@ export const adapterRegistry = {
   "federation.adapter": federationEngine,
   "autonomy.adapter": autonomyEngine,
   "sovereignty.adapter": sovereigntyRuntime,
-};
 
-import { legacyAdapterRegistry } from "../adaptersLegacy/legacyAdapterRegistry";
-
-export const adapterRegistry = {
+  // existing constitutional adapters above remain unchanged
   ...legacyAdapterRegistry,
-  // existing constitutional adapters remain unchanged
 };

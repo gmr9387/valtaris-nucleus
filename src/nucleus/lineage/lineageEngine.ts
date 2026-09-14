@@ -23,6 +23,10 @@ export class LineageEngine {
 
     lineageStore.record(entry);
   }
+
+  list(): LineageEntry[] {
+    return lineageStore.list();
+  }
 }
 
 export const lineageEngine = new LineageEngine();

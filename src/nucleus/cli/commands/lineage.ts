@@ -1,7 +1,7 @@
 // src/nucleus/cli/commands/lineage.ts
 // Full file — nucleus lineage <org>
 
-import { NucleusDBBridge } from "../../db/nucleusDbBridge";
+import { NucleusDBBridge } from "../../db/nucleusDBBridge";
 
 export class LineageCommand {
   static async run(args: string[]) {

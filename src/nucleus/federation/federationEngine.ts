@@ -138,3 +138,5 @@ export class FederationEngine {
 }
 
 export const nucleusFederation = new FederationEngine();
+// Alias matching the module-name convention several callers already use.
+export const federationEngine = nucleusFederation;

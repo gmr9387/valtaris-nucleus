@@ -156,3 +156,5 @@ export class PipelineEngine {
 }
 
 export const nucleusPipeline = new PipelineEngine();
+// Alias matching the module-name convention the one caller (constitutionalPipeline.ts) uses.
+export const pipelineEngines = nucleusPipeline;

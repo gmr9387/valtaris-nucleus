@@ -122,3 +122,5 @@ export class CertificationEngine {
 }
 
 export const nucleusCertification = new CertificationEngine();
+// Alias matching the module-name convention several callers already use.
+export const certificationEngine = nucleusCertification;
