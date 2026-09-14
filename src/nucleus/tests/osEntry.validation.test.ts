@@ -25,8 +25,8 @@ describe("OS Entry Validation", () => {
     );
   });
 
-  test("accepts valid claim", () => {
-    const result = OSEntry.processClaim("org", { claimId: "x", amount: 10 });
+  test("accepts valid claim", async () => {
+    const result = await OSEntry.processClaim("org", { claimId: "x", amount: 10 });
     expect(result.status).toBe("completed");
   });
 });
