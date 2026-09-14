@@ -5,8 +5,8 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "dev": "bun server.ts",
-    "start": "bun server.ts",
+    "dev": "bun nucleus-server.ts",
+    "start": "bun nucleus-server.ts",
     "nucleus": "bun nucleus",
     "build": "tsc -p tsconfig.json",
     "lint": "eslint . --ext .ts,.tsx",

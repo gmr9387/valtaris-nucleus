@@ -1,4 +1,12 @@
-// server.ts
+// nucleus-server.ts
+//
+// The Nucleus/API backend process (long-running Node/Bun server, not a
+// Cloudflare Workers fetch handler). Named distinctly from src/server.ts
+// (the TanStack Start SSR entry that IS the Workers fetch handler) --
+// having two files both literally named "server.ts" made Nitro's
+// Cloudflare build pick up this one by convention and fail because it
+// has no default `{fetch}` export, since it's meant to run as a normal
+// process instead.
 
 import { startNucleus } from "./src/nucleus/startNucleus";
 import { APIServer } from "./src/nucleus/api/apiServer";
