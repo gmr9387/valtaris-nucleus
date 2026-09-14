@@ -9,7 +9,7 @@ export class APIController {
    * POST /claim
    * Main entrypoint for external organizations.
    */
-  static submitClaim(req: Request, res: Response) {
+  static async submitClaim(req: Request, res: Response) {
     try {
       const { organizationId, claimPayload } = req.body;
 
@@ -23,7 +23,12 @@ export class APIController {
       const gatewayPayload = GatewayAdapter.ingress(organizationId, claimPayload);
 
       // Step 2 — OS pipeline execution
-      const result = OSPipeline.runClaimFromGateway(gatewayPayload);
+      // FIXED: runClaimFromGateway() is async (it awaits Guardian's real
+      // Supabase accumulator lookup). Without awaiting it here, `result`
+      // was the pending Promise object itself, not the pipeline's
+      // output -- res.json() would serialize it to `{}`, silently
+      // discarding the entire adjudication result on every real request.
+      const result = await OSPipeline.runClaimFromGateway(gatewayPayload);
 
       return res.status(200).json(result);
     } catch (err: unknown) {
