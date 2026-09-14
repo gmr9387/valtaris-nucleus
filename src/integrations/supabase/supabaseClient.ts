@@ -36,7 +36,7 @@ function getClient(): SupabaseClient {
 // Proxy so existing call sites (`supabase.from(...)`, etc.) keep working
 // unchanged -- only the timing of actual client construction changed.
 export const supabase = new Proxy({} as SupabaseClient, {
-  get(_target, prop) {
-    return (getClient() as any)[prop];
+  get(_target, prop, receiver) {
+    return Reflect.get(getClient(), prop, receiver);
   },
 });
