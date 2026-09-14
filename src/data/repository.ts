@@ -125,6 +125,27 @@ export async function saveAdjudication(
   if (error) console.error("[repository] saveAdjudication failed", error.message);
 }
 
+/**
+ * Persists updated deductible/OOP/benefit-limit usage after a claim is
+ * adjudicated. Previously nothing in this UI path called this either --
+ * saveAdjudication() only recorded the run/trace, so a member's
+ * deductible never actually advanced between claims here either
+ * (same gap as the live API path, fixed the same way).
+ */
+export async function saveAccumulators(accumulators: MemberAccumulators): Promise<void> {
+  const { error } = await supabase.from("member_accumulators").upsert(
+    [
+      {
+        member_id: accumulators.member_id,
+        plan_year: accumulators.plan_year,
+        payload: accumulators as unknown as never,
+      },
+    ] as never,
+    { onConflict: "member_id,plan_year" },
+  );
+  if (error) console.error("[repository] saveAccumulators failed", error.message);
+}
+
 const DEMO_MEMBER_ID = "MEM-DEMO-1";
 const DEMO_PLAN_YEAR = new Date().getUTCFullYear();
 

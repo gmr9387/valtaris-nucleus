@@ -4,7 +4,7 @@
  * for individual claims as a secondary surface to Claim Clarity.
  */
 import { useEffect, useMemo, useState } from "react";
-import { resetIdCounter } from "@/engine/calculation-engine";
+import { resetIdCounter, updateMemberAccumulators } from "@/engine/calculation-engine";
 import { executeAdjudicationWithReplay } from "@/engine/adjudication-orchestrator";
 import { demoContract, demoPlan, demoPriorOutcomes } from "@/data/demo-scenarios";
 import { isDemoModeEnabled } from "@/lib/demo-flag";
@@ -17,6 +17,7 @@ import {
   loadAccumulators,
   loadLatestRuns,
   saveAdjudication,
+  saveAccumulators,
   seedIfEmpty,
 } from "@/data/repository";
 import type { Claim, AdjudicationRun, MemberAccumulators } from "@/types/claim";
@@ -64,9 +65,17 @@ export default function ClaimsWorkbench() {
         resetIdCounter();
         const haveRun = new Set(runs.map((r) => r.claimId));
         const fresh: AdjResult[] = [];
+        // Tracks accumulator state across this batch, keyed by the
+        // accumulator's own member_id (not claim.member_id -- the
+        // fallback below can borrow a different member's accumulators).
+        // Without this, two unadjudicated claims for the same member in
+        // one batch would both read the same pre-loop snapshot and
+        // neither would see the other's deductible/OOP consumption
+        // until the next page load.
+        const runningAccumulators: Record<string, MemberAccumulators> = { ...a };
         for (const claim of c) {
           if (haveRun.has(claim.claim_id)) continue;
-          const acc = a[claim.member_id] ?? Object.values(a)[0];
+          const acc = runningAccumulators[claim.member_id] ?? Object.values(runningAccumulators)[0];
           if (!acc) continue;
 
           // FIXED: previously this entire loop skipped every claim
@@ -114,7 +123,19 @@ export default function ClaimsWorkbench() {
           });
           fresh.push({ claimId: claim.claim_id, run, trace });
           await saveAdjudication(claim.claim_id, run, trace, false);
+
+          // FIXED: nothing persisted the post-claim deductible/OOP/
+          // benefit-limit usage, so accumulators never advanced between
+          // claims -- every claim for a member was adjudicated against
+          // the same frozen starting snapshot regardless of how many
+          // claims came before it. Update the in-batch running state
+          // too (see runningAccumulators above) so later claims in this
+          // same loop see it immediately, not just on the next load.
+          const updatedAcc = updateMemberAccumulators(acc, run.final_accumulator);
+          runningAccumulators[acc.member_id] = updatedAcc;
+          await saveAccumulators(updatedAcc);
         }
+        setAccumulators(runningAccumulators);
         setAdjResults([...runs, ...fresh]);
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err));

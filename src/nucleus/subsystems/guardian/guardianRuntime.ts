@@ -1,8 +1,11 @@
 import { eventBus } from "../../events/eventBus";
 import { recordTelemetry } from "../../telemetry/telemetry";
-import { adjudicateClaim } from "./adjudication/calculationEngine";
+import { adjudicateClaim, updateMemberAccumulators } from "./adjudication/calculationEngine";
 import { demoContract, demoPlan } from "./adjudication/demoContractPlan";
-import { fetchMemberAccumulators } from "./adjudication/accumulatorRepository";
+import {
+  fetchMemberAccumulators,
+  saveMemberAccumulators,
+} from "./adjudication/accumulatorRepository";
 import type { ClaimLine, MemberAccumulators } from "@/types/claim";
 import type { Dynamic } from "../../types/dynamic";
 
@@ -102,6 +105,22 @@ export class GuardianRuntime {
     // don't exist as a queryable data source yet, even in DualPay's own
     // app. Accumulators above are real; these two inputs are not yet.
     const { run } = adjudicateClaim([line], accumulators, demoContract, demoPlan);
+
+    // FIXED: nothing previously wrote the post-claim accumulator state
+    // back to Supabase -- every claim for this member/year was
+    // adjudicated against the same unchanging snapshot, so deductible/
+    // OOP/benefit-limit usage never actually advanced. Best-effort: the
+    // authorization decision above was already computed correctly from
+    // a successful read, so a failure here is logged, not retroactively
+    // turned into a denial.
+    try {
+      await saveMemberAccumulators(updateMemberAccumulators(accumulators, run.final_accumulator));
+    } catch (err) {
+      console.error(
+        `[Guardian] Failed to persist updated accumulators for member ${memberId}:`,
+        (err as Error).message,
+      );
+    }
 
     const lineResult = run.line_results[0];
     const denied =

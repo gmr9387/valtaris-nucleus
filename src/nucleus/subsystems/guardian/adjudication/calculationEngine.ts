@@ -77,6 +77,41 @@ export function initSessionAccumulator(accumulators: MemberAccumulators): Sessio
   };
 }
 
+/**
+ * Inverse of initSessionAccumulator(): folds a run's final "remaining"
+ * state back into updated "used" totals so the caller can persist it.
+ * Nothing did this before -- adjudicateClaim() computed a real
+ * final_accumulator on every run, but no caller (API path or Workbench
+ * UI path) ever wrote it back to member_accumulators, so deductible/
+ * OOP/benefit-limit usage never actually advanced between claims.
+ * Family deductible/OOP fields are untouched: this engine doesn't
+ * adjudicate against family accumulators today, so there's nothing
+ * real to write there yet.
+ */
+export function updateMemberAccumulators(
+  original: MemberAccumulators,
+  finalSession: SessionAccumulator,
+): MemberAccumulators {
+  const individual_deductible_used = Math.max(
+    0,
+    original.individual_deductible_max - finalSession.deductible_remaining,
+  );
+  const individual_oop_used = Math.max(0, original.individual_oop_max - finalSession.oop_remaining);
+
+  const benefit_limits = original.benefit_limits.map((bl) => {
+    const remaining = finalSession.benefit_limits_remaining.get(bl.benefit_category);
+    if (remaining === undefined) return bl;
+    return { ...bl, used: Math.max(0, bl.max - remaining) };
+  });
+
+  return {
+    ...original,
+    individual_deductible_used,
+    individual_oop_used,
+    benefit_limits,
+  };
+}
+
 function getFeeScheduleAmount(
   feeSchedule: ContractTerms["fee_schedule"],
   procedureCode: string,
@@ -314,6 +349,17 @@ export function adjudicateLine(
       });
     }
 
+    // FIXED: this branch previously zeroed both plan_paid AND
+    // member_responsibility, meaning the provider absorbed the entire
+    // contracted (allowed) amount for free once a benefit limit was hit
+    // -- inconsistent with the "denied" branch a few lines below, which
+    // correctly bills the member for amounts the plan doesn't cover
+    // (member_responsibility = billed_amount there). A benefit maximum
+    // being reached doesn't mean the service becomes free: the
+    // contractual discount (billed -> rawAllowed) still applies per the
+    // provider's contract, but the plan no longer pays its share of the
+    // allowed amount -- that liability shifts to the member, same as
+    // any other plan-does-not-cover-this-portion outcome.
     const result: AdjudicationLineResult = {
       line_id: line.line_id,
       claim_id: line.claim_id,
@@ -322,14 +368,14 @@ export function adjudicateLine(
       coinsurance: 0,
       copay: 0,
       plan_paid: 0,
-      member_responsibility: 0,
+      member_responsibility: rawAllowed,
       adjustments,
       cob_allocations: [],
       status: "benefit_limit_exhausted",
       denial_reasons: [`Benefit limit exhausted for ${benefitLimit.category}`],
     };
 
-    mathSteps.push(createMathStep(line.line_id, line.billed_amount, 0, 0, 0, 0, 0, 0));
+    mathSteps.push(createMathStep(line.line_id, line.billed_amount, 0, 0, 0, 0, 0, rawAllowed));
 
     return {
       result,
