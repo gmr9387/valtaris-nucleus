@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppAuditRouteImport } from './routes/_app.audit'
+import { Route as AppClaimsRouteImport } from './routes/_app.claims'
 import { Route as AppConnectorsRouteImport } from './routes/_app.connectors'
 import { Route as AppCoreRouteImport } from './routes/_app.core'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
@@ -47,6 +48,11 @@ const LoginRoute = LoginRouteImport.update({
 const AppAuditRoute = AppAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppClaimsRoute = AppClaimsRouteImport.update({
+  id: '/claims',
+  path: '/claims',
   getParentRoute: () => AppRoute,
 } as any)
 const AppConnectorsRoute = AppConnectorsRouteImport.update({
@@ -135,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/audit': typeof AppAuditRoute
+  '/claims': typeof AppClaimsRoute
   '/connectors': typeof AppConnectorsRoute
   '/core': typeof AppCoreRoute
   '/dashboard': typeof AppDashboardRoute
@@ -156,6 +163,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/audit': typeof AppAuditRoute
+  '/claims': typeof AppClaimsRoute
   '/connectors': typeof AppConnectorsRoute
   '/core': typeof AppCoreRoute
   '/dashboard': typeof AppDashboardRoute
@@ -179,6 +187,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/_app/audit': typeof AppAuditRoute
+  '/_app/claims': typeof AppClaimsRoute
   '/_app/connectors': typeof AppConnectorsRoute
   '/_app/core': typeof AppCoreRoute
   '/_app/dashboard': typeof AppDashboardRoute
@@ -202,6 +211,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/audit'
+    | '/claims'
     | '/connectors'
     | '/core'
     | '/dashboard'
@@ -223,6 +233,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/audit'
+    | '/claims'
     | '/connectors'
     | '/core'
     | '/dashboard'
@@ -245,6 +256,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/_app/audit'
+    | '/_app/claims'
     | '/_app/connectors'
     | '/_app/core'
     | '/_app/dashboard'
@@ -297,6 +309,13 @@ declare module '@tanstack/react-router' {
       path: '/audit'
       fullPath: '/audit'
       preLoaderRoute: typeof AppAuditRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/claims': {
+      id: '/_app/claims'
+      path: '/claims'
+      fullPath: '/claims'
+      preLoaderRoute: typeof AppClaimsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/connectors': {
@@ -444,6 +463,7 @@ const AppWorkflowsRouteWithChildren = AppWorkflowsRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppAuditRoute: typeof AppAuditRoute
+  AppClaimsRoute: typeof AppClaimsRoute
   AppConnectorsRoute: typeof AppConnectorsRoute
   AppCoreRoute: typeof AppCoreRoute
   AppDashboardRoute: typeof AppDashboardRoute
@@ -461,6 +481,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAuditRoute: AppAuditRoute,
+  AppClaimsRoute: AppClaimsRoute,
   AppConnectorsRoute: AppConnectorsRoute,
   AppCoreRoute: AppCoreRoute,
   AppDashboardRoute: AppDashboardRoute,

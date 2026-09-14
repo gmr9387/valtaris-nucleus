@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Activity,
+  ClipboardCheck,
   Cpu,
   Building2,
   FileStack,
@@ -51,6 +52,7 @@ const groups: { label: string; items: Item[] }[] = [
   {
     label: "KNOWLEDGE",
     items: [
+      { to: "/claims", label: "Claims Workbench", icon: ClipboardCheck },
       { to: "/evidence", label: "Evidence", icon: FileStack, phase: "P4" },
       { to: "/decisions", label: "Decisions", icon: GitBranch, phase: "P5" },
     ],
