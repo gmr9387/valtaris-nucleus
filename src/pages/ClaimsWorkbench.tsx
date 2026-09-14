@@ -3,13 +3,15 @@
  * Provides the deep adjudication / trace / state machine / case view
  * for individual claims as a secondary surface to Claim Clarity.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { resetIdCounter, updateMemberAccumulators } from "@/engine/calculation-engine";
 import { executeAdjudicationWithReplay } from "@/engine/adjudication-orchestrator";
 import { demoContract, demoPlan, demoPriorOutcomes } from "@/data/demo-scenarios";
 import { isDemoModeEnabled } from "@/lib/demo-flag";
 import { LIVE_CONTRACT, LIVE_PLAN } from "@/lib/live-stubs";
 import { findActiveContractIdForPayer, fetchContractTerms } from "@/engine/contract-to-terms";
+import { ingestEdiFile } from "@/lib/edi-gateway";
 import {
   loadClaims,
   loadCases,
@@ -27,7 +29,7 @@ import { ClaimList } from "@/components/admin/ClaimList";
 import { ClaimOperationsKpis } from "@/components/admin/ClaimOperationsKpis";
 import { ClaimWorkspace } from "@/components/admin/ClaimWorkspace";
 import { PageHeader, EmptyState } from "@/components/clarity/primitives";
-import { Inbox, Loader2 } from "lucide-react";
+import { Inbox, Loader2, Upload } from "lucide-react";
 
 interface AdjResult {
   claimId: string;
@@ -44,109 +46,148 @@ export default function ClaimsWorkbench() {
   const [caseEvents, setCaseEvents] = useState<CaseEvent[]>([]);
   const [accumulators, setAccumulators] = useState<Record<string, MemberAccumulators>>({});
   const [adjResults, setAdjResults] = useState<AdjResult[]>([]);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cancelledRef = useRef(false);
+
+  const loadAndAdjudicate = useCallback(async () => {
+    try {
+      await seedIfEmpty();
+      const [c, k, e, a, runs] = await Promise.all([
+        loadClaims(),
+        loadCases(),
+        loadCaseEvents(),
+        loadAccumulators(),
+        loadLatestRuns(),
+      ]);
+      if (cancelledRef.current) return;
+      setClaims(c);
+      setCases(k);
+      setCaseEvents(e);
+      setAccumulators(a);
+      resetIdCounter();
+      const haveRun = new Set(runs.map((r) => r.claimId));
+      const fresh: AdjResult[] = [];
+      // Tracks accumulator state across this batch, keyed by the
+      // accumulator's own member_id (not claim.member_id -- the
+      // fallback below can borrow a different member's accumulators).
+      // Without this, two unadjudicated claims for the same member in
+      // one batch would both read the same pre-loop snapshot and
+      // neither would see the other's deductible/OOP consumption
+      // until the next page load.
+      const runningAccumulators: Record<string, MemberAccumulators> = { ...a };
+      for (const claim of c) {
+        if (haveRun.has(claim.claim_id)) continue;
+        const acc = runningAccumulators[claim.member_id] ?? Object.values(runningAccumulators)[0];
+        if (!acc) continue;
+
+        // FIXED: previously this entire loop skipped every claim
+        // outright when demo mode was off (`if (!isDemoModeEnabled())
+        // continue`), meaning production claims never got
+        // auto-adjudicated here at all -- not wrong data, just no
+        // adjudication happening. Now attempts a real contract lookup
+        // by payer first; only demo-mode claims fall back to
+        // demoContract/demoPlan, and production claims with no
+        // matching uploaded contract yet are still correctly skipped
+        // (not adjudicated against an empty stub).
+        let contract = demoContract;
+        let plan = demoPlan;
+        let priorOutcomes = demoPriorOutcomes;
+
+        if (!isDemoModeEnabled()) {
+          if (!claim.intel) continue; // no payer/intel envelope -- nothing to look up a contract by
+          const contractId = await findActiveContractIdForPayer(
+            claim.intel.payer_name,
+            claim.service_date_from,
+          );
+          if (!contractId) continue; // no real contract uploaded yet for this payer -- skip, don't guess
+          const real = await fetchContractTerms(contractId);
+          if (!real) continue;
+          contract = real;
+          // KNOWN GAP (unchanged from before this fix): there is still
+          // no real plan-benefits persistence layer, so plan remains
+          // LIVE_PLAN in production. This means deductible/OOP/
+          // coinsurance math will be $0 across the board until a real
+          // plan upload feature exists -- fee-schedule-based allowed
+          // amounts (from the real contract) will be correct, but
+          // member-responsibility splits will not be, in production,
+          // today.
+          plan = LIVE_PLAN;
+          priorOutcomes = [];
+        }
+
+        const { run, trace } = await executeAdjudicationWithReplay({
+          claim,
+          accumulators: acc,
+          contract,
+          plan,
+          priorOutcomes,
+          actor: "ClaimsWorkbench",
+        });
+        fresh.push({ claimId: claim.claim_id, run, trace });
+        await saveAdjudication(claim.claim_id, run, trace, false);
+
+        // FIXED: nothing persisted the post-claim deductible/OOP/
+        // benefit-limit usage, so accumulators never advanced between
+        // claims -- every claim for a member was adjudicated against
+        // the same frozen starting snapshot regardless of how many
+        // claims came before it. Update the in-batch running state
+        // too (see runningAccumulators above) so later claims in this
+        // same loop see it immediately, not just on the next load.
+        const updatedAcc = updateMemberAccumulators(acc, run.final_accumulator);
+        runningAccumulators[acc.member_id] = updatedAcc;
+        await saveAccumulators(updatedAcc);
+      }
+      setAccumulators(runningAccumulators);
+      setAdjResults([...runs, ...fresh]);
+    } catch (err) {
+      if (!cancelledRef.current) setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      if (!cancelledRef.current) setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        await seedIfEmpty();
-        const [c, k, e, a, runs] = await Promise.all([
-          loadClaims(),
-          loadCases(),
-          loadCaseEvents(),
-          loadAccumulators(),
-          loadLatestRuns(),
-        ]);
-        if (cancelled) return;
-        setClaims(c);
-        setCases(k);
-        setCaseEvents(e);
-        setAccumulators(a);
-        resetIdCounter();
-        const haveRun = new Set(runs.map((r) => r.claimId));
-        const fresh: AdjResult[] = [];
-        // Tracks accumulator state across this batch, keyed by the
-        // accumulator's own member_id (not claim.member_id -- the
-        // fallback below can borrow a different member's accumulators).
-        // Without this, two unadjudicated claims for the same member in
-        // one batch would both read the same pre-loop snapshot and
-        // neither would see the other's deductible/OOP consumption
-        // until the next page load.
-        const runningAccumulators: Record<string, MemberAccumulators> = { ...a };
-        for (const claim of c) {
-          if (haveRun.has(claim.claim_id)) continue;
-          const acc = runningAccumulators[claim.member_id] ?? Object.values(runningAccumulators)[0];
-          if (!acc) continue;
-
-          // FIXED: previously this entire loop skipped every claim
-          // outright when demo mode was off (`if (!isDemoModeEnabled())
-          // continue`), meaning production claims never got
-          // auto-adjudicated here at all -- not wrong data, just no
-          // adjudication happening. Now attempts a real contract lookup
-          // by payer first; only demo-mode claims fall back to
-          // demoContract/demoPlan, and production claims with no
-          // matching uploaded contract yet are still correctly skipped
-          // (not adjudicated against an empty stub).
-          let contract = demoContract;
-          let plan = demoPlan;
-          let priorOutcomes = demoPriorOutcomes;
-
-          if (!isDemoModeEnabled()) {
-            if (!claim.intel) continue; // no payer/intel envelope -- nothing to look up a contract by
-            const contractId = await findActiveContractIdForPayer(
-              claim.intel.payer_name,
-              claim.service_date_from,
-            );
-            if (!contractId) continue; // no real contract uploaded yet for this payer -- skip, don't guess
-            const real = await fetchContractTerms(contractId);
-            if (!real) continue;
-            contract = real;
-            // KNOWN GAP (unchanged from before this fix): there is still
-            // no real plan-benefits persistence layer, so plan remains
-            // LIVE_PLAN in production. This means deductible/OOP/
-            // coinsurance math will be $0 across the board until a real
-            // plan upload feature exists -- fee-schedule-based allowed
-            // amounts (from the real contract) will be correct, but
-            // member-responsibility splits will not be, in production,
-            // today.
-            plan = LIVE_PLAN;
-            priorOutcomes = [];
-          }
-
-          const { run, trace } = await executeAdjudicationWithReplay({
-            claim,
-            accumulators: acc,
-            contract,
-            plan,
-            priorOutcomes,
-            actor: "ClaimsWorkbench",
-          });
-          fresh.push({ claimId: claim.claim_id, run, trace });
-          await saveAdjudication(claim.claim_id, run, trace, false);
-
-          // FIXED: nothing persisted the post-claim deductible/OOP/
-          // benefit-limit usage, so accumulators never advanced between
-          // claims -- every claim for a member was adjudicated against
-          // the same frozen starting snapshot regardless of how many
-          // claims came before it. Update the in-batch running state
-          // too (see runningAccumulators above) so later claims in this
-          // same loop see it immediately, not just on the next load.
-          const updatedAcc = updateMemberAccumulators(acc, run.final_accumulator);
-          runningAccumulators[acc.member_id] = updatedAcc;
-          await saveAccumulators(updatedAcc);
-        }
-        setAccumulators(runningAccumulators);
-        setAdjResults([...runs, ...fresh]);
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+    cancelledRef.current = false;
+    void (async () => {
+      await loadAndAdjudicate();
     })();
     return () => {
-      cancelled = true;
+      cancelledRef.current = true;
     };
-  }, []);
+  }, [loadAndAdjudicate]);
+
+  const handleImportFile = useCallback(
+    async (file: File) => {
+      setImporting(true);
+      try {
+        const content = await file.text();
+        const result = await ingestEdiFile({ name: file.name, content });
+
+        if (!result.valid) {
+          toast.error(`${file.name}: rejected (${result.error_count} validation issue(s))`);
+        } else {
+          const parts = [`${result.segment_count} segments`];
+          if (result.promoted_claim_count)
+            parts.push(`${result.promoted_claim_count} claims promoted`);
+          if (result.promotion_errors) parts.push(`${result.promotion_errors} promotion errors`);
+          toast.success(`${file.name}: ${result.transaction_type} imported (${parts.join(", ")})`);
+        }
+
+        // Refresh + adjudicate whatever the import promoted, same as
+        // the initial load -- otherwise imported claims would sit
+        // unscored until the next full page reload.
+        await loadAndAdjudicate();
+      } catch (err) {
+        toast.error(
+          `Failed to import ${file.name}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      } finally {
+        setImporting(false);
+      }
+    },
+    [loadAndAdjudicate],
+  );
 
   const selectedResult = adjResults.find((r) => r.claimId === selectedClaimId);
   const selectedClaim = claims.find((c) => c.claim_id === selectedClaimId);
@@ -166,6 +207,31 @@ export default function ClaimsWorkbench() {
         title="Claims Workbench"
         subtitle="Deterministic adjudication · auditable decision path · COB transparency · payment waterfall · replayable trace."
       />
+      <div className="flex items-center justify-end gap-2 px-5 py-2 border-b shrink-0">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".835,.837,.txt,.edi,.x12"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) void handleImportFile(file);
+          }}
+        />
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={importing}
+          className="inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-[11.5px] font-medium hover:bg-muted disabled:opacity-50"
+        >
+          {importing ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <Upload className="h-3 w-3" />
+          )}
+          Import EDI file (835/837)
+        </button>
+      </div>
       {error && (
         <div className="px-5 py-1.5 text-[11.5px] font-mono border-b text-destructive">
           Error: {error}
