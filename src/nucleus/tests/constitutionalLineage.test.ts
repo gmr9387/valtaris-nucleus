@@ -1,5 +1,7 @@
 // src/nucleus/tests/constitutionalLineage.test.ts
 
+import { describe, it, test, expect } from "vitest";
+
 /**
  * Constitutional Lineage Tests (Phase 8.1)
  *

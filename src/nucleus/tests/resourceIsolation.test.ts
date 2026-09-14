@@ -1,5 +1,7 @@
 // src/nucleus/tests/resourceIsolation.test.ts
 
+import { describe, it, test, expect } from "vitest";
+
 /**
  * Resource Isolation Tests (Phase 8.3)
  *

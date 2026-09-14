@@ -1,13 +1,15 @@
 // OS entry constitutional test (Phase 16)
 
+import { describe, it, test, expect } from "vitest";
+
 import { OSEntry } from "../runtime/osEntry";
 
 describe("OSEntry constitutional test", () => {
-  test("processClaim routes through full OS stack", () => {
+  test("processClaim routes through full OS stack", async () => {
     const organizationId = "org-3";
     const claimPayload = { claimId: "claim-3", amount: 1000 };
 
-    const result = OSEntry.processClaim(organizationId, claimPayload);
+    const result = await OSEntry.processClaim(organizationId, claimPayload);
 
     expect(result.status).toBe("completed");
     expect(result.claimId).toBe("claim-3");

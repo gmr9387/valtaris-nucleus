@@ -14,16 +14,13 @@ export class NucleusWorkflowAdapter {
     version: string;
     payload: any;
   }) {
-    // NOTE: This currently only binds routes; it does not yet emit events.
-    // Constitutional routing for workflow events is NOT wired here yet.
-    const app = {}; // placeholder for the real Express/Bun app instance
-    const api = new NucleusApi(app, this.organizationId);
+    const subsystem = this.mapSubsystem(event.type);
+    const api = new NucleusApi(subsystem, this.organizationId);
 
-    // TODO: Once NucleusApi exposes an event emission surface,
-    // route `event` into that surface here.
+    api.emit(event.type as Parameters<NucleusApi["emit"]>[0], event.version, event.payload);
 
     return {
-      subsystem: this.mapSubsystem(event.type),
+      subsystem,
       event,
     };
   }

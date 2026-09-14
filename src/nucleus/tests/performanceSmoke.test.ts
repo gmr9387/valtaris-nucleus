@@ -1,5 +1,7 @@
 // src/nucleus/tests/performanceSmoke.test.ts
 
+import { describe, it, test, expect } from "vitest";
+
 /**
  * Performance Smoke Tests (Phase 9.4)
  *
@@ -33,7 +35,7 @@ describe("Performance smoke", () => {
       api.emitBatch([
         { name: "opportunity", version: "v1", payload: { organizationId: "org-perf" } },
         { name: "recommendation", version: "v1", payload: { organizationId: "org-perf" } },
-      ])
+      ]),
     ).toThrow();
   });
 });

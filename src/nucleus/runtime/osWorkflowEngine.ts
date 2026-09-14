@@ -10,8 +10,8 @@
 import { OSPipeline } from "./osPipeline";
 
 export class OSWorkflowEngine {
-  static processClaim(organizationId: string, claimPayload: Record<string, any>) {
-    const pipeline = OSPipeline.runClaim(organizationId, claimPayload);
+  static async processClaim(organizationId: string, claimPayload: Record<string, any>) {
+    const pipeline = await OSPipeline.runClaim(organizationId, claimPayload);
 
     return {
       status: "completed",

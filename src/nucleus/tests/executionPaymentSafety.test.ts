@@ -1,5 +1,7 @@
 // src/nucleus/tests/executionPaymentSafety.test.ts
 
+import { describe, it, test, expect } from "vitest";
+
 /**
  * Execution & Payment Safety Tests (Phase 8.4)
  *
@@ -34,7 +36,7 @@ describe("Execution & payment safety", () => {
         organizationId: orgId,
         executionType: "dangerous", // mismatch
         payload: { amount: 100 },
-      })
+      }),
     ).toThrow();
   });
 
@@ -70,7 +72,7 @@ describe("Execution & payment safety", () => {
         opportunityId: "opp-safe-2",
         organizationId: orgId,
         amount: 999, // mismatch
-      })
+      }),
     ).toThrow();
   });
 });
