@@ -25,7 +25,7 @@ function getClient(): SupabaseClient {
       throw new Error(
         "Supabase is not configured: VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY are not set. " +
           "This error only occurs when something actually tries to query Supabase " +
-          "(e.g. fetching member accumulators) -- boot itself no longer requires these."
+          "(e.g. fetching member accumulators) -- boot itself no longer requires these.",
       );
     }
     client = createClient(url, key);
@@ -36,7 +36,7 @@ function getClient(): SupabaseClient {
 // Proxy so existing call sites (`supabase.from(...)`, etc.) keep working
 // unchanged -- only the timing of actual client construction changed.
 export const supabase = new Proxy({} as SupabaseClient, {
-  get(_target, prop) {
-    return (getClient() as any)[prop];
+  get(_target, prop, receiver) {
+    return Reflect.get(getClient(), prop, receiver);
   },
 });

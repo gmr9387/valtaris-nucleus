@@ -12,13 +12,7 @@ export class GuardianTelemetryPipeline {
 
   async emitLifecycle(record: {
     claimId: string;
-    lifecycleState:
-      | "INGESTED"
-      | "EVALUATED"
-      | "REPAIRED"
-      | "ENFORCED"
-      | "FINALIZED"
-      | "REOPENED";
+    lifecycleState: "INGESTED" | "EVALUATED" | "REPAIRED" | "ENFORCED" | "FINALIZED" | "REOPENED";
   }) {
     const payload: GuardianTelemetryRecord = {
       timestamp: "",

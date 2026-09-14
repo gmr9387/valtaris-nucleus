@@ -1,7 +1,7 @@
 // src/nucleus/cli/commands/lineage.ts
 // Full file — nucleus lineage <org>
 
-import { NucleusDBBridge } from "../../db/nucleusDbBridge";
+import { NucleusDBBridge } from "../../db/nucleusDBBridge";
 
 export class LineageCommand {
   static async run(args: string[]) {
@@ -14,10 +14,7 @@ export class LineageCommand {
     const db = new NucleusDBBridge();
     const client = db.getClient();
 
-    const { data } = await client
-      .from("nucleus_lineage")
-      .select("*")
-      .eq("organization_id", org);
+    const { data } = await client.from("nucleus_lineage").select("*").eq("organization_id", org);
 
     console.log(JSON.stringify(data, null, 2));
   }

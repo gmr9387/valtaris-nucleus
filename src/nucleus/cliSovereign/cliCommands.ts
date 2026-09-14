@@ -11,6 +11,8 @@ import { autonomyEngine } from "../autonomy/autonomyEngine";
 import { resourceGraph } from "../resources/resourceGraph";
 import { lineageEngine } from "../lineage/lineageEngine";
 import { telemetryEngine } from "../telemetry/telemetryEngine";
+import { deployNucleus } from "../deployment/deployNucleus";
+import { certifyNucleus } from "../certification/certifyNucleus";
 
 export const cliCommands = {
   start: async () => startNucleus(),
@@ -24,18 +26,6 @@ export const cliCommands = {
   resources: async () => resourceGraph.listResources(),
   lineage: async () => lineageEngine.list(),
   telemetry: async () => telemetryEngine.list(),
-};
-
-import { deployNucleus } from "../deployment/deployNucleus";
-
-export const cliCommands = {
-  // existing commands...
   deploy: async () => deployNucleus(),
-};
-
-import { certifyNucleus } from "../certification/certifyNucleus";
-
-export const cliCommands = {
-  // existing commands...
   certify: async () => certifyNucleus(),
 };

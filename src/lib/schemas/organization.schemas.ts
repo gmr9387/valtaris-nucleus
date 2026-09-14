@@ -6,13 +6,7 @@ export const slugSchema = z
   .max(60, "Slug is too long")
   .regex(/^[a-z0-9-]+$/, "Lowercase letters, numbers, and dashes only");
 
-export const orgRoleSchema = z.enum([
-  "owner",
-  "admin",
-  "manager",
-  "operator",
-  "viewer",
-]);
+export const orgRoleSchema = z.enum(["owner", "admin", "manager", "operator", "viewer"]);
 
 export const createOrganizationSchema = z.object({
   name: z.string().trim().min(2).max(80),

@@ -1,7 +1,7 @@
 // src/nucleus/billing/billingEngine.ts
 // Unified constitutional billing engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
+import type { Dynamic } from "../types/dynamic";
 
 export type BillingEvent = {
   id: string;
@@ -11,7 +11,7 @@ export type BillingEvent = {
   units: number;
   unitCost: number;
   totalCost: number;
-  metadata?: any;
+  metadata?: Dynamic;
   timestamp: number;
 };
 
@@ -35,12 +35,12 @@ export class BillingEngine {
     type: string,
     units: number,
     unitCost: number,
-    metadata?: any
+    metadata?: Dynamic,
   ) {
     const totalCost = units * unitCost;
 
     const event: BillingEvent = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       org,
       subsystem,
       type,
@@ -61,13 +61,13 @@ export class BillingEngine {
 
   generateInvoice(org: string, periodStart: number, periodEnd: number) {
     const events = this.events.filter(
-      (e) => e.org === org && e.timestamp >= periodStart && e.timestamp <= periodEnd
+      (e) => e.org === org && e.timestamp >= periodStart && e.timestamp <= periodEnd,
     );
 
     const total = events.reduce((sum, e) => sum + e.totalCost, 0);
 
     const invoice: Invoice = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       org,
       periodStart,
       periodEnd,

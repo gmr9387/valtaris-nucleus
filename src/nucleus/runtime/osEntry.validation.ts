@@ -1,5 +1,6 @@
 // src/nucleus/runtime/osEntry.validation.ts
 
+import type { Dynamic } from "../types/dynamic";
 /**
  * OS Entry Validation (Phase 18)
  *
@@ -8,13 +9,13 @@
  */
 
 export class OSEntryValidation {
-  static validateOrganizationId(orgId: any) {
+  static validateOrganizationId(orgId: Dynamic) {
     if (!orgId || typeof orgId !== "string") {
       throw new Error("Invalid organizationId");
     }
   }
 
-  static validateClaimPayload(payload: any) {
+  static validateClaimPayload(payload: Dynamic) {
     if (!payload || typeof payload !== "object") {
       throw new Error("Invalid claimPayload");
     }

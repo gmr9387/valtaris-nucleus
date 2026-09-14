@@ -1,24 +1,24 @@
 // src/nucleus/identity/identityEngine.ts
 // Unified constitutional identity engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export type IdentityRecord = {
   id: string;
   org: string;
   subsystem: string;
   name: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, Dynamic>;
   createdAt: number;
 };
 
 export class IdentityEngine {
   private identities: Map<string, IdentityRecord> = new Map();
 
-  create(org: string, subsystem: string, name: string, metadata: Record<string, any>) {
-    const id = randomUUID();
+  create(org: string, subsystem: string, name: string, metadata: Record<string, Dynamic>) {
+    const id = crypto.randomUUID();
 
     const identity: IdentityRecord = {
       id,

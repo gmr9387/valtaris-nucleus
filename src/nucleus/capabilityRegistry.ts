@@ -27,15 +27,11 @@ export function registerCapability(subsystem: string, capability: Capability) {
 }
 
 export function getCapabilitiesFor(subsystem: string): Capability[] {
-  return registry
-    .filter((c) => c.subsystem === subsystem)
-    .map((c) => c.capability);
+  return registry.filter((c) => c.subsystem === subsystem).map((c) => c.capability);
 }
 
 export function findSubsystemsWith(capability: Capability): string[] {
-  return registry
-    .filter((c) => c.capability === capability)
-    .map((c) => c.subsystem);
+  return registry.filter((c) => c.capability === capability).map((c) => c.subsystem);
 }
 
 export function listAllCapabilities(): RegisteredCapability[] {

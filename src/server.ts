@@ -1,59 +1,30 @@
-/**
- * HTTP server for the Valtaris control plane.
- * Provides deterministic request handling, typed context
- * construction, and router dispatch integration.
- */
+// src/server.ts — TanStack Start SSR entry (wrapped with error handling).
+//
+// vite.config.ts points tanstackStart.server.entry at "server", which
+// resolves to this file. This is the request-handler TanStack Start's
+// Cloudflare build actually invokes per-request -- unrelated to the
+// long-running Express/Nucleus boot script at the repo root (server.ts),
+// which is a separate deployment target entirely.
 
-import { router } from "./router";
-import { PlatformError, wrapError } from "../runtime/errors";
+import { createStartHandler, defaultStreamHandler } from "@tanstack/react-start/server";
+import type { RequestHandler } from "@tanstack/react-start/server";
+import type { Register } from "@tanstack/react-router";
 
-export interface ServerConfig {
-  port: number;
-  metadata: Record<string, unknown>;
-}
+const handler = createStartHandler(defaultStreamHandler);
 
-export class Server {
-  private port: number;
-  private metadata: Record<string, unknown>;
+type ServerEntry = { fetch: RequestHandler<Register> };
 
-  constructor(config: ServerConfig) {
-    this.port = config.port;
-    this.metadata = config.metadata;
-  }
-
-  private buildContext(req: Request) {
-    const url = new URL(req.url);
-
-    return {
-      organizationId: url.searchParams.get("organizationId") ?? undefined,
-      projectId: url.searchParams.get("projectId") ?? undefined,
-      environmentId: url.searchParams.get("environmentId") ?? undefined,
-      metadata: this.metadata
-    };
-  }
-
-  async start(): Promise<void> {
-    const server = Bun.serve({
-      port: this.port,
-      fetch: async (req: Request) => {
-        try {
-          const ctx = this.buildContext(req);
-          return await router.dispatch(ctx, req);
-        } catch (error) {
-          const wrapped = wrapError(error as unknown);
-          return new Response(
-            JSON.stringify({
-              code: wrapped.code,
-              message: wrapped.message,
-              metadata: wrapped.metadata,
-              timestamp: wrapped.timestamp
-            }),
-            { status: 500 }
-          );
-        }
+function createServerEntry(entry: ServerEntry): ServerEntry {
+  return {
+    async fetch(...args) {
+      try {
+        return await entry.fetch(...args);
+      } catch (error) {
+        console.error("[ssr] unhandled error", error);
+        return new Response("Internal Server Error", { status: 500 });
       }
-    });
-
-    console.log(`Valtaris server running on port ${server.port}`);
-  }
+    },
+  };
 }
+
+export default createServerEntry({ fetch: handler });

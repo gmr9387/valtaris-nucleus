@@ -1,43 +1,55 @@
 // src/nucleus/api/nucleusBatchApi.ts
-// Full file — Updated with Contract Router Binding + OpenAPI Binding
+//
+// Batches multiple contract emissions through the same NucleusApi
+// permission/chain rules, respecting RuntimeConfig.maxBatchSize, and
+// records lightweight per-emit timing samples for smoke/perf checks.
 
-import { NucleusTelemetryAdapter } from "../telemetry/nucleusTelemetryAdapter";
+import { NucleusApi, type ContractName } from "./nucleusApi";
+import { RuntimeConfig } from "../runtime/runtimeConfig";
+import type { Dynamic } from "../types/dynamic";
 
-// NEW: Contract subsystem binding
-import { bindContractSubsystemRoutes } from "../subsystems/contracts/contractRouterBinding";
+export interface BatchItem {
+  name: ContractName;
+  version: string;
+  payload: Dynamic;
+}
 
-// NEW: OpenAPI binding
-import { bindOpenApiRoutes } from "./openai/openApiRouter";
+export interface BatchSample {
+  contractName: ContractName;
+  durationMs: number;
+  at: number;
+}
 
 export class NucleusBatchApi {
-  private telemetry: NucleusTelemetryAdapter;
+  private api: NucleusApi;
+  private samples: BatchSample[] = [];
 
-  constructor(private app: any, private organizationId: string) {
-    this.telemetry = new NucleusTelemetryAdapter(
-      organizationId,
-      "nucleus-batch-api"
-    );
-
-    this.bindRoutes();
+  constructor(subsystem: string, organizationId: string) {
+    this.api = new NucleusApi(subsystem, organizationId);
   }
 
-  // -----------------------------
-  // Bind All API Routes (Batch Mode)
-  // -----------------------------
-  private bindRoutes() {
-    // ----------------------------------------
-    // Contract Subsystem Routes (NEW)
-    // ----------------------------------------
-    bindContractSubsystemRoutes(this.app, this.organizationId);
+  emitBatch(items: BatchItem[]): { ok: boolean } {
+    const { maxBatchSize } = RuntimeConfig.get();
+    if (items.length > maxBatchSize) {
+      throw new Error(
+        `Batch size ${items.length} exceeds configured maxBatchSize ${maxBatchSize}.`,
+      );
+    }
 
-    // ----------------------------------------
-    // OpenAPI Routes (NEW)
-    // ----------------------------------------
-    bindOpenApiRoutes(this.app);
+    for (const item of items) {
+      const start = Date.now();
+      this.api.emit(item.name, item.version, item.payload);
+      this.samples.push({
+        contractName: item.name,
+        durationMs: Date.now() - start,
+        at: Date.now(),
+      });
+    }
 
-    // ----------------------------------------
-    // Existing subsystem bindings would go here
-    // (weaver, guardian, glue, dualpay)
-    // ----------------------------------------
+    return { ok: true };
+  }
+
+  metrics(): BatchSample[] {
+    return [...this.samples];
   }
 }

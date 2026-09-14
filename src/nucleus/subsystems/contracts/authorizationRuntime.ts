@@ -3,21 +3,19 @@
 
 import { NucleusApi } from "../../api/nucleusApi";
 import { NucleusTelemetryAdapter } from "../../telemetry/nucleusTelemetryAdapter";
+import type { Dynamic } from "../../types/dynamic";
 
 export class AuthorizationRuntime {
   private telemetry: NucleusTelemetryAdapter;
   private api: NucleusApi;
 
   constructor(private organizationId: string) {
-    this.telemetry = new NucleusTelemetryAdapter(
-      organizationId,
-      "authorization-contract"
-    );
+    this.telemetry = new NucleusTelemetryAdapter(organizationId, "authorization-contract");
 
     this.api = new NucleusApi("authorization", organizationId);
   }
 
-  async run(version: string, payload: any) {
+  async run(version: string, payload: Dynamic) {
     const span = this.telemetry.startSpan("authorization:run");
 
     try {

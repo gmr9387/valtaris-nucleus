@@ -1,9 +1,9 @@
 // Phase 43 — Adapter Registry
 
-import { weaverEngine } from "../subsystems/weaver/weaverEngine";
-import { guardianEngine } from "../subsystems/guardian/guardianEngine";
-import { glueEngine } from "../workflows/glueEngine";
-import { dualpayEngine } from "../subsystems/dualpay/dualpayEngine";
+import { WeaverRuntime as weaverEngine } from "../subsystems/weaver/weaverRuntime";
+import { GuardianRuntime as guardianEngine } from "../subsystems/guardian/guardianRuntime";
+import { GlueRuntime as glueEngine } from "../subsystems/glue/glueRuntime";
+import { DualPayRuntime as dualpayEngine } from "../subsystems/dualpay/dualPayRuntime";
 
 import { resourceGraph } from "../resources/resourceGraph";
 import { lineageEngine } from "../lineage/lineageEngine";
@@ -13,8 +13,9 @@ import { environmentActivationEngine } from "../activationEnv/environmentActivat
 import { federationEngine } from "../federation/federationEngine";
 import { autonomyEngine } from "../autonomy/autonomyEngine";
 import { sovereigntyRuntime } from "../sovereignty/sovereigntyRuntime";
+import { legacyAdapterRegistry } from "../adaptersLegacy/legacyAdapterRegistry";
 
-export const adapterRegistry = {
+export const adapterRegistry: Record<string, unknown> = {
   "weaver.adapter": weaverEngine,
   "guardian.adapter": guardianEngine,
   "glue.adapter": glueEngine,
@@ -28,11 +29,7 @@ export const adapterRegistry = {
   "federation.adapter": federationEngine,
   "autonomy.adapter": autonomyEngine,
   "sovereignty.adapter": sovereigntyRuntime,
-};
 
-import { legacyAdapterRegistry } from "../adaptersLegacy/legacyAdapterRegistry";
-
-export const adapterRegistry = {
+  // existing constitutional adapters above remain unchanged
   ...legacyAdapterRegistry,
-  // existing constitutional adapters remain unchanged
 };

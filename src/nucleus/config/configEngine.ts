@@ -1,16 +1,16 @@
 // src/nucleus/config/configEngine.ts
 // Unified constitutional config engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export type ConfigRecord = {
   id: string;
   org: string;
   subsystem: string;
   key: string;
-  value: any;
+  value: Dynamic;
   version: number;
   createdAt: number;
 };
@@ -22,12 +22,12 @@ export class ConfigEngine {
     return `${org}.${subsystem}.${key}`;
   }
 
-  set(org: string, subsystem: string, key: string, value: any) {
+  set(org: string, subsystem: string, key: string, value: Dynamic) {
     const compositeKey = this.makeKey(org, subsystem, key);
     const existing = this.configs.get(compositeKey);
 
     const record: ConfigRecord = {
-      id: existing?.id ?? randomUUID(),
+      id: existing?.id ?? crypto.randomUUID(),
       org,
       subsystem,
       key,
@@ -45,14 +45,9 @@ export class ConfigEngine {
       version: record.version,
     });
 
-    nucleusBilling.recordEvent(
-      org,
-      subsystem,
-      `config.set.${key}`,
-      1,
-      0.0015,
-      { version: record.version }
-    );
+    nucleusBilling.recordEvent(org, subsystem, `config.set.${key}`, 1, 0.0015, {
+      version: record.version,
+    });
 
     return record;
   }

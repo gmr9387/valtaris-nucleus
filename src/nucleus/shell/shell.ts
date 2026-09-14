@@ -21,7 +21,7 @@ export function startShell() {
     const result = await shellRouter.execute(line);
     console.log(result);
 
-    if (result?.exit) {
+    if (result && "exit" in result && result.exit) {
       rl.close();
       return;
     }

@@ -1,10 +1,10 @@
 // src/nucleus/pipeline/pipelineEngine.ts
 // Unified constitutional pipeline engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusEventBus } from "../events/eventBus";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export type PipelineStep = {
   id: string;
@@ -31,8 +31,8 @@ export type PipelineExecutionRecord = {
   subsystem: string;
   action: string;
   status: "success" | "error";
-  payload?: any;
-  error?: any;
+  payload?: Dynamic;
+  error?: Dynamic;
   timestamp: number;
 };
 
@@ -40,13 +40,8 @@ export class PipelineEngine {
   private definitions: Map<string, PipelineDefinition> = new Map();
   private executions: PipelineExecutionRecord[] = [];
 
-  register(
-    org: string,
-    name: string,
-    steps: Record<string, PipelineStep>,
-    entry: string
-  ) {
-    const id = randomUUID();
+  register(org: string, name: string, steps: Record<string, PipelineStep>, entry: string) {
+    const id = crypto.randomUUID();
 
     const definition: PipelineDefinition = {
       id,
@@ -64,7 +59,7 @@ export class PipelineEngine {
     return definition;
   }
 
-  start(pipelineId: string, payload: any) {
+  start(pipelineId: string, payload: Dynamic) {
     const definition = this.definitions.get(pipelineId);
     if (!definition) {
       console.error(`[PIPELINE] Definition not found: ${pipelineId}`);
@@ -74,11 +69,7 @@ export class PipelineEngine {
     this.executeStep(definition, definition.entry, payload);
   }
 
-  private executeStep(
-    definition: PipelineDefinition,
-    stepId: string,
-    payload: any
-  ) {
+  private executeStep(definition: PipelineDefinition, stepId: string, payload: Dynamic) {
     const step = definition.steps[stepId];
     if (!step) {
       console.error(`[PIPELINE] Step not found: ${stepId}`);
@@ -89,12 +80,7 @@ export class PipelineEngine {
     console.log(prefix, `Executing step: ${step.action}`);
 
     // Publish event to subsystem
-    nucleusEventBus.publish(
-      definition.org,
-      step.subsystem,
-      step.action,
-      payload
-    );
+    nucleusEventBus.publish(definition.org, step.subsystem, step.action, payload);
 
     // Audit
     nucleusAudit.log(
@@ -102,7 +88,7 @@ export class PipelineEngine {
       step.subsystem,
       `pipeline.step.${step.action}`,
       "pipeline-engine",
-      { pipeline: definition.name, step: stepId }
+      { pipeline: definition.name, step: stepId },
     );
 
     // Billing (simple per-step billing)
@@ -112,12 +98,12 @@ export class PipelineEngine {
       `pipeline.step.${step.action}`,
       1,
       0.002, // $0.002 per step
-      { pipeline: definition.name, step: stepId }
+      { pipeline: definition.name, step: stepId },
     );
 
     // Record execution
     const execution: PipelineExecutionRecord = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       pipelineId: definition.id,
       org: definition.org,
       name: definition.name,
@@ -156,3 +142,5 @@ export class PipelineEngine {
 }
 
 export const nucleusPipeline = new PipelineEngine();
+// Alias matching the module-name convention the one caller (constitutionalPipeline.ts) uses.
+export const pipelineEngines = nucleusPipeline;

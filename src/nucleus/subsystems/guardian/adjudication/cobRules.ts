@@ -12,23 +12,15 @@
  * - allocation rounding preserves cents
  */
 
-import type {
-  PriorPayerOutcome,
-  COBAllocation,
-  COBPolicyType,
-  OHIIndicator,
-} from '@/types/claim';
-import type { RuleFiring } from '@/types/trace';
-import { createRuleFiring } from './traceBuilder';
+import type { PriorPayerOutcome, COBAllocation, COBPolicyType, OHIIndicator } from "@/types/claim";
+import type { RuleFiring } from "@/types/trace";
+import { createRuleFiring } from "./traceBuilder";
 
 export interface COBPrimacyRule {
   rule_id: string;
   name: string;
   priority: number;
-  evaluate: (
-    indicators: OHIIndicator[],
-    context: PrimacyContext,
-  ) => PrimacyResult | null;
+  evaluate: (indicators: OHIIndicator[], context: PrimacyContext) => PrimacyResult | null;
 }
 
 export interface PrimacyContext {
@@ -61,21 +53,16 @@ function extractMonthDayFromISO(value: string): string | null {
   return `${match[2]}-${match[3]}`;
 }
 
-function validatePrimacyResult(
-  result: PrimacyResult,
-  indicators: OHIIndicator[],
-): void {
+function validatePrimacyResult(result: PrimacyResult, indicators: OHIIndicator[]): void {
   if (indicators.length === 0) return;
 
   const validPayerIds = new Set(indicators.map((indicator) => indicator.payer_id));
 
   const primaryIsSynthetic =
-    result.primary_payer_id === 'member_plan' ||
-    result.primary_payer_id === 'spouse_plan';
+    result.primary_payer_id === "member_plan" || result.primary_payer_id === "spouse_plan";
 
   const secondaryIsSynthetic =
-    result.secondary_payer_id === 'member_plan' ||
-    result.secondary_payer_id === 'spouse_plan';
+    result.secondary_payer_id === "member_plan" || result.secondary_payer_id === "spouse_plan";
 
   if (!primaryIsSynthetic && !validPayerIds.has(result.primary_payer_id)) {
     throw new Error(
@@ -91,8 +78,8 @@ function validatePrimacyResult(
 }
 
 export const birthdayRule: COBPrimacyRule = {
-  rule_id: 'COB_BIRTHDAY_001',
-  name: 'Birthday Rule',
+  rule_id: "COB_BIRTHDAY_001",
+  name: "Birthday Rule",
   priority: 10,
   evaluate: (_indicators, context) => {
     if (!context.member_dob || !context.spouse_dob) return null;
@@ -104,25 +91,25 @@ export const birthdayRule: COBPrimacyRule = {
 
     if (memberKey <= spouseKey) {
       return {
-        primary_payer_id: 'member_plan',
-        secondary_payer_id: 'spouse_plan',
-        rationale: 'Member birthday earlier in calendar year (Birthday Rule)',
-        rule_id: 'COB_BIRTHDAY_001',
+        primary_payer_id: "member_plan",
+        secondary_payer_id: "spouse_plan",
+        rationale: "Member birthday earlier in calendar year (Birthday Rule)",
+        rule_id: "COB_BIRTHDAY_001",
       };
     }
 
     return {
-      primary_payer_id: 'spouse_plan',
-      secondary_payer_id: 'member_plan',
-      rationale: 'Spouse birthday earlier in calendar year (Birthday Rule)',
-      rule_id: 'COB_BIRTHDAY_001',
+      primary_payer_id: "spouse_plan",
+      secondary_payer_id: "member_plan",
+      rationale: "Spouse birthday earlier in calendar year (Birthday Rule)",
+      rule_id: "COB_BIRTHDAY_001",
     };
   },
 };
 
 export const lengthOfCoverageRule: COBPrimacyRule = {
-  rule_id: 'COB_LENGTH_001',
-  name: 'Length of Coverage',
+  rule_id: "COB_LENGTH_001",
+  name: "Length of Coverage",
   priority: 20,
   evaluate: (_indicators, context) => {
     if (!context.coverage_start_dates || context.coverage_start_dates.size < 2) {
@@ -137,7 +124,57 @@ export const lengthOfCoverageRule: COBPrimacyRule = {
       primary_payer_id: entries[0][0],
       secondary_payer_id: entries[1][0],
       rationale: `Longer coverage period determines primacy (${entries[0][0]} started ${entries[0][1]})`,
-      rule_id: 'COB_LENGTH_001',
+      rule_id: "COB_LENGTH_001",
+    };
+  },
+};
+
+/**
+ * The identifier this kernel uses, by convention, for "the plan
+ * currently adjudicating the claim" wherever a primacy result needs to
+ * refer to it (mirrors the birthday rule's pre-existing "member_plan"/
+ * "spouse_plan" synthetic ids -- this is the same convention, just named
+ * as a shared constant instead of a magic string).
+ */
+export const MEMBER_PLAN_ID = "member_plan";
+
+/**
+ * Declared-order rule: an OHIIndicator can already carry a real
+ * primacy_order (from an eligibility response or COB questionnaire on
+ * file) -- that is an actual fact, not an inference, so it outranks the
+ * birthday/length-of-coverage heuristics whenever it's present.
+ * primacy_order 1 means that OHI payer is primary; this plan is then
+ * secondary to it. No indicator claiming order 1 means this plan is
+ * primary by elimination.
+ */
+export const declaredOrderRule: COBPrimacyRule = {
+  rule_id: "COB_DECLARED_001",
+  name: "Declared Primacy Order",
+  priority: 0,
+  evaluate: (indicators) => {
+    const ordered = indicators.filter(
+      (indicator): indicator is OHIIndicator & { primacy_order: number } =>
+        typeof indicator.primacy_order === "number",
+    );
+    if (ordered.length === 0) return null;
+
+    const sorted = [...ordered].sort((a, b) => a.primacy_order - b.primacy_order);
+    const declaredPrimary = sorted[0];
+
+    if (declaredPrimary.primacy_order === 1) {
+      return {
+        primary_payer_id: declaredPrimary.payer_id,
+        secondary_payer_id: MEMBER_PLAN_ID,
+        rationale: `${declaredPrimary.payer_name} is declared primary (primacy_order 1).`,
+        rule_id: "COB_DECLARED_001",
+      };
+    }
+
+    return {
+      primary_payer_id: MEMBER_PLAN_ID,
+      secondary_payer_id: declaredPrimary.payer_id,
+      rationale: "No OHI indicator declares primacy_order 1 -- this plan adjudicates as primary.",
+      rule_id: "COB_DECLARED_001",
     };
   },
 };
@@ -145,7 +182,7 @@ export const lengthOfCoverageRule: COBPrimacyRule = {
 export function determineCOBPrimacy(
   indicators: OHIIndicator[],
   context: PrimacyContext,
-  rulePacks: COBPrimacyRule[] = [birthdayRule, lengthOfCoverageRule],
+  rulePacks: COBPrimacyRule[] = [declaredOrderRule, birthdayRule, lengthOfCoverageRule],
   ruleFirings: RuleFiring[] = [],
 ): PrimacyResult | null {
   const sorted = [...rulePacks].sort((a, b) => a.priority - b.priority);
@@ -160,7 +197,7 @@ export function determineCOBPrimacy(
         createRuleFiring(
           ruleFirings.length,
           rule.rule_id,
-          'cob_primacy',
+          "cob_primacy",
           {
             indicators: indicators.map((i) => i.payer_id),
             context_keys: Object.keys(context),
@@ -180,10 +217,7 @@ export function determineCOBPrimacy(
   return null;
 }
 
-function distributeByLargestRemainder(
-  total: number,
-  weights: number[],
-): number[] {
+function distributeByLargestRemainder(total: number, weights: number[]): number[] {
   if (weights.length === 0) return [];
   if (total <= 0) return weights.map(() => 0);
 
@@ -260,25 +294,22 @@ export function calculateCOBAllocation(
   allocations: COBAllocation[];
 } {
   const safeAllowed = Math.max(0, allowed);
-  const rawPriorPaid = priorOutcomes.reduce(
-    (sum, po) => sum + Math.max(0, po.paid),
-    0,
-  );
+  const rawPriorPaid = priorOutcomes.reduce((sum, po) => sum + Math.max(0, po.paid), 0);
 
   const totalPriorPaid = Math.min(rawPriorPaid, safeAllowed);
   const remainingAllowed = Math.max(0, safeAllowed - totalPriorPaid);
 
-  let adjustment = 0;
+  let adjustment: number;
 
   switch (cobPolicy) {
-    case 'standard': {
+    case "standard": {
       // Standard COB allows the secondary adjudication engine to process
       // the remaining allowed amount normally.
       adjustment = 0;
       break;
     }
 
-    case 'non_duplication': {
+    case "non_duplication": {
       // Non-duplication prevents the secondary from duplicating benefits.
       // In this simplified kernel, primary payment reduces the secondary's
       // available liability dollar-for-dollar. Whatever remains after prior
@@ -287,14 +318,14 @@ export function calculateCOBAllocation(
       break;
     }
 
-    case 'carve_out': {
+    case "carve_out": {
       // Carve-out means the secondary is carved out after primary payment.
       // The secondary pays nothing on the remaining allowed amount.
       adjustment = remainingAllowed;
       break;
     }
 
-    case 'maintenance_of_benefits': {
+    case "maintenance_of_benefits": {
       // Maintenance of Benefits (MOB): Secondary may "bridge the gap" when primary
       // paid less than their allowed amount.
       // - If primary paid >= allowed: secondary pays nothing (gap = 0)
@@ -310,18 +341,69 @@ export function calculateCOBAllocation(
     }
   }
 
-  const cappedAdjustment = Math.max(
-    0,
-    Math.min(adjustment, remainingAllowed),
-  );
+  const cappedAdjustment = Math.max(0, Math.min(adjustment, remainingAllowed));
 
   return {
     total_prior_paid: totalPriorPaid,
     adjustment: cappedAdjustment,
-    allocations: buildAllocations(
-      priorOutcomes,
-      cobPolicy,
-      cappedAdjustment,
-    ),
+    allocations: buildAllocations(priorOutcomes, cobPolicy, cappedAdjustment),
+  };
+}
+
+export type ClaimPrimacyStatus =
+  | { status: "primary"; rationale: string }
+  | {
+      status: "secondary";
+      primary_payer_id: string;
+      primary_payer_name?: string;
+      rationale: string;
+      rule_id: string;
+    }
+  | { status: "unknown"; rationale: string };
+
+/**
+ * Determines whether *this* plan (the one about to adjudicate the claim)
+ * is primary or secondary relative to the member's other health
+ * insurance -- the routing decision that has to happen before
+ * calculateCOBAllocation() can run, not the payment split itself.
+ *
+ * Zero OHI indicators on file means there is no known other coverage,
+ * so this plan adjudicates as primary (today's default behavior for
+ * every claim, unchanged). One or more indicators triggers real primacy
+ * determination; when no rule pack can resolve it (no declared order,
+ * no DOB, no coverage-start data), the honest answer is "unknown" --
+ * callers must not guess and adjudicate as primary anyway.
+ */
+export function resolveClaimPrimacy(
+  indicators: OHIIndicator[],
+  context: PrimacyContext = {},
+  ruleFirings: RuleFiring[] = [],
+): ClaimPrimacyStatus {
+  if (indicators.length === 0) {
+    return { status: "primary", rationale: "No other health insurance on file for this member." };
+  }
+
+  const result = determineCOBPrimacy(indicators, context, undefined, ruleFirings);
+
+  if (!result) {
+    return {
+      status: "unknown",
+      rationale:
+        "Other health insurance is on file but primacy could not be determined (no declared order, date of birth, or coverage-start data available) -- route for manual COB review.",
+    };
+  }
+
+  if (result.primary_payer_id === MEMBER_PLAN_ID) {
+    return { status: "primary", rationale: result.rationale };
+  }
+
+  const primaryIndicator = indicators.find((i) => i.payer_id === result.primary_payer_id);
+
+  return {
+    status: "secondary",
+    primary_payer_id: result.primary_payer_id,
+    primary_payer_name: primaryIndicator?.payer_name,
+    rationale: result.rationale,
+    rule_id: result.rule_id,
   };
 }

@@ -19,8 +19,7 @@ export function OrgSwitcher() {
   const { currentOrgId, setCurrentOrgId } = useOrgStore();
 
   const current =
-    orgs.data?.find((organization) => organization.id === currentOrgId) ??
-    orgs.data?.[0];
+    orgs.data?.find((organization) => organization.id === currentOrgId) ?? orgs.data?.[0];
 
   return (
     <DropdownMenu>
@@ -29,9 +28,7 @@ export function OrgSwitcher() {
           {current?.name?.[0]?.toUpperCase() ?? "·"}
         </div>
 
-        <span className="max-w-[180px] truncate">
-          {current?.name ?? "Select organization"}
-        </span>
+        <span className="max-w-[180px] truncate">{current?.name ?? "Select organization"}</span>
 
         <ChevronDown className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground" />
       </DropdownMenuTrigger>
@@ -86,9 +83,7 @@ export function OrgSwitcher() {
             );
           })
         ) : (
-          <div className="px-2 py-1.5 text-xs text-muted-foreground">
-            No organizations yet
-          </div>
+          <div className="px-2 py-1.5 text-xs text-muted-foreground">No organizations yet</div>
         )}
 
         <DropdownMenuSeparator />

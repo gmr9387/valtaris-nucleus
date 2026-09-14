@@ -31,7 +31,7 @@ export class ExternalContractAdapter {
     if (!identity.capability) throw new Error("Missing capability");
 
     const validation = validateContract(input.name, input.version, input.payload);
-    if (!validation.valid) {
+    if (!validation.ok) {
       throw new Error(`Invalid contract: ${input.name}@${input.version}`);
     }
 

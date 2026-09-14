@@ -41,9 +41,7 @@ function CorePage() {
       <PageBody>
         <section className="space-y-3">
           <div className="flex items-end justify-between">
-            <h2 className="text-sm font-semibold tracking-tight">
-              Operations readiness
-            </h2>
+            <h2 className="text-sm font-semibold tracking-tight">Operations readiness</h2>
             <p className="text-mono-xs text-muted-foreground">
               {currentOrg ? `ORG ${currentOrg.name}` : "NO_ORG_SELECTED"}
             </p>
@@ -52,9 +50,7 @@ function CorePage() {
         </section>
 
         <section className="mt-10 space-y-3">
-          <h2 className="text-sm font-semibold tracking-tight">
-            Core module registry
-          </h2>
+          <h2 className="text-sm font-semibold tracking-tight">Core module registry</h2>
           <ModuleRegistryTable />
         </section>
       </PageBody>
@@ -74,12 +70,7 @@ function ReadinessGrid({ orgId }: { orgId: string | null }) {
   }
   if (readiness.isLoading) return <LoadingState />;
   if (readiness.error)
-    return (
-      <ErrorState
-        error={readiness.error as Error}
-        onRetry={() => void readiness.refetch()}
-      />
-    );
+    return <ErrorState error={readiness.error as Error} onRetry={() => void readiness.refetch()} />;
 
   const areas = readiness.data?.areas ?? [];
 
@@ -98,9 +89,7 @@ function ReadinessCard({ area }: { area: AreaReadiness }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-mono-xs text-muted-foreground">{area.label}</p>
-          <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
-            {area.primary}
-          </p>
+          <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">{area.primary}</p>
         </div>
         <ReadinessPill level={area.level} />
       </div>

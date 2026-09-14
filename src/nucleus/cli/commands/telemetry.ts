@@ -1,7 +1,7 @@
 // src/nucleus/cli/commands/telemetry.ts
 // Full file — nucleus telemetry <org>
 
-import { NucleusDBBridge } from "../../db/nucleusDbBridge";
+import { NucleusDBBridge } from "../../db/nucleusDBBridge";
 
 export class TelemetryCommand {
   static async run(args: string[]) {
@@ -14,10 +14,7 @@ export class TelemetryCommand {
     const db = new NucleusDBBridge();
     const client = db.getClient();
 
-    const { data } = await client
-      .from("nucleus_telemetry")
-      .select("*")
-      .eq("organization_id", org);
+    const { data } = await client.from("nucleus_telemetry").select("*").eq("organization_id", org);
 
     console.log(JSON.stringify(data, null, 2));
   }

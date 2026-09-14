@@ -1,10 +1,10 @@
 // src/nucleus/scheduler/scheduler.ts
 // Unified constitutional scheduler for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusQueue } from "../queue/queueEngine";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export type ScheduledTask = {
   id: string;
@@ -12,7 +12,7 @@ export type ScheduledTask = {
   subsystem: string;
   name: string;
   intervalMs: number;
-  payload: any;
+  payload: Dynamic;
   createdAt: number;
 };
 
@@ -20,14 +20,8 @@ export class Scheduler {
   private tasks: Map<string, ScheduledTask> = new Map();
   private timers: Map<string, NodeJS.Timeout> = new Map();
 
-  register(
-    org: string,
-    subsystem: string,
-    name: string,
-    intervalMs: number,
-    payload: any
-  ) {
-    const id = randomUUID();
+  register(org: string, subsystem: string, name: string, intervalMs: number, payload: Dynamic) {
+    const id = crypto.randomUUID();
 
     const task: ScheduledTask = {
       id,
@@ -50,13 +44,10 @@ export class Scheduler {
     this.timers.set(id, timer);
 
     // Audit
-    nucleusAudit.log(
-      org,
-      subsystem,
-      `scheduler.${name}`,
-      "scheduler-engine",
-      { intervalMs, payload }
-    );
+    nucleusAudit.log(org, subsystem, `scheduler.${name}`, "scheduler-engine", {
+      intervalMs,
+      payload,
+    });
 
     // Billing
     nucleusBilling.recordEvent(
@@ -65,7 +56,7 @@ export class Scheduler {
       `scheduler.${name}`,
       1,
       0.002, // $0.002 per scheduled cycle
-      { intervalMs }
+      { intervalMs },
     );
 
     return task;

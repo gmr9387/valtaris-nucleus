@@ -1,16 +1,16 @@
 // src/nucleus/state/stateEngine.ts
 // Unified constitutional distributed state engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export type StateRecord = {
   id: string;
   org: string;
   subsystem: string;
   key: string;
-  value: any;
+  value: Dynamic;
   version: number;
   createdAt: number;
   updatedAt: number;
@@ -20,7 +20,7 @@ export type StateSnapshot = {
   id: string;
   org: string;
   subsystem: string;
-  snapshot: Record<string, any>;
+  snapshot: Record<string, Dynamic>;
   timestamp: number;
 };
 
@@ -29,8 +29,8 @@ export type StateDiff = {
   org: string;
   subsystem: string;
   key: string;
-  before: any;
-  after: any;
+  before: Dynamic;
+  after: Dynamic;
   timestamp: number;
 };
 
@@ -43,14 +43,14 @@ export class StateEngine {
     return `${org}.${subsystem}.${key}`;
   }
 
-  set(org: string, subsystem: string, key: string, value: any) {
+  set(org: string, subsystem: string, key: string, value: Dynamic) {
     const compositeKey = this.makeKey(org, subsystem, key);
     const existing = this.state.get(compositeKey);
 
     const before = existing ? existing.value : null;
 
     const record: StateRecord = {
-      id: existing?.id ?? randomUUID(),
+      id: existing?.id ?? crypto.randomUUID(),
       org,
       subsystem,
       key,
@@ -63,7 +63,7 @@ export class StateEngine {
     this.state.set(compositeKey, record);
 
     const diff: StateDiff = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       org,
       subsystem,
       key,
@@ -78,13 +78,7 @@ export class StateEngine {
     console.log(prefix, `Set ${key} → version ${record.version}`);
 
     // Audit
-    nucleusAudit.log(
-      org,
-      subsystem,
-      `state.set.${key}`,
-      "state-engine",
-      { before, after: value }
-    );
+    nucleusAudit.log(org, subsystem, `state.set.${key}`, "state-engine", { before, after: value });
 
     // Billing (state writes cost money)
     nucleusBilling.recordEvent(
@@ -93,7 +87,7 @@ export class StateEngine {
       `state.set.${key}`,
       1,
       0.002, // $0.002 per state write
-      { before, after: value }
+      { before, after: value },
     );
 
     return record;
@@ -105,7 +99,7 @@ export class StateEngine {
   }
 
   snapshot(org: string, subsystem: string) {
-    const snapshotData: Record<string, any> = {};
+    const snapshotData: Record<string, Dynamic> = {};
 
     for (const record of this.state.values()) {
       if (record.org === org && record.subsystem === subsystem) {
@@ -114,7 +108,7 @@ export class StateEngine {
     }
 
     const snapshot: StateSnapshot = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       org,
       subsystem,
       snapshot: snapshotData,
@@ -127,13 +121,7 @@ export class StateEngine {
     console.log(prefix, `Snapshot created`);
 
     // Audit
-    nucleusAudit.log(
-      org,
-      subsystem,
-      `state.snapshot`,
-      "state-engine",
-      { snapshot: snapshotData }
-    );
+    nucleusAudit.log(org, subsystem, `state.snapshot`, "state-engine", { snapshot: snapshotData });
 
     // Billing (snapshots cost money)
     nucleusBilling.recordEvent(
@@ -142,7 +130,7 @@ export class StateEngine {
       `state.snapshot`,
       1,
       0.005, // $0.005 per snapshot
-      { size: Object.keys(snapshotData).length }
+      { size: Object.keys(snapshotData).length },
     );
 
     return snapshot;

@@ -1,9 +1,9 @@
 // src/nucleus/cron/cronEngine.ts
 // Unified constitutional distributed cron engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export type CronJob = {
   id: string;
@@ -11,7 +11,7 @@ export type CronJob = {
   subsystem: string;
   name: string;
   intervalMs: number;
-  handler: () => Promise<any> | any;
+  handler: () => Promise<Dynamic> | Dynamic;
   lastRun: number | null;
   createdAt: number;
 };
@@ -23,8 +23,8 @@ export type CronExecution = {
   subsystem: string;
   name: string;
   status: "success" | "error";
-  result?: any;
-  error?: any;
+  result?: Dynamic;
+  error?: Dynamic;
   timestamp: number;
 };
 
@@ -38,9 +38,9 @@ export class CronEngine {
     subsystem: string,
     name: string,
     intervalMs: number,
-    handler: CronJob["handler"]
+    handler: CronJob["handler"],
   ) {
-    const id = randomUUID();
+    const id = crypto.randomUUID();
 
     const job: CronJob = {
       id,
@@ -71,7 +71,7 @@ export class CronEngine {
       const result = await job.handler();
 
       const execution: CronExecution = {
-        id: randomUUID(),
+        id: crypto.randomUUID(),
         jobId: job.id,
         org: job.org,
         subsystem: job.subsystem,
@@ -87,13 +87,7 @@ export class CronEngine {
       console.log(prefix, `Executed job: ${job.name}`);
 
       // Audit
-      nucleusAudit.log(
-        job.org,
-        job.subsystem,
-        `cron.job.${job.name}`,
-        "cron-engine",
-        { result }
-      );
+      nucleusAudit.log(job.org, job.subsystem, `cron.job.${job.name}`, "cron-engine", { result });
 
       // Billing (cron jobs cost money)
       nucleusBilling.recordEvent(
@@ -102,13 +96,13 @@ export class CronEngine {
         `cron.job.${job.name}`,
         1,
         0.003, // $0.003 per cron execution
-        { result }
+        { result },
       );
 
       return execution;
     } catch (err) {
       const execution: CronExecution = {
-        id: randomUUID(),
+        id: crypto.randomUUID(),
         jobId: job.id,
         org: job.org,
         subsystem: job.subsystem,
@@ -124,23 +118,14 @@ export class CronEngine {
       console.error(prefix, `Job failed: ${job.name}`, err);
 
       // Audit
-      nucleusAudit.log(
-        job.org,
-        job.subsystem,
-        `cron.job.${job.name}.failed`,
-        "cron-engine",
-        { error: err }
-      );
+      nucleusAudit.log(job.org, job.subsystem, `cron.job.${job.name}.failed`, "cron-engine", {
+        error: err,
+      });
 
       // Billing (failed cron still costs money)
-      nucleusBilling.recordEvent(
-        job.org,
-        job.subsystem,
-        `cron.job.${job.name}.failed`,
-        1,
-        0.003,
-        { error: err }
-      );
+      nucleusBilling.recordEvent(job.org, job.subsystem, `cron.job.${job.name}.failed`, 1, 0.003, {
+        error: err,
+      });
 
       return execution;
     }

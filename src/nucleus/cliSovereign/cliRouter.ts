@@ -3,6 +3,7 @@
 import { cliManifest } from "./cliManifest";
 import { cliCommands } from "./cliCommands";
 import { cliState } from "./cliState";
+import type { Dynamic } from "../types/dynamic";
 
 export class CLIRouter {
   async execute(command: string) {
@@ -14,7 +15,7 @@ export class CLIRouter {
       throw new Error(`Unknown command: ${command}`);
     }
 
-    const fn = (cliCommands as any)[command];
+    const fn = (cliCommands as Dynamic)[command];
     const result = await fn();
 
     cliState.lastCommand = command;

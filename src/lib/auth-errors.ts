@@ -31,8 +31,7 @@ const AUTH_HINTS = [
 export function isAuthError(error: unknown): boolean {
   if (!error) return false;
   const message = errorMessage(error).toLowerCase();
-  return AUTH_HINTS.some((hint) => message.includes(hint)) ||
-    extractStatus(error) === 401;
+  return AUTH_HINTS.some((hint) => message.includes(hint)) || extractStatus(error) === 401;
 }
 
 export function mapAuthError(error: unknown): MappedError | null {

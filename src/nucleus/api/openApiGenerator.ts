@@ -1,13 +1,14 @@
 // src/nucleus/api/openApiGenerator.ts
 // Unified constitutional OpenAPI generator for the entire Valtaris ecosystem.
 
+import type { Dynamic } from "../types/dynamic";
 export type OpenApiRoute = {
   method: "GET" | "POST" | "PUT" | "DELETE";
   path: string;
   subsystem: string;
   description: string;
-  requestSchema?: any;
-  responseSchema?: any;
+  requestSchema?: Dynamic;
+  responseSchema?: Dynamic;
 };
 
 export class OpenApiGenerator {
@@ -18,8 +19,8 @@ export class OpenApiGenerator {
     path: string,
     subsystem: string,
     description: string,
-    requestSchema?: any,
-    responseSchema?: any
+    requestSchema?: Dynamic,
+    responseSchema?: Dynamic,
   ) {
     this.routes.push({
       method,
@@ -35,7 +36,7 @@ export class OpenApiGenerator {
   }
 
   generate() {
-    const paths: Record<string, any> = {};
+    const paths: Record<string, Dynamic> = {};
 
     for (const route of this.routes) {
       if (!paths[route.path]) {

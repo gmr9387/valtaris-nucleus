@@ -10,18 +10,15 @@
  * This is the FIRST contract in the Valtara Loop.
  */
 
-import {
-  registerContract,
-  ContractDefinition,
-  ContractValidationResult,
-} from "./contractRegistry";
+import { registerContract, ContractDefinition, ContractValidationResult } from "./contractRegistry";
+import type { Dynamic } from "../types/dynamic";
 
 export interface OpportunityV1 {
   id: string;
   source: string; // e.g. "weaver"
   timestamp: number;
   type: string; // e.g. "market-signal", "pattern-detection", "anomaly"
-  payload: Record<string, any>;
+  payload: Record<string, Dynamic>;
 }
 
 /**

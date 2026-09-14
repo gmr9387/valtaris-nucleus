@@ -4,15 +4,11 @@ import { lineageEngine } from "../lineage/lineageEngine";
 
 export class FederatedLineageEngine {
   listByTenant(tenantId: string) {
-    return lineageEngine.list().filter(
-      (entry) => entry.identity.tenantId === tenantId
-    );
+    return lineageEngine.list().filter((entry) => entry.identity.tenantId === tenantId);
   }
 
   listByEnvironment(environmentId: string) {
-    return lineageEngine.list().filter(
-      (entry) => entry.identity.environmentId === environmentId
-    );
+    return lineageEngine.list().filter((entry) => entry.identity.environmentId === environmentId);
   }
 }
 

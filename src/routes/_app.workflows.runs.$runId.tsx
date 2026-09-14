@@ -6,11 +6,7 @@ import { PageHeader, PageBody, EmptyState, StatusPill, Panel } from "@/component
 import { LoadingState } from "@/components/system/LoadingState";
 import { ErrorState } from "@/components/system/ErrorState";
 import { PermissionGate } from "@/components/system/PermissionGate";
-import {
-  useWorkflowAuditEvents,
-  useWorkflowRun,
-  useWorkflowSteps,
-} from "@/lib/workflows/queries";
+import { useWorkflowAuditEvents, useWorkflowRun, useWorkflowSteps } from "@/lib/workflows/queries";
 import {
   cancelWorkflow,
   completeStep,
@@ -169,7 +165,9 @@ function RunDetailPage() {
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <StatusPill status={r.status} />
             <span>Started {r.started_at ? new Date(r.started_at).toLocaleString() : "—"}</span>
-            <span>Completed {r.completed_at ? new Date(r.completed_at).toLocaleString() : "—"}</span>
+            <span>
+              Completed {r.completed_at ? new Date(r.completed_at).toLocaleString() : "—"}
+            </span>
           </div>
 
           {error && (

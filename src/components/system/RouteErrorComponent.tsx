@@ -9,13 +9,7 @@ import { logTelemetryEvent } from "@/lib/telemetry";
  * Standardized route-level error component.
  * Resets the query error boundary, logs telemetry, lets the user retry.
  */
-export function RouteErrorComponent({
-  error,
-  reset,
-}: {
-  error: Error;
-  reset: () => void;
-}) {
+export function RouteErrorComponent({ error, reset }: { error: unknown; reset: () => void }) {
   const router = useRouter();
   const qErr = useQueryErrorResetBoundary();
 
@@ -25,7 +19,7 @@ export function RouteErrorComponent({
       module: "router",
       event_type: "route.error",
       severity: isAuthError(error) ? "warn" : "error",
-      message: error?.message ?? String(error),
+      message: error instanceof Error ? error.message : String(error),
     });
   }, [qErr, error]);
 

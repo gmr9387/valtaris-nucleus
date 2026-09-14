@@ -10,6 +10,8 @@ import { autonomyEngine } from "../autonomy/autonomyEngine";
 import { resourceGraph } from "../resources/resourceGraph";
 import { lineageEngine } from "../lineage/lineageEngine";
 import { telemetryEngine } from "../telemetry/telemetryEngine";
+import { deploymentState } from "../deployment/deploymentState";
+import { certificationState } from "../certification/certificationState";
 
 export const dashboardProviders = {
   sovereignty: () => sovereigntyRuntime.lifecycle.status(),
@@ -25,18 +27,6 @@ export const dashboardProviders = {
   resources: () => resourceGraph.listResources(),
   lineage: () => lineageEngine.list(),
   telemetry: () => telemetryEngine.list(),
-};
-
-import { deploymentState } from "../deployment/deploymentState";
-
-export const dashboardProviders = {
-  // existing providers...
   deployment: () => deploymentState,
-};
-
-import { certificationState } from "../certification/certificationState";
-
-export const dashboardProviders = {
-  // existing providers...
   certification: () => certificationState,
 };

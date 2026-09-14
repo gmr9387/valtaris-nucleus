@@ -14,19 +14,19 @@ export class LineageStore {
   }
 
   listByResource(resourceId: string): LineageEntry[] {
-    return this.entries.filter(e => e.resourceId === resourceId);
+    return this.entries.filter((e) => e.resourceId === resourceId);
   }
 
   listByActor(actorId: string): LineageEntry[] {
-    return this.entries.filter(e => e.identity.actorId === actorId);
+    return this.entries.filter((e) => e.identity.actorId === actorId);
   }
 
   listBySubsystem(subsystem: string): LineageEntry[] {
-    return this.entries.filter(e => e.identity.subsystem === subsystem);
+    return this.entries.filter((e) => e.identity.subsystem === subsystem);
   }
 
   listByCapability(capability: string): LineageEntry[] {
-    return this.entries.filter(e => e.identity.capability === capability);
+    return this.entries.filter((e) => e.identity.capability === capability);
   }
 }
 

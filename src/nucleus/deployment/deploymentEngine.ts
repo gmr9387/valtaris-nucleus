@@ -3,6 +3,7 @@
 import { deploymentManifest } from "./deploymentManifest";
 import { deploymentProviders } from "./deploymentProviders";
 import { deploymentState } from "./deploymentState";
+import type { Dynamic } from "../types/dynamic";
 
 export class DeploymentEngine {
   async deploy() {
@@ -13,8 +14,8 @@ export class DeploymentEngine {
     const services = [];
 
     for (const key of Object.keys(deploymentProviders)) {
-      if ((deploymentManifest as any)[key]) {
-        const result = await (deploymentProviders as any)[key]();
+      if ((deploymentManifest as Dynamic)[key]) {
+        const result = await (deploymentProviders as Dynamic)[key]();
         services.push(result);
       }
     }

@@ -14,13 +14,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      # FIXED: this ran `npm install` + `npm run ci` (-> `ts-node ...`),
+      # but this repo has no package-lock.json (only bun.lock) and the
+      # CI entrypoint imports "@/..." tsconfig-path aliases plus
+      # extensionless relative TS imports throughout -- neither of which
+      # raw ts-node/Node resolves. A fresh `npm install` also hit real
+      # peer-dependency conflicts in package.json (since fixed) that a
+      # lockfile-driven install had been silently masking locally. bun
+      # is what this project actually installs and runs with everywhere
+      # else (bun.lock is the checked-in lockfile) and resolves both the
+      # path aliases and extensionless imports natively.
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: 20
+          bun-version: latest
 
       - name: Install
-        run: npm install
+        run: bun install
 
       - name: Run Sovereign CI
-        run: npm run ci
+        run: bun run ci

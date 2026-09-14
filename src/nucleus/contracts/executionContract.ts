@@ -11,11 +11,8 @@
  * It is the constitutional "DO" contract.
  */
 
-import {
-  registerContract,
-  ContractDefinition,
-  ContractValidationResult,
-} from "./contractRegistry";
+import { registerContract, ContractDefinition, ContractValidationResult } from "./contractRegistry";
+import type { Dynamic } from "../types/dynamic";
 
 export interface ExecutionV1 {
   id: string; // execution id
@@ -29,7 +26,7 @@ export interface ExecutionV1 {
   executionType: string; // e.g. "workflow", "trade", "payment"
   status: "pending" | "in-progress" | "completed" | "failed";
 
-  payload: Record<string, any>;
+  payload: Record<string, Dynamic>;
 }
 
 /**

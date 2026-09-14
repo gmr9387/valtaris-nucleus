@@ -4,13 +4,7 @@ import { useAuditEvents } from "@/lib/queries";
 import { useOrgStore } from "@/lib/org-store";
 import { PageHeader, PageBody, EmptyState } from "@/components/platform-ui";
 import { Th, Td } from "./_app.organizations";
-import {
-  Shield,
-  Search,
-  Clock3,
-  Activity,
-  Filter,
-} from "lucide-react";
+import { Shield, Search, Clock3, Activity, Filter } from "lucide-react";
 
 export const Route = createFileRoute("/_app/audit")({
   component: AuditPage,
@@ -27,8 +21,7 @@ function AuditPage() {
     if (!audit.data) return [];
 
     return audit.data.filter((event) => {
-      const matchesModule =
-        moduleFilter === "all" || event.module === moduleFilter;
+      const matchesModule = moduleFilter === "all" || event.module === moduleFilter;
 
       const q = query.toLowerCase();
 
@@ -81,9 +74,7 @@ function AuditPage() {
               <MetricCard
                 label="Latest Event"
                 value={
-                  audit.data[0]
-                    ? new Date(audit.data[0].created_at).toLocaleDateString()
-                    : "—"
+                  audit.data[0] ? new Date(audit.data[0].created_at).toLocaleDateString() : "—"
                 }
                 icon={<Clock3 className="h-4 w-4" />}
               />
@@ -130,10 +121,7 @@ function AuditPage() {
 
                 <tbody className="divide-y divide-border bg-surface-1/40">
                   {filtered.map((event) => (
-                    <tr
-                      key={event.id}
-                      className="hover:bg-surface-2/60"
-                    >
+                    <tr key={event.id} className="hover:bg-surface-2/60">
                       <Td>
                         <div className="font-mono text-xs text-muted-foreground">
                           {new Date(event.created_at).toLocaleString()}
@@ -154,9 +142,7 @@ function AuditPage() {
                         <div className="font-mono text-xs">
                           {event.entity_type}
 
-                          {event.entity_id
-                            ? ` · ${event.entity_id.slice(0, 8)}`
-                            : ""}
+                          {event.entity_id ? ` · ${event.entity_id.slice(0, 8)}` : ""}
                         </div>
                       </Td>
 
@@ -195,16 +181,12 @@ function MetricCard({
   return (
     <div className="rounded-lg border border-border bg-surface-1 p-4">
       <div className="flex items-center justify-between">
-        <span className="text-xs uppercase tracking-wider text-muted-foreground">
-          {label}
-        </span>
+        <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
 
         <div className="text-muted-foreground">{icon}</div>
       </div>
 
-      <div className="mt-2 text-2xl font-semibold tracking-tight">
-        {value}
-      </div>
+      <div className="mt-2 text-2xl font-semibold tracking-tight">{value}</div>
     </div>
   );
 }
@@ -220,9 +202,7 @@ function ActionBadge({ action }: { action: string }) {
           : "border-border bg-surface-2 text-muted-foreground";
 
   return (
-    <span
-      className={`inline-flex rounded-md border px-2 py-0.5 text-mono-xs ${cls}`}
-    >
+    <span className={`inline-flex rounded-md border px-2 py-0.5 text-mono-xs ${cls}`}>
       {action}
     </span>
   );

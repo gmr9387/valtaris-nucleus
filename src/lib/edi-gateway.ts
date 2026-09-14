@@ -8,19 +8,19 @@
  * deferred to existing engines; here we persist the EDI source-of-record and
  * emit ops events so that downstream pipelines can act on them.
  */
-import { supabase } from '@/integrations/supabase/client';
-import { parseX12, isLikelyX12 } from '@/engine/x12-parser';
-import { validateX12 } from '@/engine/edi-validator';
-import { normalize835, normalize837, type CanonicalClaim837 } from '@/engine/edi-normalizer';
-import { remittancesToParsedRows } from '@/engine/edi-to-claim-adapter';
-import { rowToClaim } from '@/engine/import-to-claim';
-import { detectUnderpayment } from '@/engine/contract-underpayment';
-import { maybeGenerateDispute } from '@/engine/dispute-generator';
-import { findActiveContractIdForPayer, fetchContractTerms } from '@/engine/contract-to-terms';
-import { saveClaim } from '@/data/repository';
-import { appendOpsEvent } from '@/lib/ops-events';
-import type { CanonicalRemittance } from '@/types/import';
-import type { EdiErrorRow, EdiTransactionRow } from '@/types/edi';
+import { supabase } from "@/integrations/supabase/client";
+import { parseX12, isLikelyX12 } from "@/engine/x12-parser";
+import { validateX12 } from "@/engine/edi-validator";
+import { normalize835, normalize837, type CanonicalClaim837 } from "@/engine/edi-normalizer";
+import { remittancesToParsedRows } from "@/engine/edi-to-claim-adapter";
+import { rowToClaim } from "@/engine/import-to-claim";
+import { detectUnderpayment } from "@/engine/contract-underpayment";
+import { maybeGenerateDispute } from "@/engine/dispute-generator";
+import { findActiveContractIdForPayer, fetchContractTerms } from "@/engine/contract-to-terms";
+import { saveClaim } from "@/data/repository";
+import { appendOpsEvent } from "@/lib/ops-events";
+import type { CanonicalRemittance } from "@/types/import";
+import type { EdiErrorRow, EdiTransactionRow } from "@/types/edi";
 
 export { isLikelyX12 };
 
@@ -36,9 +36,18 @@ export interface EdiIngestResult {
   promotion_errors?: number;
 }
 
-export async function ingestEdiFile(file: { name: string; content: string }): Promise<EdiIngestResult> {
+export async function ingestEdiFile(file: {
+  name: string;
+  content: string;
+}): Promise<EdiIngestResult> {
   if (!isLikelyX12(file.content)) {
-    return { transaction_id: null, transaction_type: 'unknown', valid: false, segment_count: 0, error_count: 1 };
+    return {
+      transaction_id: null,
+      transaction_type: "unknown",
+      valid: false,
+      segment_count: 0,
+      error_count: 1,
+    };
   }
 
   const parsed = parseX12(file.content, { filename: file.name });
@@ -46,35 +55,49 @@ export async function ingestEdiFile(file: { name: string; content: string }): Pr
 
   // 1) Insert transaction
   const { data: txn, error: txErr } = await supabase
-    .from('edi_transactions')
-    .insert([{
-      transaction_type: parsed.envelope.transaction_type,
-      file_name: file.name,
-      sender_id: parsed.envelope.sender_id ?? null,
-      receiver_id: parsed.envelope.receiver_id ?? null,
-      interchange_control_number: parsed.envelope.interchange_control_number ?? null,
-      functional_group_number: parsed.envelope.functional_group_number ?? null,
-      transaction_set_number: parsed.envelope.transaction_set_number ?? null,
-      status: validation.valid ? 'validated' : 'rejected',
-      validation_status: validation.valid ? 'valid' : 'invalid',
-      segment_count: parsed.segments.length,
-      error_count: validation.issues.length,
-      raw_content: file.content,
-      metadata: { delimiters: {
-        element: parsed.element_separator,
-        segment: parsed.segment_terminator,
-        sub_element: parsed.sub_element_separator,
-      } } as never,
-    }] as never)
-    .select('transaction_id')
+    .from("edi_transactions")
+    .insert([
+      {
+        transaction_type: parsed.envelope.transaction_type,
+        file_name: file.name,
+        sender_id: parsed.envelope.sender_id ?? null,
+        receiver_id: parsed.envelope.receiver_id ?? null,
+        interchange_control_number: parsed.envelope.interchange_control_number ?? null,
+        functional_group_number: parsed.envelope.functional_group_number ?? null,
+        transaction_set_number: parsed.envelope.transaction_set_number ?? null,
+        status: validation.valid ? "validated" : "rejected",
+        validation_status: validation.valid ? "valid" : "invalid",
+        segment_count: parsed.segments.length,
+        error_count: validation.issues.length,
+        raw_content: file.content,
+        metadata: {
+          delimiters: {
+            element: parsed.element_separator,
+            segment: parsed.segment_terminator,
+            sub_element: parsed.sub_element_separator,
+          },
+        } as never,
+      },
+    ] as never)
+    .select("transaction_id")
     .single();
 
   if (txErr || !txn) {
-    console.error('[edi] transaction insert failed', txErr?.message);
-    return { transaction_id: null, transaction_type: parsed.envelope.transaction_type, valid: false, segment_count: parsed.segments.length, error_count: validation.issues.length };
+    console.error("[edi] transaction insert failed", txErr?.message);
+    return {
+      transaction_id: null,
+      transaction_type: parsed.envelope.transaction_type,
+      valid: false,
+      segment_count: parsed.segments.length,
+      error_count: validation.issues.length,
+    };
   }
   const transaction_id = (txn as { transaction_id: string }).transaction_id;
-  await appendOpsEvent({ kind: 'edi_received', summary: `Received ${parsed.envelope.transaction_type} (${file.name})`, payload: { transaction_id, segments: parsed.segments.length } });
+  await appendOpsEvent({
+    kind: "edi_received",
+    summary: `Received ${parsed.envelope.transaction_type} (${file.name})`,
+    payload: { transaction_id, segments: parsed.segments.length },
+  });
 
   // 2) Insert segments
   const segRows = parsed.segments.map((s) => ({
@@ -85,8 +108,8 @@ export async function ingestEdiFile(file: { name: string; content: string }): Pr
     parsed_json: s.parsed_json as never,
   }));
   if (segRows.length) {
-    const { error: segErr } = await supabase.from('edi_segments').insert(segRows as never);
-    if (segErr) console.error('[edi] segments insert failed', segErr.message);
+    const { error: segErr } = await supabase.from("edi_segments").insert(segRows as never);
+    if (segErr) console.error("[edi] segments insert failed", segErr.message);
   }
 
   // 3) Insert errors
@@ -97,17 +120,28 @@ export async function ingestEdiFile(file: { name: string; content: string }): Pr
       error_code: i.error_code ?? null,
       message: i.message,
     }));
-    const { error: eErr } = await supabase.from('edi_errors').insert(errRows as never);
-    if (eErr) console.error('[edi] errors insert failed', eErr.message);
-    await appendOpsEvent({ kind: validation.valid ? 'edi_validated' : 'edi_rejected', summary: `${validation.valid ? 'Validated' : 'Rejected'} ${file.name} (${validation.issues.length} issues)`, payload: { transaction_id } });
+    const { error: eErr } = await supabase.from("edi_errors").insert(errRows as never);
+    if (eErr) console.error("[edi] errors insert failed", eErr.message);
+    await appendOpsEvent({
+      kind: validation.valid ? "edi_validated" : "edi_rejected",
+      summary: `${validation.valid ? "Validated" : "Rejected"} ${file.name} (${validation.issues.length} issues)`,
+      payload: { transaction_id },
+    });
   } else {
-    await appendOpsEvent({ kind: 'edi_validated', summary: `Validated ${file.name}`, payload: { transaction_id } });
+    await appendOpsEvent({
+      kind: "edi_validated",
+      summary: `Validated ${file.name}`,
+      payload: { transaction_id },
+    });
   }
 
   if (!validation.valid) {
     return {
-      transaction_id, transaction_type: parsed.envelope.transaction_type,
-      valid: false, segment_count: parsed.segments.length, error_count: validation.issues.length,
+      transaction_id,
+      transaction_type: parsed.envelope.transaction_type,
+      valid: false,
+      segment_count: parsed.segments.length,
+      error_count: validation.issues.length,
     };
   }
 
@@ -117,7 +151,7 @@ export async function ingestEdiFile(file: { name: string; content: string }): Pr
   let promoted_claim_count = 0;
   let promotion_errors = 0;
 
-  if (parsed.envelope.transaction_type === '835') {
+  if (parsed.envelope.transaction_type === "835") {
     remittances = normalize835(parsed);
 
     // FIXED: this promotion step was explicitly deferred (see file header
@@ -130,7 +164,7 @@ export async function ingestEdiFile(file: { name: string; content: string }): Pr
     const rows = remittancesToParsedRows(remittances);
     for (const row of rows) {
       try {
-        const { claim } = rowToClaim(row, 'remittance_835', transaction_id);
+        const { claim } = rowToClaim(row, "remittance_835", transaction_id);
         await saveClaim(claim);
         promoted_claim_count++;
 
@@ -160,17 +194,22 @@ export async function ingestEdiFile(file: { name: string; content: string }): Pr
           claim_id: claim.claim_id,
           payer_name: rem.payer_name,
           procedure_code: null,
-          contract: contract ? ({ contract_id: contract.contract_id } as import('@/types/contracts').PayerContract) : null,
+          contract: contract
+            ? ({ contract_id: contract.contract_id } as import("@/types/contracts").PayerContract)
+            : null,
           allowed_cents: rem.allowed_cents,
           paid_cents: rem.paid_cents,
           underpayment,
         });
       } catch (err) {
         promotion_errors++;
-        console.error('[edi] claim promotion failed for', row.normalized.claim_id, err);
+        console.error("[edi] claim promotion failed for", row.normalized.claim_id, err);
       }
     }
-  } else if (parsed.envelope.transaction_type === '837P' || parsed.envelope.transaction_type === '837I') {
+  } else if (
+    parsed.envelope.transaction_type === "837P" ||
+    parsed.envelope.transaction_type === "837I"
+  ) {
     claims = normalize837(parsed);
     // NOTE: 837 (claim submission) promotion is intentionally not wired
     // here -- a raw 837 carries no payment/denial data yet, so there is
@@ -182,14 +221,20 @@ export async function ingestEdiFile(file: { name: string; content: string }): Pr
   }
 
   await supabase
-    .from('edi_transactions')
-    .update({ status: 'normalized' } as never)
-    .eq('transaction_id', transaction_id);
+    .from("edi_transactions")
+    .update({ status: "normalized" } as never)
+    .eq("transaction_id", transaction_id);
 
   await appendOpsEvent({
-    kind: 'edi_normalized',
-    summary: `Normalized ${parsed.envelope.transaction_type}: ${remittances?.length ?? claims?.length ?? 0} records, ${promoted_claim_count} claims promoted${promotion_errors ? `, ${promotion_errors} promotion errors` : ''}`,
-    payload: { transaction_id, remittance_count: remittances?.length ?? 0, claim_count: claims?.length ?? 0, promoted_claim_count, promotion_errors },
+    kind: "edi_normalized",
+    summary: `Normalized ${parsed.envelope.transaction_type}: ${remittances?.length ?? claims?.length ?? 0} records, ${promoted_claim_count} claims promoted${promotion_errors ? `, ${promotion_errors} promotion errors` : ""}`,
+    payload: {
+      transaction_id,
+      remittance_count: remittances?.length ?? 0,
+      claim_count: claims?.length ?? 0,
+      promoted_claim_count,
+      promotion_errors,
+    },
   });
 
   return {
@@ -207,20 +252,28 @@ export async function ingestEdiFile(file: { name: string; content: string }): Pr
 
 export async function listEdiTransactions(): Promise<EdiTransactionRow[]> {
   const { data, error } = await supabase
-    .from('edi_transactions')
-    .select('transaction_id, org_id, transaction_type, file_name, sender_id, receiver_id, interchange_control_number, functional_group_number, transaction_set_number, status, validation_status, segment_count, error_count, received_at')
-    .order('received_at', { ascending: false })
+    .from("edi_transactions")
+    .select(
+      "transaction_id, org_id, transaction_type, file_name, sender_id, receiver_id, interchange_control_number, functional_group_number, transaction_set_number, status, validation_status, segment_count, error_count, received_at",
+    )
+    .order("received_at", { ascending: false })
     .limit(500);
-  if (error) { console.error('[edi] list failed', error.message); return []; }
+  if (error) {
+    console.error("[edi] list failed", error.message);
+    return [];
+  }
   return (data ?? []) as EdiTransactionRow[];
 }
 
 export async function listEdiErrors(): Promise<EdiErrorRow[]> {
   const { data, error } = await supabase
-    .from('edi_errors')
-    .select('*')
-    .order('created_at', { ascending: false })
+    .from("edi_errors")
+    .select("*")
+    .order("created_at", { ascending: false })
     .limit(500);
-  if (error) { console.error('[edi] errors failed', error.message); return []; }
+  if (error) {
+    console.error("[edi] errors failed", error.message);
+    return [];
+  }
   return (data ?? []) as EdiErrorRow[];
 }

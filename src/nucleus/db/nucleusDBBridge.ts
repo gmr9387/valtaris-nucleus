@@ -3,24 +3,28 @@
 
 import { createNucleusClient } from "./nucleusDB";
 import { NucleusTelemetryAdapter } from "../telemetry/nucleusTelemetryAdapter";
+import type { Dynamic } from "../types/dynamic";
 
 export class NucleusDBBridge {
   private client = createNucleusClient();
   private telemetry: NucleusTelemetryAdapter;
 
-  constructor(private organizationId?: string, private subsystem?: string) {
+  constructor(
+    private organizationId?: string,
+    private subsystem?: string,
+  ) {
     this.telemetry = new NucleusTelemetryAdapter(
       organizationId ?? "nucleus-db-org",
-      subsystem ?? "nucleus-db"
+      subsystem ?? "nucleus-db",
     );
   }
 
-  async insertContract(
-    table: string,
-    organizationId: string,
-    version: string,
-    payload: any
-  ) {
+  /** Raw client access for read/query operations the insert* methods below don't cover. */
+  getClient() {
+    return this.client;
+  }
+
+  async insertContract(table: string, organizationId: string, version: string, payload: Dynamic) {
     const span = this.telemetry.startSpan(`db:insertContract:${table}`);
 
     const { error } = await this.client.from(table).insert({
@@ -43,7 +47,7 @@ export class NucleusDBBridge {
     subsystem: string,
     name: string,
     version: string,
-    payload: any
+    payload: Dynamic,
   ) {
     const span = this.telemetry.startSpan(`db:insertEvent:${name}`);
 
@@ -64,11 +68,7 @@ export class NucleusDBBridge {
     this.telemetry.endSpan(span.spanId);
   }
 
-  async insertLineage(
-    organizationId: string,
-    chain: any,
-    finalized: boolean = false
-  ) {
+  async insertLineage(organizationId: string, chain: Dynamic, finalized: boolean = false) {
     const span = this.telemetry.startSpan("db:insertLineage");
 
     const { error } = await this.client.from("nucleus_lineage").insert({
@@ -95,7 +95,7 @@ export class NucleusDBBridge {
     subsystem: string,
     level: string,
     message: string,
-    metadata: any = null
+    metadata: Dynamic = null,
   ) {
     const span = this.telemetry.startSpan("db:insertTelemetry");
 

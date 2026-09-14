@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Activity,
+  ClipboardCheck,
   Cpu,
   Building2,
   FileStack,
@@ -51,6 +52,7 @@ const groups: { label: string; items: Item[] }[] = [
   {
     label: "KNOWLEDGE",
     items: [
+      { to: "/claims", label: "Claims Workbench", icon: ClipboardCheck },
       { to: "/evidence", label: "Evidence", icon: FileStack, phase: "P4" },
       { to: "/decisions", label: "Decisions", icon: GitBranch, phase: "P5" },
     ],
@@ -127,9 +129,7 @@ export function AppSidebar() {
       <div className="border-t border-sidebar-border p-3">
         <div className="rounded-md border border-sidebar-border bg-sidebar/40 p-2">
           <div className="text-mono-xs text-muted-foreground">CORE STATUS</div>
-          <div className="mt-1 text-xs text-sidebar-foreground">
-            Phase 1 foundation active
-          </div>
+          <div className="mt-1 text-xs text-sidebar-foreground">Phase 1 foundation active</div>
           <div className="mt-2 h-1.5 rounded-full bg-sidebar-accent">
             <div className="h-full w-[40%] rounded-full bg-primary" />
           </div>

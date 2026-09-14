@@ -18,7 +18,7 @@ export class NucleusDiagnostics {
   constructor(
     private metrics: NucleusMetrics,
     private telemetry: NucleusTelemetry,
-    private health: NucleusHealth
+    private health: NucleusHealth,
   ) {}
 
   snapshot(queue: { size: () => number }, port: number, workerActive: boolean) {

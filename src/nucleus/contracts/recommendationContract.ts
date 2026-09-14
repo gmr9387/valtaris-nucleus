@@ -10,11 +10,8 @@
  * This is the SECOND contract in the Valtara Loop.
  */
 
-import {
-  registerContract,
-  ContractDefinition,
-  ContractValidationResult,
-} from "./contractRegistry";
+import { registerContract, ContractDefinition, ContractValidationResult } from "./contractRegistry";
+import type { Dynamic } from "../types/dynamic";
 
 export interface RecommendationV1 {
   id: string; // recommendation id
@@ -23,7 +20,7 @@ export interface RecommendationV1 {
   timestamp: number;
   action: string; // e.g. "buy", "sell", "hold", "execute-workflow"
   confidence: number; // 0–1
-  payload: Record<string, any>;
+  payload: Record<string, Dynamic>;
 }
 
 /**

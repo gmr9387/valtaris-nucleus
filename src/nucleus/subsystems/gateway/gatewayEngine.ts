@@ -1,13 +1,14 @@
 // src/nucleus/subsystems/gateway/gatewayEngine.ts
 
+import type { Dynamic } from "../../types/dynamic";
 export type GatewayInput = {
   organizationId: string;
-  claimPayload: Record<string, any>;
+  claimPayload: Record<string, Dynamic>;
 };
 
 export type GatewayOutput = {
   organizationId: string;
-  claimPayload: Record<string, any>;
+  claimPayload: Record<string, Dynamic>;
   normalized: boolean;
   timestamp: number;
 };

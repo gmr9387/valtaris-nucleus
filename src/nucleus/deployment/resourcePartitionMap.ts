@@ -9,10 +9,9 @@ export interface ResourcePartition {
   projectPartition: boolean;
 }
 
-export const resourcePartitionMap: ResourcePartition[] =
-  constitution.resources.map((r) => ({
-    resourceType: r.type,
-    tenantPartition: true,
-    environmentPartition: true,
-    projectPartition: true,
-  }));
+export const resourcePartitionMap: ResourcePartition[] = constitution.resources.map((r) => ({
+  resourceType: r.type,
+  tenantPartition: true,
+  environmentPartition: true,
+  projectPartition: true,
+}));

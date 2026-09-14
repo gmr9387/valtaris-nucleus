@@ -8,10 +8,7 @@ export class IdentityService {
   private telemetry: NucleusTelemetryAdapter;
 
   constructor(private ctx: IdentityContext) {
-    this.telemetry = new NucleusTelemetryAdapter(
-      ctx.organizationId,
-      ctx.subsystem
-    );
+    this.telemetry = new NucleusTelemetryAdapter(ctx.organizationId, ctx.subsystem);
 
     this.telemetry.debug("IdentityService initialized", {
       organizationId: ctx.organizationId,

@@ -38,7 +38,9 @@ function LoginPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const parsed = credentials.safeParse({
-      email, password, fullName: mode === "signup" ? fullName : undefined,
+      email,
+      password,
+      fullName: mode === "signup" ? fullName : undefined,
     });
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message ?? "Invalid input");
@@ -48,7 +50,8 @@ function LoginPage() {
     try {
       if (mode === "signup") {
         const { error } = await supabase.auth.signUp({
-          email, password,
+          email,
+          password,
           options: {
             emailRedirectTo: `${window.location.origin}/login`,
             data: { full_name: fullName },
@@ -99,28 +102,39 @@ function LoginPage() {
                   className="input"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  required maxLength={120}
+                  required
+                  maxLength={120}
                   autoComplete="name"
                 />
               </Field>
             )}
             <Field label="Email">
               <input
-                className="input" type="email" autoComplete="email"
-                value={email} onChange={(e) => setEmail(e.target.value)} required maxLength={254}
+                className="input"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                maxLength={254}
               />
             </Field>
             <Field label="Password">
               <input
-                className="input" type="password"
+                className="input"
+                type="password"
                 autoComplete={mode === "signup" ? "new-password" : "current-password"}
-                value={password} onChange={(e) => setPassword(e.target.value)}
-                required minLength={8} maxLength={72}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={8}
+                maxLength={72}
               />
             </Field>
 
             <button
-              type="submit" disabled={busy}
+              type="submit"
+              disabled={busy}
               className="mt-2 inline-flex h-10 w-full items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
             >
               {busy ? "..." : mode === "signup" ? "Create account" : "Sign in"}

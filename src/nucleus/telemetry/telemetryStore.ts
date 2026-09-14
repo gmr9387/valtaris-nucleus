@@ -14,19 +14,19 @@ export class TelemetryStore {
   }
 
   listBySubsystem(subsystem: string): TelemetryEntry[] {
-    return this.entries.filter(e => e.subsystem === subsystem);
+    return this.entries.filter((e) => e.subsystem === subsystem);
   }
 
   listByCapability(capability: string): TelemetryEntry[] {
-    return this.entries.filter(e => e.capability === capability);
+    return this.entries.filter((e) => e.capability === capability);
   }
 
   listErrors(): TelemetryEntry[] {
-    return this.entries.filter(e => e.error !== undefined);
+    return this.entries.filter((e) => e.error !== undefined);
   }
 
   listSlowEvents(thresholdMs: number): TelemetryEntry[] {
-    return this.entries.filter(e => (e.latencyMs ?? 0) > thresholdMs);
+    return this.entries.filter((e) => (e.latencyMs ?? 0) > thresholdMs);
   }
 }
 

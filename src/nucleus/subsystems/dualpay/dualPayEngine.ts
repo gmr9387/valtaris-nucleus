@@ -47,7 +47,7 @@ export class DualPayEngine {
       return {
         financialAction: "deny",
         amount: 0,
-        reason: "Authorization denied by Guardian"
+        reason: "Authorization denied by Guardian",
       };
     }
 
@@ -55,7 +55,7 @@ export class DualPayEngine {
       return {
         financialAction: "hold",
         amount: 0,
-        reason: "Glue escalated workflow"
+        reason: "Glue escalated workflow",
       };
     }
 
@@ -63,7 +63,7 @@ export class DualPayEngine {
       return {
         financialAction: "release",
         amount: 0,
-        reason: "Workflow skipped"
+        reason: "Workflow skipped",
       };
     }
 
@@ -81,7 +81,7 @@ export class DualPayEngine {
         return {
           financialAction: "hold",
           amount: 0,
-          reason: "Execution allowed but no adjudication data available to determine payment"
+          reason: "Execution allowed but no adjudication data available to determine payment",
         };
       }
 
@@ -95,14 +95,14 @@ export class DualPayEngine {
         reason:
           amountDollars > 0
             ? `Plan payment per adjudication: $${amountDollars.toFixed(2)}`
-            : `No plan payment due (status: ${adjudication.status})`
+            : `No plan payment due (status: ${adjudication.status})`,
       };
     }
 
     return {
       financialAction: "hold",
       amount: 0,
-      reason: "Insufficient data for financial decision"
+      reason: "Insufficient data for financial decision",
     };
   }
 }

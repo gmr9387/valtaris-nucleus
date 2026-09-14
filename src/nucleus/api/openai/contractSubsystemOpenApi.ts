@@ -16,13 +16,7 @@ export const ContractSubsystemOpenApi = {
             required: true,
             schema: {
               type: "string",
-              enum: [
-                "opportunity",
-                "recommendation",
-                "authorization",
-                "execution",
-                "payment",
-              ],
+              enum: ["opportunity", "recommendation", "authorization", "execution", "payment"],
             },
           },
           {

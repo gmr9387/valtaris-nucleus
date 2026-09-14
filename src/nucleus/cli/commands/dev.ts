@@ -9,7 +9,9 @@ import { startNucleus } from "../../index";
  * Delegates to the canonical Nucleus startup function.
  */
 
-export async function devCommand() {
-  console.log("Starting Nucleus in development mode...");
-  await startNucleus();
+export class DevCommand {
+  static async run() {
+    console.log("Starting Nucleus in development mode...");
+    await startNucleus(process.env.ORGANIZATION_ID || "dev-org");
+  }
 }

@@ -1,16 +1,16 @@
 // src/nucleus/cluster/clusterEngine.ts
 // Unified constitutional cluster engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export type ClusterNode = {
   id: string;
   name: string;
   role: "worker" | "controller" | "scheduler";
   status: "online" | "offline";
-  metadata?: any;
+  metadata?: Dynamic;
   createdAt: number;
 };
 
@@ -18,7 +18,7 @@ export type ClusterTaskAssignment = {
   id: string;
   nodeId: string;
   taskType: string;
-  payload: any;
+  payload: Dynamic;
   timestamp: number;
 };
 
@@ -34,12 +34,8 @@ export class ClusterEngine {
   private assignments: ClusterTaskAssignment[] = [];
   private heartbeats: ClusterHeartbeat[] = [];
 
-  registerNode(
-    name: string,
-    role: ClusterNode["role"],
-    metadata?: any
-  ) {
-    const id = randomUUID();
+  registerNode(name: string, role: ClusterNode["role"], metadata?: Dynamic) {
+    const id = crypto.randomUUID();
 
     const node: ClusterNode = {
       id,
@@ -64,7 +60,7 @@ export class ClusterEngine {
     node.status = status;
 
     const heartbeat: ClusterHeartbeat = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       nodeId,
       status,
       timestamp: Date.now(),
@@ -75,13 +71,9 @@ export class ClusterEngine {
     console.log(`[CLUSTER][HEARTBEAT] ${node.name} → ${status}`);
 
     // Audit
-    nucleusAudit.log(
-      "cluster",
-      "cluster",
-      `cluster.node.${node.name}.status`,
-      "cluster-engine",
-      { status }
-    );
+    nucleusAudit.log("cluster", "cluster", `cluster.node.${node.name}.status`, "cluster-engine", {
+      status,
+    });
 
     // Billing (cluster heartbeat costs money)
     nucleusBilling.recordEvent(
@@ -90,13 +82,13 @@ export class ClusterEngine {
       `cluster.node.${node.name}.heartbeat`,
       1,
       0.001, // $0.001 per heartbeat
-      { status }
+      { status },
     );
 
     return heartbeat;
   }
 
-  assignTask(nodeId: string, taskType: string, payload: any) {
+  assignTask(nodeId: string, taskType: string, payload: Dynamic) {
     const node = this.nodes.get(nodeId);
     if (!node || node.status !== "online") {
       console.error(`[CLUSTER] Cannot assign task: node offline or missing`);
@@ -104,7 +96,7 @@ export class ClusterEngine {
     }
 
     const assignment: ClusterTaskAssignment = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       nodeId,
       taskType,
       payload,
@@ -116,13 +108,10 @@ export class ClusterEngine {
     console.log(`[CLUSTER][TASK] ${node.name} assigned: ${taskType}`);
 
     // Audit
-    nucleusAudit.log(
-      "cluster",
-      "cluster",
-      `cluster.task.${taskType}`,
-      "cluster-engine",
-      { node: node.name, payload }
-    );
+    nucleusAudit.log("cluster", "cluster", `cluster.task.${taskType}`, "cluster-engine", {
+      node: node.name,
+      payload,
+    });
 
     // Billing (task assignment costs money)
     nucleusBilling.recordEvent(
@@ -131,7 +120,7 @@ export class ClusterEngine {
       `cluster.task.${taskType}`,
       1,
       0.003, // $0.003 per task assignment
-      { node: node.name }
+      { node: node.name },
     );
 
     return assignment;

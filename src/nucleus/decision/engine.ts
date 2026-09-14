@@ -6,6 +6,7 @@ import { Governance } from "./governance";
 import { Confidence } from "./confidence";
 import { Replay } from "./replay";
 import { NucleusTelemetryAdapter } from "../telemetry/nucleusTelemetryAdapter";
+import type { Dynamic } from "../types/dynamic";
 
 export class DecisionEngine {
   private executor: Executor;
@@ -14,7 +15,10 @@ export class DecisionEngine {
   private replay: Replay;
   private telemetry: NucleusTelemetryAdapter;
 
-  constructor(private organizationId: string, private subsystem: string) {
+  constructor(
+    private organizationId: string,
+    private subsystem: string,
+  ) {
     this.executor = new Executor();
     this.governance = new Governance();
     this.confidence = new Confidence();
@@ -28,7 +32,7 @@ export class DecisionEngine {
   addRule(rule: {
     id: string;
     name: string;
-    condition: (ctx: any) => boolean;
+    condition: (ctx: Dynamic) => boolean;
     effect: "allow" | "deny";
   }) {
     this.governance.addRule(rule);
@@ -38,7 +42,7 @@ export class DecisionEngine {
   // -----------------------------
   // Evaluate Decision
   // -----------------------------
-  evaluate(context: any) {
+  evaluate(context: Dynamic) {
     const span = this.telemetry.startSpan("decision:evaluate");
 
     try {

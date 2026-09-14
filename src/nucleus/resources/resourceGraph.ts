@@ -11,7 +11,7 @@ export class ResourceGraph {
     id: string,
     type: string,
     identity: ResourceIdentity,
-    initial: T
+    initial: T,
   ): ResourceState<T> {
     const now = new Date().toISOString();
 
@@ -31,7 +31,7 @@ export class ResourceGraph {
   mutateResource<T>(
     id: string,
     identity: ResourceIdentity,
-    mutator: (data: T) => T
+    mutator: (data: T) => T,
   ): ResourceState<T> {
     const resource = this.resources.get(id);
     if (!resource) throw new Error(`Resource not found: ${id}`);
@@ -43,7 +43,7 @@ export class ResourceGraph {
     resource.data = newData;
     resource.updatedAt = new Date().toISOString();
 
-    return resource;
+    return resource as ResourceState<T>;
   }
 
   getResource(id: string): ResourceState | undefined {

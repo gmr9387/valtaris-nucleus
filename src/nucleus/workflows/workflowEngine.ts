@@ -1,10 +1,10 @@
 // src/nucleus/workflows/workflowEngine.ts
 // Unified constitutional workflow engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusEventBus } from "../events/eventBus";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export type WorkflowStep = {
   id: string;
@@ -12,7 +12,7 @@ export type WorkflowStep = {
   action: string;
   next?: string;
   branches?: Record<string, string>; // conditionName -> nextStepId
-  condition?: (payload: any) => string | null; // returns branch key
+  condition?: (payload: Dynamic) => string | null; // returns branch key
 };
 
 export type WorkflowDefinition = {
@@ -33,8 +33,8 @@ export type WorkflowExecutionRecord = {
   subsystem: string;
   action: string;
   status: "success" | "error";
-  payload?: any;
-  error?: any;
+  payload?: Dynamic;
+  error?: Dynamic;
   timestamp: number;
 };
 
@@ -42,13 +42,8 @@ export class WorkflowEngine {
   private definitions: Map<string, WorkflowDefinition> = new Map();
   private executions: WorkflowExecutionRecord[] = [];
 
-  register(
-    org: string,
-    name: string,
-    steps: Record<string, WorkflowStep>,
-    entry: string
-  ) {
-    const id = randomUUID();
+  register(org: string, name: string, steps: Record<string, WorkflowStep>, entry: string) {
+    const id = crypto.randomUUID();
 
     const definition: WorkflowDefinition = {
       id,
@@ -66,7 +61,7 @@ export class WorkflowEngine {
     return definition;
   }
 
-  start(workflowId: string, payload: any) {
+  start(workflowId: string, payload: Dynamic) {
     const definition = this.definitions.get(workflowId);
     if (!definition) {
       console.error(`[WORKFLOW] Definition not found: ${workflowId}`);
@@ -76,11 +71,7 @@ export class WorkflowEngine {
     this.executeStep(definition, definition.entry, payload);
   }
 
-  private executeStep(
-    definition: WorkflowDefinition,
-    stepId: string,
-    payload: any
-  ) {
+  private executeStep(definition: WorkflowDefinition, stepId: string, payload: Dynamic) {
     const step = definition.steps[stepId];
     if (!step) {
       console.error(`[WORKFLOW] Step not found: ${stepId}`);
@@ -91,12 +82,7 @@ export class WorkflowEngine {
     console.log(prefix, `Executing step: ${step.action}`);
 
     // Publish event to subsystem
-    nucleusEventBus.publish(
-      definition.org,
-      step.subsystem,
-      step.action,
-      payload
-    );
+    nucleusEventBus.publish(definition.org, step.subsystem, step.action, payload);
 
     // Audit
     nucleusAudit.log(
@@ -104,7 +90,7 @@ export class WorkflowEngine {
       step.subsystem,
       `workflow.step.${step.action}`,
       "workflow-engine",
-      { workflow: definition.name, step: stepId }
+      { workflow: definition.name, step: stepId },
     );
 
     // Billing (simple per-step billing)
@@ -114,12 +100,12 @@ export class WorkflowEngine {
       `workflow.step.${step.action}`,
       1,
       0.003, // $0.003 per workflow step
-      { workflow: definition.name, step: stepId }
+      { workflow: definition.name, step: stepId },
     );
 
     // Record execution
     const execution: WorkflowExecutionRecord = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       workflowId: definition.id,
       org: definition.org,
       name: definition.name,

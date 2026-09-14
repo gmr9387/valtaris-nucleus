@@ -2,12 +2,7 @@
 // Full file — Contract Subsystem Telemetry Schema
 
 export const ContractTelemetrySchema = {
-  eventTypes: [
-    "contract.start",
-    "contract.step",
-    "contract.complete",
-    "contract.error",
-  ],
+  eventTypes: ["contract.start", "contract.step", "contract.complete", "contract.error"],
 
   metrics: {
     executionTimeMs: {

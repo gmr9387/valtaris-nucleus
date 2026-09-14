@@ -36,18 +36,18 @@ export interface RuleFiring {
 }
 
 export type RuleCategory =
-  | 'eligibility'
-  | 'coverage'
-  | 'cob_primacy'
-  | 'pricing'
-  | 'deductible'
-  | 'coinsurance'
-  | 'copay'
-  | 'benefit_limit'
-  | 'cob_allocation'
-  | 'denial'
-  | 'adjustment'
-  | 'oop_max';
+  | "eligibility"
+  | "coverage"
+  | "cob_primacy"
+  | "pricing"
+  | "deductible"
+  | "coinsurance"
+  | "copay"
+  | "benefit_limit"
+  | "cob_allocation"
+  | "denial"
+  | "adjustment"
+  | "oop_max";
 
 export interface MathStep {
   line_id: string;
@@ -64,7 +64,7 @@ export interface MathStep {
 
 export interface SourceBadge {
   field_path: string;
-  source_type: 'plan' | 'contract' | 'prior_eob' | 'attestation' | 'verification' | '835' | 'ocr';
+  source_type: "plan" | "contract" | "prior_eob" | "attestation" | "verification" | "835" | "ocr";
   confidence: number; // 0-1
   document_ref?: string;
 }
@@ -73,7 +73,7 @@ export interface SourceBadge {
 export interface ExplanationFragment {
   fragment_id: string;
   internal_code: string;
-  lens: 'member' | 'provider' | 'employer' | 'regulator';
+  lens: "member" | "provider" | "employer" | "regulator";
   locale: string;
   text: string;
   detail_level: 0 | 1 | 2 | 3; // L0=summary, L1=reasons, L2=math, L3=raw

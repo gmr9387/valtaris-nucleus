@@ -1,9 +1,9 @@
 // src/nucleus/certification/certificationEngine.ts
 // Unified constitutional certification engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export type CertificationCheck = {
   id: string;
@@ -11,7 +11,7 @@ export type CertificationCheck = {
   subsystem: string;
   name: string;
   description: string;
-  validate: (payload: any) => boolean;
+  validate: (payload: Dynamic) => boolean;
   createdAt: number;
 };
 
@@ -22,7 +22,7 @@ export type CertificationResult = {
   subsystem: string;
   name: string;
   passed: boolean;
-  payload: any;
+  payload: Dynamic;
   timestamp: number;
 };
 
@@ -35,9 +35,9 @@ export class CertificationEngine {
     subsystem: string,
     name: string,
     description: string,
-    validate: (payload: any) => boolean
+    validate: (payload: Dynamic) => boolean,
   ) {
-    const id = randomUUID();
+    const id = crypto.randomUUID();
 
     const check: CertificationCheck = {
       id,
@@ -56,7 +56,7 @@ export class CertificationEngine {
     return check;
   }
 
-  run(checkId: string, payload: any) {
+  run(checkId: string, payload: Dynamic) {
     const check = this.checks.get(checkId);
     if (!check) {
       console.error(`[CERT] Check not found: ${checkId}`);
@@ -66,7 +66,7 @@ export class CertificationEngine {
     const passed = check.validate(payload);
 
     const result: CertificationResult = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       checkId,
       org: check.org,
       subsystem: check.subsystem,
@@ -87,7 +87,7 @@ export class CertificationEngine {
       check.subsystem,
       `certification.check.${check.name}`,
       "certification-engine",
-      { passed, payload }
+      { passed, payload },
     );
 
     // Billing (certification checks cost money)
@@ -97,10 +97,23 @@ export class CertificationEngine {
       `certification.check.${check.name}`,
       1,
       0.0025, // $0.0025 per certification check
-      { passed, payload }
+      { passed, payload },
     );
 
     return result;
+  }
+
+  /**
+   * Run every registered check with no check-specific payload, for
+   * whole-ecosystem certification sweeps (certifyNucleus()) rather than
+   * validating one specific check's outcome.
+   */
+  certify(payload: Dynamic = {}) {
+    const results = this.getChecks().map((check) => this.run(check.id, payload)!);
+    return {
+      ok: results.every((r) => r.passed),
+      results,
+    };
   }
 
   getChecks() {
@@ -122,3 +135,5 @@ export class CertificationEngine {
 }
 
 export const nucleusCertification = new CertificationEngine();
+// Alias matching the module-name convention several callers already use.
+export const certificationEngine = nucleusCertification;

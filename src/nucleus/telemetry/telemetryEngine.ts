@@ -1,17 +1,21 @@
 // src/nucleus/telemetry/telemetryEngine.ts
 // Unified constitutional telemetry engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export type TelemetryEvent = {
   id: string;
   org: string;
   subsystem: string;
   type: string;
-  payload: any;
+  payload: Dynamic;
   timestamp: number;
+  // Not populated by recordEvent()/emit() today -- federation/constitution
+  // callers that filter by tenant/environment degrade to an empty result
+  // until telemetry recording is extended to carry identity.
+  identity?: import("../identity/nucleusIdentity").NucleusIdentity;
 };
 
 export type TelemetrySpan = {
@@ -22,21 +26,16 @@ export type TelemetrySpan = {
   start: number;
   end?: number;
   duration?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, Dynamic>;
 };
 
 export class TelemetryEngine {
   private events: TelemetryEvent[] = [];
   private spans: Map<string, TelemetrySpan> = new Map();
 
-  recordEvent(
-    org: string,
-    subsystem: string,
-    type: string,
-    payload: any
-  ) {
+  recordEvent(org: string, subsystem: string, type: string, payload: Dynamic) {
     const event: TelemetryEvent = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       org,
       subsystem,
       type,
@@ -50,13 +49,7 @@ export class TelemetryEngine {
     console.log(prefix, `Event: ${type}`);
 
     // Audit
-    nucleusAudit.log(
-      org,
-      subsystem,
-      `telemetry.event.${type}`,
-      "telemetry-engine",
-      { payload }
-    );
+    nucleusAudit.log(org, subsystem, `telemetry.event.${type}`, "telemetry-engine", { payload });
 
     // Billing (telemetry events cost money)
     nucleusBilling.recordEvent(
@@ -65,20 +58,15 @@ export class TelemetryEngine {
       `telemetry.event.${type}`,
       1,
       0.0008, // $0.0008 per telemetry event
-      { payload }
+      { payload },
     );
 
     return event;
   }
 
-  startSpan(
-    org: string,
-    subsystem: string,
-    name: string,
-    metadata?: Record<string, any>
-  ) {
+  startSpan(org: string, subsystem: string, name: string, metadata?: Record<string, Dynamic>) {
     const span: TelemetrySpan = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       org,
       subsystem,
       name,
@@ -108,13 +96,10 @@ export class TelemetryEngine {
     console.log(prefix, `Span ended: ${span.name} (${span.duration}ms)`);
 
     // Audit
-    nucleusAudit.log(
-      span.org,
-      span.subsystem,
-      `telemetry.span.${span.name}`,
-      "telemetry-engine",
-      { duration: span.duration, metadata: span.metadata }
-    );
+    nucleusAudit.log(span.org, span.subsystem, `telemetry.span.${span.name}`, "telemetry-engine", {
+      duration: span.duration,
+      metadata: span.metadata,
+    });
 
     // Billing (span recording costs money)
     nucleusBilling.recordEvent(
@@ -123,7 +108,7 @@ export class TelemetryEngine {
       `telemetry.span.${span.name}`,
       1,
       0.0012, // $0.0012 per span
-      { duration: span.duration }
+      { duration: span.duration },
     );
 
     return span;
@@ -149,6 +134,12 @@ export class TelemetryEngine {
     this.events = [];
     this.spans.clear();
   }
+
+  list(): TelemetryEvent[] {
+    return this.getEvents();
+  }
 }
 
 export const nucleusTelemetry = new TelemetryEngine();
+// Alias matching the module-name convention several callers already use.
+export const telemetryEngine = nucleusTelemetry;

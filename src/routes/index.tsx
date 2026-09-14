@@ -22,7 +22,9 @@ function Landing() {
           <span className="font-semibold tracking-tight">ValtariOS Core</span>
         </div>
         <div className="flex items-center gap-3 text-sm">
-          <Link to="/login" className="text-muted-foreground hover:text-foreground">Sign in</Link>
+          <Link to="/login" className="text-muted-foreground hover:text-foreground">
+            Sign in
+          </Link>
           <Link
             to="/login"
             search={{ mode: "signup" }}
@@ -36,13 +38,14 @@ function Landing() {
       <main className="relative z-10 mx-auto max-w-4xl px-6 pt-24 pb-32 text-center">
         <p className="text-mono-xs text-muted-foreground">PLATFORM // v0.1</p>
         <h1 className="mt-4 text-5xl font-semibold tracking-tight md:text-6xl">
-          The shared platform layer<br />
+          The shared platform layer
+          <br />
           <span className="text-muted-foreground">for every ValtariOS product.</span>
         </h1>
         <p className="mx-auto mt-6 max-w-2xl text-base text-muted-foreground">
-          Identity, tenancy, audit, telemetry, secrets, connectors, workflows, evidence,
-          decisions, governance. One modular monolith. Built for Claim Clarity, Weaver,
-          Glue, Guardian and what comes next.
+          Identity, tenancy, audit, telemetry, secrets, connectors, workflows, evidence, decisions,
+          governance. One modular monolith. Built for Claim Clarity, Weaver, Glue, Guardian and what
+          comes next.
         </p>
         <div className="mt-10 flex items-center justify-center gap-3">
           <Link

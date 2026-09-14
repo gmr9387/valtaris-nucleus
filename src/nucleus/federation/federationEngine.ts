@@ -1,16 +1,17 @@
 // src/nucleus/federation/federationEngine.ts
 // Unified constitutional federation engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
+import { federatedIdentityEngine } from "./federatedIdentityEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export type FederationNode = {
   id: string;
   name: string;
   region: string;
   url: string;
-  metadata?: any;
+  metadata?: Dynamic;
   createdAt: number;
 };
 
@@ -27,7 +28,7 @@ export type FederationEvent = {
   sourceNode: string;
   targetNode: string;
   type: string;
-  payload: any;
+  payload: Dynamic;
   timestamp: number;
 };
 
@@ -36,8 +37,13 @@ export class FederationEngine {
   private links: Map<string, FederationLink> = new Map();
   private events: FederationEvent[] = [];
 
-  registerNode(name: string, region: string, url: string, metadata?: any) {
-    const id = randomUUID();
+  // Tenant/environment validation for cross-region requests -- callers
+  // across certification/, ci/, dashboard/, cliSovereign/, sovereignty/
+  // already expect this surface.
+  readonly identity = federatedIdentityEngine;
+
+  registerNode(name: string, region: string, url: string, metadata?: Dynamic) {
+    const id = crypto.randomUUID();
 
     const node: FederationNode = {
       id,
@@ -55,12 +61,8 @@ export class FederationEngine {
     return node;
   }
 
-  linkNodes(
-    sourceNode: string,
-    targetNode: string,
-    type: FederationLink["type"]
-  ) {
-    const id = randomUUID();
+  linkNodes(sourceNode: string, targetNode: string, type: FederationLink["type"]) {
+    const id = crypto.randomUUID();
 
     const link: FederationLink = {
       id,
@@ -77,14 +79,9 @@ export class FederationEngine {
     return link;
   }
 
-  forwardEvent(
-    sourceNode: string,
-    targetNode: string,
-    type: string,
-    payload: any
-  ) {
+  forwardEvent(sourceNode: string, targetNode: string, type: string, payload: Dynamic) {
     const event: FederationEvent = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       sourceNode,
       targetNode,
       type,
@@ -97,13 +94,11 @@ export class FederationEngine {
     console.log(`[FED][EVENT] ${sourceNode} → ${targetNode}: ${type}`);
 
     // Audit
-    nucleusAudit.log(
-      "federation",
-      "federation",
-      `federation.event.${type}`,
-      "federation-engine",
-      { sourceNode, targetNode, payload }
-    );
+    nucleusAudit.log("federation", "federation", `federation.event.${type}`, "federation-engine", {
+      sourceNode,
+      targetNode,
+      payload,
+    });
 
     // Billing (federation events cost money)
     nucleusBilling.recordEvent(
@@ -112,7 +107,7 @@ export class FederationEngine {
       `federation.event.${type}`,
       1,
       0.004, // $0.004 per federated event
-      { sourceNode, targetNode }
+      { sourceNode, targetNode },
     );
 
     return event;
@@ -138,3 +133,5 @@ export class FederationEngine {
 }
 
 export const nucleusFederation = new FederationEngine();
+// Alias matching the module-name convention several callers already use.
+export const federationEngine = nucleusFederation;

@@ -13,9 +13,7 @@
 import type { DecisionResult } from "./contracts";
 import type { DecisionCandidate } from "./types";
 
-export function resolveDecision(
-  _candidates: readonly DecisionCandidate[],
-): DecisionResult {
+export function resolveDecision(_candidates: readonly DecisionCandidate[]): DecisionResult {
   return {
     decision: {
       id: "",

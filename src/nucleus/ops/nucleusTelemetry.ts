@@ -1,5 +1,6 @@
 // src/nucleus/ops/nucleusTelemetry.ts
 
+import type { Dynamic } from "../types/dynamic";
 /**
  * NucleusTelemetry (Phase 11.2)
  *
@@ -11,9 +12,9 @@
  */
 
 export class NucleusTelemetry {
-  private events: any[] = [];
+  private events: Dynamic[] = [];
 
-  record(event: string, payload: any) {
+  record(event: string, payload: Dynamic) {
     this.events.push({
       event,
       payload,

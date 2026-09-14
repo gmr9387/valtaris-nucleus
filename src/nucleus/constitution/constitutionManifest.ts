@@ -7,14 +7,12 @@ export function getConstitutionManifest() {
     version: constitution.version,
     subsystems: constitution.subsystems.map((s) => s.name),
     capabilities: constitution.subsystems.flatMap((s) =>
-      s.capabilities.map((c) => `${s.name}.${c}`)
+      s.capabilities.map((c) => `${s.name}.${c}`),
     ),
     contracts: constitution.contracts.map(
-      (c) => `${c.name}@${c.version} (${c.subsystem}.${c.capability})`
+      (c) => `${c.name}@${c.version} (${c.subsystem}.${c.capability})`,
     ),
-    resources: constitution.resources.map(
-      (r) => `${r.type} (${r.subsystem}.${r.capability})`
-    ),
+    resources: constitution.resources.map((r) => `${r.type} (${r.subsystem}.${r.capability})`),
     identityBoundary: constitution.identityBoundary,
   };
 }

@@ -17,13 +17,7 @@ export interface GuardianTelemetryRecord {
   repairApplied: boolean;
   repairDiffSize: number | null;
 
-  lifecycleState:
-    | "INGESTED"
-    | "EVALUATED"
-    | "REPAIRED"
-    | "ENFORCED"
-    | "FINALIZED"
-    | "REOPENED";
+  lifecycleState: "INGESTED" | "EVALUATED" | "REPAIRED" | "ENFORCED" | "FINALIZED" | "REOPENED";
 
   subsystem: "guardian";
   organizationId: string;

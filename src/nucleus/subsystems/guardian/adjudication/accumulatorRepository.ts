@@ -18,7 +18,7 @@ import type { MemberAccumulators } from "@/types/claim";
  */
 export async function fetchMemberAccumulators(
   memberId: string,
-  planYear: number
+  planYear: number,
 ): Promise<MemberAccumulators | null> {
   const { data, error } = await supabase
     .from("member_accumulators")
@@ -36,4 +36,28 @@ export async function fetchMemberAccumulators(
   }
 
   return data.payload as unknown as MemberAccumulators;
+}
+
+/**
+ * Persists updated deductible/OOP/benefit-limit usage after a claim is
+ * adjudicated. Previously nothing called this at all: fetchMemberAccumulators()
+ * only reads, so every claim was adjudicated against the same frozen
+ * snapshot forever -- a member's deductible never actually advanced
+ * between claims processed through this pipeline.
+ */
+export async function saveMemberAccumulators(accumulators: MemberAccumulators): Promise<void> {
+  const { error } = await supabase.from("member_accumulators").upsert(
+    {
+      member_id: accumulators.member_id,
+      plan_year: accumulators.plan_year,
+      payload: accumulators as unknown as never,
+    } as never,
+    { onConflict: "member_id,plan_year" },
+  );
+
+  if (error) {
+    throw new Error(
+      `Failed to save updated accumulators for member ${accumulators.member_id}: ${error.message}`,
+    );
+  }
 }

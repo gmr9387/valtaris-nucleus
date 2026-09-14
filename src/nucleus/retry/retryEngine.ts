@@ -1,7 +1,6 @@
 // src/nucleus/retry/retryEngine.ts
 // Unified constitutional retry engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
 
@@ -39,9 +38,9 @@ export class RetryEngine {
     maxAttempts: number,
     backoffMs: number,
     jitterMs: number,
-    handler: RetryPolicy["handler"]
+    handler: RetryPolicy["handler"],
   ) {
-    const id = randomUUID();
+    const id = crypto.randomUUID();
 
     const policy: RetryPolicy = {
       id,
@@ -70,7 +69,7 @@ export class RetryEngine {
       const success = await policy.handler();
 
       const record: RetryAttempt = {
-        id: randomUUID(),
+        id: crypto.randomUUID(),
         policyId,
         org: policy.org,
         subsystem: policy.subsystem,
@@ -83,17 +82,14 @@ export class RetryEngine {
       this.attempts.push(record);
 
       console.log(
-        `[RETRY][${policy.subsystem.toUpperCase()}] Attempt ${attempt} → ${success ? "SUCCESS" : "FAIL"}`
+        `[RETRY][${policy.subsystem.toUpperCase()}] Attempt ${attempt} → ${success ? "SUCCESS" : "FAIL"}`,
       );
 
       // Audit
-      nucleusAudit.log(
-        policy.org,
-        policy.subsystem,
-        `retry.${policy.name}`,
-        "retry-engine",
-        { attempt, success }
-      );
+      nucleusAudit.log(policy.org, policy.subsystem, `retry.${policy.name}`, "retry-engine", {
+        attempt,
+        success,
+      });
 
       // Billing
       nucleusBilling.recordEvent(
@@ -102,7 +98,7 @@ export class RetryEngine {
         `retry.${policy.name}`,
         1,
         0.001, // $0.001 per retry attempt
-        { attempt, success }
+        { attempt, success },
       );
 
       if (success) return true;

@@ -34,7 +34,11 @@ export const workflowDefinitionSchema = z.object({
   steps: z
     .array(
       z.object({
-        key: z.string().min(1).max(64).regex(/^[a-zA-Z0-9_.-]+$/),
+        key: z
+          .string()
+          .min(1)
+          .max(64)
+          .regex(/^[a-zA-Z0-9_.-]+$/),
         label: z.string().min(1).max(120),
         kind: z.string().min(1).max(64).default("task"),
         config: z.record(z.string(), z.unknown()).optional(),

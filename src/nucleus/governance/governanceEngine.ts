@@ -1,9 +1,9 @@
 // src/nucleus/governance/governanceEngine.ts
 // Unified constitutional governance engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export type GovernanceRule = {
   id: string;
@@ -11,7 +11,7 @@ export type GovernanceRule = {
   subsystem: string;
   name: string;
   description: string;
-  evaluate: (payload: any) => boolean;
+  evaluate: (payload: Dynamic) => boolean;
   createdAt: number;
 };
 
@@ -22,7 +22,7 @@ export type GovernanceDecision = {
   subsystem: string;
   name: string;
   allowed: boolean;
-  payload: any;
+  payload: Dynamic;
   timestamp: number;
 };
 
@@ -35,9 +35,9 @@ export class GovernanceEngine {
     subsystem: string,
     name: string,
     description: string,
-    evaluate: (payload: any) => boolean
+    evaluate: (payload: Dynamic) => boolean,
   ) {
-    const id = randomUUID();
+    const id = crypto.randomUUID();
 
     const rule: GovernanceRule = {
       id,
@@ -56,7 +56,7 @@ export class GovernanceEngine {
     return rule;
   }
 
-  enforce(ruleId: string, payload: any) {
+  enforce(ruleId: string, payload: Dynamic) {
     const rule = this.rules.get(ruleId);
     if (!rule) {
       console.error(`[GOV] Rule not found: ${ruleId}`);
@@ -66,7 +66,7 @@ export class GovernanceEngine {
     const allowed = rule.evaluate(payload);
 
     const decision: GovernanceDecision = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       ruleId,
       org: rule.org,
       subsystem: rule.subsystem,
@@ -87,7 +87,7 @@ export class GovernanceEngine {
       rule.subsystem,
       `governance.rule.${rule.name}`,
       "governance-engine",
-      { allowed, payload }
+      { allowed, payload },
     );
 
     // Billing (governance checks cost money)
@@ -97,7 +97,7 @@ export class GovernanceEngine {
       `governance.rule.${rule.name}`,
       1,
       0.0015, // $0.0015 per governance check
-      { allowed, payload }
+      { allowed, payload },
     );
 
     return decision;

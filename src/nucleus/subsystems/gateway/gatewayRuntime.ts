@@ -2,9 +2,10 @@
 
 import { eventBus } from "../../events/eventBus";
 import { GatewayEngine } from "./gatewayEngine";
+import type { Dynamic } from "../../types/dynamic";
 
 export class GatewayRuntime {
-  static handle(contractName: string, payload: any) {
+  static handle(contractName: string, payload: Dynamic) {
     switch (contractName) {
       case "ingress":
         return this.handleIngress(payload);
@@ -14,7 +15,7 @@ export class GatewayRuntime {
     }
   }
 
-  private static handleIngress(payload: any) {
+  private static handleIngress(payload: Dynamic) {
     const normalized = GatewayEngine.normalize(payload);
 
     eventBus.emit("gateway.ingress.normalized", normalized);

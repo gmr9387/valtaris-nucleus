@@ -2,9 +2,10 @@
 
 import { resourceGraph } from "../resources/resourceGraph";
 import { federatedIdentityEngine } from "./federatedIdentityEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export class FederatedResourceEngine {
-  create(resourceId: string, type: string, identity: any, data: any) {
+  create(resourceId: string, type: string, identity: Dynamic, data: Dynamic) {
     const enforcement = federatedIdentityEngine.enforce(identity);
 
     if (!enforcement.tenantValid || !enforcement.environmentValid) {
@@ -15,15 +16,11 @@ export class FederatedResourceEngine {
   }
 
   listByTenant(tenantId: string) {
-    return resourceGraph.listResources().filter(
-      (r) => r.identity.tenantId === tenantId
-    );
+    return resourceGraph.listResources().filter((r) => r.identity.tenantId === tenantId);
   }
 
   listByEnvironment(environmentId: string) {
-    return resourceGraph.listResources().filter(
-      (r) => r.identity.environmentId === environmentId
-    );
+    return resourceGraph.listResources().filter((r) => r.identity.environmentId === environmentId);
   }
 }
 

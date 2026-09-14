@@ -1,5 +1,6 @@
 // src/nucleus/subsystems/subsystemRegistry.ts
 
+import type { Dynamic } from "../types/dynamic";
 /**
  * Subsystem Registry (fixed)
  * --------------------------
@@ -18,20 +19,14 @@
  * "guardian", "glue", "dualpay", "contracts", "telemetry".
  */
 
-export type SubsystemId =
-  | "contracts"
-  | "guardian"
-  | "glue"
-  | "weaver"
-  | "dualpay"
-  | "telemetry";
+export type SubsystemId = "contracts" | "guardian" | "glue" | "weaver" | "dualpay" | "telemetry";
 
 export interface SubsystemRegistration {
   id: SubsystemId;
   label: string;
   enabled: boolean;
   runtime: {
-    handle: (contractName: string, payload: any, ctx?: any) => any;
+    handle: (contractName: string, payload: Dynamic, ctx?: Dynamic) => Dynamic;
   };
 }
 

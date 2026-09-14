@@ -1,16 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import {
-  canManageProjects,
-  useEnvironments,
-  useMyOrgMembership,
-  useProjects,
-} from "@/lib/queries";
+import { canManageProjects, useEnvironments, useMyOrgMembership, useProjects } from "@/lib/queries";
 import { useOrgStore } from "@/lib/org-store";
 import { PageHeader, PageBody, EmptyState, StatusDot } from "@/components/platform-ui";
 import { Field, Th, Td, FieldStyles } from "./_app.organizations";
@@ -41,15 +36,13 @@ function EnvsPage() {
   const qc = useQueryClient();
 
   const [open, setOpen] = useState(false);
-  const [projectId, setProjectId] = useState("");
+  // Defaults to the first project once loaded, but a user's explicit
+  // choice always wins -- computed during render instead of synced via
+  // an effect, so there's no extra render pass just to pick a default.
+  const [projectIdOverride, setProjectId] = useState<string | null>(null);
+  const projectId = projectIdOverride ?? projects.data?.[0]?.id ?? "";
   const [name, setName] = useState("");
   const [envType, setEnvType] = useState<EnvType>("development");
-
-  useEffect(() => {
-    if (!projectId && projects.data?.[0]?.id) {
-      setProjectId(projects.data[0].id);
-    }
-  }, [projectId, projects.data]);
 
   const create = useMutation({
     mutationFn: async () => {

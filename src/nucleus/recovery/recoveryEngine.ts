@@ -1,7 +1,6 @@
 // src/nucleus/recovery/recoveryEngine.ts
 // Unified constitutional recovery engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusHealth } from "../health/healthEngine";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
@@ -35,9 +34,9 @@ export class RecoveryEngine {
     subsystem: string,
     name: string,
     description: string,
-    run: RecoveryAction["run"]
+    run: RecoveryAction["run"],
   ) {
-    const id = randomUUID();
+    const id = crypto.randomUUID();
 
     const action: RecoveryAction = {
       id,
@@ -65,7 +64,7 @@ export class RecoveryEngine {
     }
 
     const actions = [...this.actions.values()].filter(
-      (a) => a.org === org && a.subsystem === subsystem
+      (a) => a.org === org && a.subsystem === subsystem,
     );
 
     let success = false;
@@ -74,7 +73,7 @@ export class RecoveryEngine {
       const result = await action.run();
 
       const record: RecoveryResult = {
-        id: randomUUID(),
+        id: crypto.randomUUID(),
         actionId: action.id,
         org,
         subsystem,
@@ -86,17 +85,13 @@ export class RecoveryEngine {
       this.results.push(record);
 
       console.log(
-        `[RECOVERY][${subsystem.toUpperCase()}] Action ${action.name} → ${result ? "SUCCESS" : "FAIL"}`
+        `[RECOVERY][${subsystem.toUpperCase()}] Action ${action.name} → ${result ? "SUCCESS" : "FAIL"}`,
       );
 
       // Audit
-      nucleusAudit.log(
-        org,
-        subsystem,
-        `recovery.${action.name}`,
-        "recovery-engine",
-        { success: result }
-      );
+      nucleusAudit.log(org, subsystem, `recovery.${action.name}`, "recovery-engine", {
+        success: result,
+      });
 
       // Billing (recovery attempts cost money)
       nucleusBilling.recordEvent(
@@ -105,7 +100,7 @@ export class RecoveryEngine {
         `recovery.${action.name}`,
         1,
         0.004, // $0.004 per recovery attempt
-        { success: result }
+        { success: result },
       );
 
       if (result) {

@@ -18,9 +18,7 @@ export interface EvaluatorOutput {
   readonly candidates: readonly DecisionCandidate[];
 }
 
-export function evaluateRules(
-  _request: CoreEvaluationRequest,
-): EvaluatorOutput {
+export function evaluateRules(_request: CoreEvaluationRequest): EvaluatorOutput {
   // Intentionally not implemented in Phase 1.
   // Extraction of live rule execution will happen in a later phase.
   return { evaluations: [], candidates: [] };

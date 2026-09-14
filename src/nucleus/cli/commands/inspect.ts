@@ -1,7 +1,7 @@
 // src/nucleus/cli/commands/inspect.ts
 // Full file — nucleus inspect <org>
 
-import { NucleusDBBridge } from "../../db/nucleusDbBridge";
+import { NucleusDBBridge } from "../../db/nucleusDBBridge";
 
 export class InspectCommand {
   static async run(args: string[]) {

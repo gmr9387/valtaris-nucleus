@@ -8,8 +8,7 @@ import {
   buildRedactedPreview,
 } from "@/lib/schemas";
 
-const SUPABASE_URL =
-  import.meta.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
 
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
