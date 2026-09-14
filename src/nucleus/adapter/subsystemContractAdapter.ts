@@ -35,7 +35,7 @@ export class SubsystemContractAdapter {
     if (!identity.capability) throw new Error("Missing capability");
 
     const validation = validateContract(input.name, input.version, input.payload);
-    if (!validation.valid) {
+    if (!validation.ok) {
       throw new Error(`Invalid subsystem contract: ${input.name}@${input.version}`);
     }
 

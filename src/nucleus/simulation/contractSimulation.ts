@@ -13,7 +13,7 @@ export class ContractSimulation {
     ctx: SimulationContext
   ): NucleusEvent {
     const validation = validateContract(name, version, payload);
-    if (!validation.valid) {
+    if (!validation.ok) {
       throw new Error(`Invalid contract: ${name}@${version}`);
     }
 

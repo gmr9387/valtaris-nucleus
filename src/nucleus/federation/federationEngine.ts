@@ -4,6 +4,7 @@
 import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
+import { federatedIdentityEngine } from "./federatedIdentityEngine";
 
 export type FederationNode = {
   id: string;
@@ -35,6 +36,11 @@ export class FederationEngine {
   private nodes: Map<string, FederationNode> = new Map();
   private links: Map<string, FederationLink> = new Map();
   private events: FederationEvent[] = [];
+
+  // Tenant/environment validation for cross-region requests -- callers
+  // across certification/, ci/, dashboard/, cliSovereign/, sovereignty/
+  // already expect this surface.
+  readonly identity = federatedIdentityEngine;
 
   registerNode(name: string, region: string, url: string, metadata?: any) {
     const id = randomUUID();
