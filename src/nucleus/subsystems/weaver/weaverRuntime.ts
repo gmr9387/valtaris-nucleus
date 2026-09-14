@@ -19,9 +19,16 @@ export class WeaverRuntime {
   }
 
   private static handleOpportunity(payload: Dynamic) {
+    // FIXED: a negative claimPayload.amount previously produced a
+    // negative score (e.g. amount -500 -> score -25), and a non-numeric
+    // amount (wrong type from a caller) produced NaN silently instead of
+    // failing safe. Coerce and clamp so score always lands in [0, 100].
+    const amount = Number(payload.claimPayload?.amount);
+    const score = Number.isFinite(amount) && amount > 0 ? Math.min(amount / 20, 100) : 0;
+
     const result = {
       ...payload,
-      score: payload.claimPayload?.amount ? Math.min(payload.claimPayload.amount / 20, 100) : 0,
+      score,
     };
 
     eventBus.emit("weaver.opportunity.processed", result);
