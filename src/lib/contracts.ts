@@ -43,3 +43,51 @@ export async function listFeeSchedules(contract_id: string): Promise<FeeSchedule
   }
   return (data ?? []) as unknown as FeeScheduleRow[];
 }
+
+export interface NewContract {
+  organization_id?: string | null;
+  payer_name: string;
+  provider_npi?: string | null;
+  version: string;
+  effective_date: string;
+  termination_date?: string | null;
+  reimbursement_method: "fee_schedule" | "percent_of_billed";
+  percent_of_billed?: number | null;
+}
+
+/** Throws on failure so the calling form can surface the error. */
+export async function createContract(input: NewContract): Promise<PayerContract> {
+  const { data, error } = await supabase
+    .from("payer_contracts")
+    .insert({
+      organization_id: input.organization_id ?? null,
+      payer_name: input.payer_name,
+      provider_npi: input.provider_npi ?? null,
+      version: input.version,
+      effective_date: input.effective_date,
+      termination_date: input.termination_date ?? null,
+      reimbursement_method: input.reimbursement_method,
+      percent_of_billed: input.percent_of_billed ?? null,
+    } as never)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as unknown as PayerContract;
+}
+
+export interface NewFeeScheduleRow {
+  contract_id: string;
+  procedure_code: string;
+  contracted_amount_cents: number;
+}
+
+/** Throws on failure so the calling form can surface the error. */
+export async function addFeeScheduleRow(input: NewFeeScheduleRow): Promise<FeeScheduleRow> {
+  const { data, error } = await supabase
+    .from("fee_schedules")
+    .upsert([input] as never, { onConflict: "contract_id,procedure_code" })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as unknown as FeeScheduleRow;
+}

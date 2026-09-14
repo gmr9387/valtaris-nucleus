@@ -64,11 +64,17 @@ export async function listAllMemberOhi(): Promise<Record<string, OHIIndicator[]>
   return result;
 }
 
-export async function upsertMemberOhi(memberId: string, indicator: OHIIndicator): Promise<void> {
+/** Throws on failure so the calling form can surface the error. */
+export async function upsertMemberOhi(
+  memberId: string,
+  indicator: OHIIndicator,
+  organizationId?: string | null,
+): Promise<void> {
   const { error } = await supabase.from("member_ohi").upsert(
     [
       {
         member_id: memberId,
+        organization_id: organizationId ?? null,
         payer_id: indicator.payer_id,
         payer_name: indicator.payer_name,
         coverage_type: indicator.coverage_type,
@@ -80,14 +86,15 @@ export async function upsertMemberOhi(memberId: string, indicator: OHIIndicator)
     ] as never,
     { onConflict: "member_id,payer_id" },
   );
-  if (error) console.error("[ohi] upsertMemberOhi failed", error.message);
+  if (error) throw error;
 }
 
+/** Throws on failure so the calling form can surface the error. */
 export async function deleteMemberOhi(memberId: string, payerId: string): Promise<void> {
   const { error } = await supabase
     .from("member_ohi")
     .delete()
     .eq("member_id", memberId)
     .eq("payer_id", payerId);
-  if (error) console.error("[ohi] deleteMemberOhi failed", error.message);
+  if (error) throw error;
 }
