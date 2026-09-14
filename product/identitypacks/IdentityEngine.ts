@@ -1,8 +1,4 @@
-import {
-  fetchIdentityPacks,
-  installIdentityPack,
-  removeIdentityPack
-} from "./IdentityAPI";
+import { fetchIdentityPacks, installIdentityPack, removeIdentityPack } from "./IdentityAPI";
 
 export class IdentityEngine {
   private packs: any[] = [];

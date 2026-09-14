@@ -14,10 +14,7 @@ export class LineageCommand {
     const db = new NucleusDBBridge();
     const client = db.getClient();
 
-    const { data } = await client
-      .from("nucleus_lineage")
-      .select("*")
-      .eq("organization_id", org);
+    const { data } = await client.from("nucleus_lineage").select("*").eq("organization_id", org);
 
     console.log(JSON.stringify(data, null, 2));
   }

@@ -33,12 +33,7 @@ export class TelemetryEngine {
   private events: TelemetryEvent[] = [];
   private spans: Map<string, TelemetrySpan> = new Map();
 
-  recordEvent(
-    org: string,
-    subsystem: string,
-    type: string,
-    payload: any
-  ) {
+  recordEvent(org: string, subsystem: string, type: string, payload: any) {
     const event: TelemetryEvent = {
       id: randomUUID(),
       org,
@@ -54,13 +49,7 @@ export class TelemetryEngine {
     console.log(prefix, `Event: ${type}`);
 
     // Audit
-    nucleusAudit.log(
-      org,
-      subsystem,
-      `telemetry.event.${type}`,
-      "telemetry-engine",
-      { payload }
-    );
+    nucleusAudit.log(org, subsystem, `telemetry.event.${type}`, "telemetry-engine", { payload });
 
     // Billing (telemetry events cost money)
     nucleusBilling.recordEvent(
@@ -69,18 +58,13 @@ export class TelemetryEngine {
       `telemetry.event.${type}`,
       1,
       0.0008, // $0.0008 per telemetry event
-      { payload }
+      { payload },
     );
 
     return event;
   }
 
-  startSpan(
-    org: string,
-    subsystem: string,
-    name: string,
-    metadata?: Record<string, any>
-  ) {
+  startSpan(org: string, subsystem: string, name: string, metadata?: Record<string, any>) {
     const span: TelemetrySpan = {
       id: randomUUID(),
       org,
@@ -112,13 +96,10 @@ export class TelemetryEngine {
     console.log(prefix, `Span ended: ${span.name} (${span.duration}ms)`);
 
     // Audit
-    nucleusAudit.log(
-      span.org,
-      span.subsystem,
-      `telemetry.span.${span.name}`,
-      "telemetry-engine",
-      { duration: span.duration, metadata: span.metadata }
-    );
+    nucleusAudit.log(span.org, span.subsystem, `telemetry.span.${span.name}`, "telemetry-engine", {
+      duration: span.duration,
+      metadata: span.metadata,
+    });
 
     // Billing (span recording costs money)
     nucleusBilling.recordEvent(
@@ -127,7 +108,7 @@ export class TelemetryEngine {
       `telemetry.span.${span.name}`,
       1,
       0.0012, // $0.0012 per span
-      { duration: span.duration }
+      { duration: span.duration },
     );
 
     return span;

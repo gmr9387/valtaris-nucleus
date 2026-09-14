@@ -35,7 +35,7 @@ export class CertificationEngine {
     subsystem: string,
     name: string,
     description: string,
-    validate: (payload: any) => boolean
+    validate: (payload: any) => boolean,
   ) {
     const id = randomUUID();
 
@@ -87,7 +87,7 @@ export class CertificationEngine {
       check.subsystem,
       `certification.check.${check.name}`,
       "certification-engine",
-      { passed, payload }
+      { passed, payload },
     );
 
     // Billing (certification checks cost money)
@@ -97,7 +97,7 @@ export class CertificationEngine {
       `certification.check.${check.name}`,
       1,
       0.0025, // $0.0025 per certification check
-      { passed, payload }
+      { passed, payload },
     );
 
     return result;

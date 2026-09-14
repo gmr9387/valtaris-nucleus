@@ -103,7 +103,8 @@ export class GuardianRuntime {
     const { run } = adjudicateClaim([line], accumulators, demoContract, demoPlan);
 
     const lineResult = run.line_results[0];
-    const denied = lineResult.status === "denied" || lineResult.status === "benefit_limit_exhausted";
+    const denied =
+      lineResult.status === "denied" || lineResult.status === "benefit_limit_exhausted";
 
     const result = {
       ...payload,
@@ -126,13 +127,7 @@ export class GuardianRuntime {
 
     eventBus.emit("guardian.authorization.processed", result);
 
-    recordTelemetry(
-      "guardian",
-      "authorization",
-      result.claimId,
-      result.organizationId,
-      result
-    );
+    recordTelemetry("guardian", "authorization", result.claimId, result.organizationId, result);
 
     return result;
   }

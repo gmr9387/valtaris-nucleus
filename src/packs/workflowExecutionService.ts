@@ -6,8 +6,7 @@ import { WorkflowManifest } from "./workflowManifest";
 import { loadWorkflowManifest } from "./workflowLoader";
 
 export type WorkflowExecutionResult =
-  | { status: "success"; output: any }
-  | { status: "error"; error: string };
+  { status: "success"; output: any } | { status: "error"; error: string };
 
 const loadWorkflowModule = (workflowPath: string, moduleName: string) => {
   const modulePath = path.join(workflowPath, moduleName);

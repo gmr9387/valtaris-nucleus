@@ -10,11 +10,7 @@
  * This is the SECOND contract in the Valtara Loop.
  */
 
-import {
-  registerContract,
-  ContractDefinition,
-  ContractValidationResult,
-} from "./contractRegistry";
+import { registerContract, ContractDefinition, ContractValidationResult } from "./contractRegistry";
 
 export interface RecommendationV1 {
   id: string; // recommendation id

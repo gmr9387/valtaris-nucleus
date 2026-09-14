@@ -11,12 +11,7 @@ import { nucleusOS } from "../../src/nucleus/os/osEngine";
 
 export class IdentityService {
   async createUser(org: string, name: string, email: string, password: string) {
-    const encryptedPassword = nucleusSecrets.set(
-      org,
-      "identity",
-      `${email}.password`,
-      password
-    );
+    const encryptedPassword = nucleusSecrets.set(org, "identity", `${email}.password`, password);
 
     const identity = nucleusIdentity.create(org, "identity", name, {
       email,
@@ -56,13 +51,7 @@ export class IdentityService {
 
   async assignRole(org: string, email: string, role: string) {
     nucleusAccess.define(org, "identity", role, "login", true);
-    nucleusAccess.define(
-      org,
-      "identity",
-      role,
-      "manage-users",
-      role === "admin"
-    );
+    nucleusAccess.define(org, "identity", role, "manage-users", role === "admin");
 
     return { email, role };
   }

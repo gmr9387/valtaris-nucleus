@@ -134,9 +134,7 @@ function GovernancePage() {
                   >
                     <div>
                       <div className="font-medium text-foreground">{policy.name}</div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        Policy template
-                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">Policy template</div>
                     </div>
 
                     <div>
@@ -150,13 +148,9 @@ function GovernancePage() {
                       {policy.version}
                     </div>
 
-                    <div className="font-mono text-xs text-muted-foreground">
-                      {policy.scope}
-                    </div>
+                    <div className="font-mono text-xs text-muted-foreground">{policy.scope}</div>
 
-                    <div className="font-mono text-xs text-muted-foreground">
-                      {policy.trigger}
-                    </div>
+                    <div className="font-mono text-xs text-muted-foreground">{policy.trigger}</div>
 
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <LockKeyhole className="h-3.5 w-3.5 text-status-pending" />
@@ -214,9 +208,7 @@ function Metric({
   return (
     <div className={`rounded-xl border p-4 ${cls}`}>
       <div className="flex items-center justify-between">
-        <span className="text-xs uppercase tracking-wider text-muted-foreground">
-          {label}
-        </span>
+        <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
         <div className="text-muted-foreground">{icon}</div>
       </div>
 

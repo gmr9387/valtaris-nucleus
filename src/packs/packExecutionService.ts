@@ -6,8 +6,7 @@ import { PackManifest } from "./packManifest";
 import { loadPackManifest } from "./packLoader";
 
 export type PackExecutionResult =
-  | { status: "success"; output: any }
-  | { status: "error"; error: string };
+  { status: "success"; output: any } | { status: "error"; error: string };
 
 const loadPackModule = (packPath: string, moduleName: string) => {
   const modulePath = path.join(packPath, moduleName);
@@ -39,10 +38,7 @@ export const executePackCapability = async (params: {
     }
 
     // 2. Load capability module
-    const capabilityModule = loadPackModule(
-      packPath,
-      `capabilities/${params.capabilityName}.js`
-    );
+    const capabilityModule = loadPackModule(packPath, `capabilities/${params.capabilityName}.js`);
 
     // 3. Execute capability
     const output = await capabilityModule.run(params.input);
@@ -79,10 +75,7 @@ export const executePackWorkflow = async (params: {
     }
 
     // 2. Load workflow module
-    const workflowModule = loadPackModule(
-      packPath,
-      `workflows/${params.workflowName}.js`
-    );
+    const workflowModule = loadPackModule(packPath, `workflows/${params.workflowName}.js`);
 
     // 3. Execute workflow
     const output = await workflowModule.run(params.input);
@@ -119,10 +112,7 @@ export const executePackExtension = async (params: {
     }
 
     // 2. Load extension module
-    const extensionModule = loadPackModule(
-      packPath,
-      `extensions/${params.extensionName}.js`
-    );
+    const extensionModule = loadPackModule(packPath, `extensions/${params.extensionName}.js`);
 
     // 3. Execute extension
     const output = await extensionModule.run(params.context);

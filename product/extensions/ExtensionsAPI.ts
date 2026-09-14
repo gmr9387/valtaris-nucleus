@@ -5,14 +5,14 @@ export const fetchExtensions = async () => {
 
 export const installExtension = async (id: string) => {
   const res = await fetch(`/api/extensions/${id}/install`, {
-    method: "POST"
+    method: "POST",
   });
   return res.json();
 };
 
 export const removeExtension = async (id: string) => {
   const res = await fetch(`/api/extensions/${id}/remove`, {
-    method: "POST"
+    method: "POST",
   });
   return res.json();
 };

@@ -17,14 +17,8 @@ export class NucleusTelemetry {
     subsystem: string,
     level: TelemetryLevel,
     message: string,
-    metadata: any = null
+    metadata: any = null,
   ) {
-    await this.db.insertTelemetry(
-      organizationId,
-      subsystem,
-      level,
-      message,
-      metadata
-    );
+    await this.db.insertTelemetry(organizationId, subsystem, level, message, metadata);
   }
 }

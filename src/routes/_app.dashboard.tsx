@@ -1,10 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  useAuditEvents,
-  useEnvironments,
-  useMyOrganizations,
-  useProjects,
-} from "@/lib/queries";
+import { useAuditEvents, useEnvironments, useMyOrganizations, useProjects } from "@/lib/queries";
 import { useOrgStore } from "@/lib/org-store";
 import { PageHeader, PageBody, EmptyState } from "@/components/platform-ui";
 import {
@@ -134,9 +129,7 @@ function Dashboard() {
                   </p>
                 </div>
 
-                <span className="text-mono-xs text-muted-foreground">
-                  {recent.length} EVENTS
-                </span>
+                <span className="text-mono-xs text-muted-foreground">{recent.length} EVENTS</span>
               </div>
 
               <div className="divide-y divide-border">
@@ -152,9 +145,7 @@ function Dashboard() {
 
                       <span className="truncate">
                         {event.action}{" "}
-                        <span className="text-muted-foreground">
-                          {event.entity_type}
-                        </span>
+                        <span className="text-muted-foreground">{event.entity_type}</span>
                       </span>
                     </div>
 
@@ -201,16 +192,12 @@ function MetricCard({
   return (
     <div className={`rounded-lg border p-4 ${cls}`}>
       <div className="flex items-center justify-between">
-        <span className="text-mono-xs text-muted-foreground">
-          {label.toUpperCase()}
-        </span>
+        <span className="text-mono-xs text-muted-foreground">{label.toUpperCase()}</span>
 
         <div className="text-muted-foreground">{icon}</div>
       </div>
 
-      <div className="mt-2 text-2xl font-semibold tracking-tight tabular-nums">
-        {value}
-      </div>
+      <div className="mt-2 text-2xl font-semibold tracking-tight tabular-nums">{value}</div>
     </div>
   );
 }

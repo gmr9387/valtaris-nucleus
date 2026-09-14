@@ -6,11 +6,7 @@ export const Field = ({ label, children, error }) => {
     <div style={{ display: "flex", flexDirection: "column", gap: spacing.sm }}>
       {label}
       {children}
-      {error && (
-        <span style={{ color: "#FF4F4F", fontSize: 12 }}>
-          {error}
-        </span>
-      )}
+      {error && <span style={{ color: "#FF4F4F", fontSize: 12 }}>{error}</span>}
     </div>
   );
 };

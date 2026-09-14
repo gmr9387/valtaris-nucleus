@@ -10,11 +10,6 @@ export const Payments = ({ navItems, active, onSelect }) => {
   }, []);
 
   return (
-    <PaymentsPage
-      navItems={navItems}
-      active={active}
-      onSelect={onSelect}
-      payments={payments}
-    />
+    <PaymentsPage navItems={navItems} active={active} onSelect={onSelect} payments={payments} />
   );
 };

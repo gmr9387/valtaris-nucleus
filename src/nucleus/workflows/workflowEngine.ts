@@ -42,12 +42,7 @@ export class WorkflowEngine {
   private definitions: Map<string, WorkflowDefinition> = new Map();
   private executions: WorkflowExecutionRecord[] = [];
 
-  register(
-    org: string,
-    name: string,
-    steps: Record<string, WorkflowStep>,
-    entry: string
-  ) {
+  register(org: string, name: string, steps: Record<string, WorkflowStep>, entry: string) {
     const id = randomUUID();
 
     const definition: WorkflowDefinition = {
@@ -76,11 +71,7 @@ export class WorkflowEngine {
     this.executeStep(definition, definition.entry, payload);
   }
 
-  private executeStep(
-    definition: WorkflowDefinition,
-    stepId: string,
-    payload: any
-  ) {
+  private executeStep(definition: WorkflowDefinition, stepId: string, payload: any) {
     const step = definition.steps[stepId];
     if (!step) {
       console.error(`[WORKFLOW] Step not found: ${stepId}`);
@@ -91,12 +82,7 @@ export class WorkflowEngine {
     console.log(prefix, `Executing step: ${step.action}`);
 
     // Publish event to subsystem
-    nucleusEventBus.publish(
-      definition.org,
-      step.subsystem,
-      step.action,
-      payload
-    );
+    nucleusEventBus.publish(definition.org, step.subsystem, step.action, payload);
 
     // Audit
     nucleusAudit.log(
@@ -104,7 +90,7 @@ export class WorkflowEngine {
       step.subsystem,
       `workflow.step.${step.action}`,
       "workflow-engine",
-      { workflow: definition.name, step: stepId }
+      { workflow: definition.name, step: stepId },
     );
 
     // Billing (simple per-step billing)
@@ -114,7 +100,7 @@ export class WorkflowEngine {
       `workflow.step.${step.action}`,
       1,
       0.003, // $0.003 per workflow step
-      { workflow: definition.name, step: stepId }
+      { workflow: definition.name, step: stepId },
     );
 
     // Record execution

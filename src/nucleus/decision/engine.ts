@@ -14,7 +14,10 @@ export class DecisionEngine {
   private replay: Replay;
   private telemetry: NucleusTelemetryAdapter;
 
-  constructor(private organizationId: string, private subsystem: string) {
+  constructor(
+    private organizationId: string,
+    private subsystem: string,
+  ) {
     this.executor = new Executor();
     this.governance = new Governance();
     this.confidence = new Confidence();

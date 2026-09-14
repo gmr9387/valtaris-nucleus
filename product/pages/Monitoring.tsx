@@ -10,11 +10,6 @@ export const Monitoring = ({ navItems, active, onSelect }) => {
   }, []);
 
   return (
-    <MonitoringPage
-      navItems={navItems}
-      active={active}
-      onSelect={onSelect}
-      metrics={metrics}
-    />
+    <MonitoringPage navItems={navItems} active={active} onSelect={onSelect} metrics={metrics} />
   );
 };

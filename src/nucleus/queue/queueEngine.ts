@@ -29,12 +29,7 @@ export class QueueEngine {
   private queues: Map<string, QueueMessage[]> = new Map();
   private deliveries: QueueDelivery[] = [];
 
-  enqueue(
-    org: string,
-    queue: string,
-    payload: any,
-    maxAttempts: number = 3
-  ) {
+  enqueue(org: string, queue: string, payload: any, maxAttempts: number = 3) {
     const message: QueueMessage = {
       id: randomUUID(),
       org,
@@ -55,13 +50,7 @@ export class QueueEngine {
     console.log(`[QUEUE][${queue.toUpperCase()}] Enqueued message`);
 
     // Audit
-    nucleusAudit.log(
-      org,
-      queue,
-      `queue.enqueue`,
-      "queue-engine",
-      { payload }
-    );
+    nucleusAudit.log(org, queue, `queue.enqueue`, "queue-engine", { payload });
 
     // Billing (enqueue costs money)
     nucleusBilling.recordEvent(
@@ -70,7 +59,7 @@ export class QueueEngine {
       `queue.enqueue`,
       1,
       0.001, // $0.001 per enqueue
-      { payload }
+      { payload },
     );
 
     return message;
@@ -84,10 +73,7 @@ export class QueueEngine {
     return message;
   }
 
-  async deliver(
-    queue: string,
-    handler: (msg: QueueMessage) => Promise<any> | any
-  ) {
+  async deliver(queue: string, handler: (msg: QueueMessage) => Promise<any> | any) {
     const message = this.dequeue(queue);
     if (!message) return null;
 
@@ -110,13 +96,9 @@ export class QueueEngine {
       console.log(`[QUEUE][${queue.toUpperCase()}] Delivered message`);
 
       // Audit
-      nucleusAudit.log(
-        message.org,
-        queue,
-        `queue.deliver`,
-        "queue-engine",
-        { messageId: message.id }
-      );
+      nucleusAudit.log(message.org, queue, `queue.deliver`, "queue-engine", {
+        messageId: message.id,
+      });
 
       // Billing (delivery costs money)
       nucleusBilling.recordEvent(
@@ -125,7 +107,7 @@ export class QueueEngine {
         `queue.deliver`,
         1,
         0.002, // $0.002 per delivery
-        { messageId: message.id }
+        { messageId: message.id },
       );
 
       return delivery;
@@ -150,23 +132,15 @@ export class QueueEngine {
       }
 
       // Audit
-      nucleusAudit.log(
-        message.org,
-        queue,
-        `queue.delivery.failed`,
-        "queue-engine",
-        { messageId: message.id, error: err }
-      );
+      nucleusAudit.log(message.org, queue, `queue.delivery.failed`, "queue-engine", {
+        messageId: message.id,
+        error: err,
+      });
 
       // Billing (failed delivery still costs money)
-      nucleusBilling.recordEvent(
-        message.org,
-        queue,
-        `queue.delivery.failed`,
-        1,
-        0.002,
-        { messageId: message.id }
-      );
+      nucleusBilling.recordEvent(message.org, queue, `queue.delivery.failed`, 1, 0.002, {
+        messageId: message.id,
+      });
 
       return delivery;
     }

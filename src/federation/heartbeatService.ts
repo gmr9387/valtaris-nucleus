@@ -8,14 +8,12 @@ export const emitRegionHeartbeat = async (params: {
   status: "active" | "inactive" | "degraded";
   health_signature: string;
 }) => {
-  const { error } = await supabaseFederation
-    .from("region_heartbeat")
-    .insert({
-      region_id: params.region_id,
-      cluster_id: params.cluster_id,
-      status: params.status,
-      health_signature: params.health_signature,
-    });
+  const { error } = await supabaseFederation.from("region_heartbeat").insert({
+    region_id: params.region_id,
+    cluster_id: params.cluster_id,
+    status: params.status,
+    health_signature: params.health_signature,
+  });
 
   if (error) throw new Error(`Failed to emit heartbeat: ${error.message}`);
 };

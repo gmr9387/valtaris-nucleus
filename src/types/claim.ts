@@ -21,7 +21,7 @@ export interface Claim {
   provider_npi: string;
   provider_name: string;
   facility_name?: string;
-  claim_type: 'professional' | 'institutional';
+  claim_type: "professional" | "institutional";
   received_date: string;
   service_date_from: string;
   service_date_to: string;
@@ -31,22 +31,22 @@ export interface Claim {
   status: ClaimStatus;
   case_id?: string;
   /** Operational intelligence envelope — populated by Claim Clarity. */
-  intel?: import('./clarity').ClaimIntel;
+  intel?: import("./clarity").ClaimIntel;
 }
 
 export type ClaimStatus =
-  | 'RECEIVED'
-  | 'ELIGIBILITY_CHECK'
-  | 'COB_ROUTED'
-  | 'AWAITING_PRIMARY_EOB'
-  | 'IN_ADJUDICATION'
-  | 'PENDED'
-  | 'ADJUDICATED'
-  | 'PAYMENT_IN_PROGRESS'
-  | 'PAID'
-  | 'DENIED'
-  | 'REVERSED'
-  | 'ADJUSTED';
+  | "RECEIVED"
+  | "ELIGIBILITY_CHECK"
+  | "COB_ROUTED"
+  | "AWAITING_PRIMARY_EOB"
+  | "IN_ADJUDICATION"
+  | "PENDED"
+  | "ADJUDICATED"
+  | "PAYMENT_IN_PROGRESS"
+  | "PAID"
+  | "DENIED"
+  | "REVERSED"
+  | "ADJUSTED";
 
 export interface OHIIndicator {
   payer_id: string;
@@ -73,10 +73,10 @@ export interface MemberAccumulators {
 
 export interface BenefitLimit {
   benefit_category: string;
-  period: 'annual' | 'lifetime' | 'per_occurrence';
+  period: "annual" | "lifetime" | "per_occurrence";
   used: number;
   max: number;
-  unit: 'dollars' | 'visits' | 'days';
+  unit: "dollars" | "visits" | "days";
 }
 
 export interface ContractTerms {
@@ -87,7 +87,7 @@ export interface ContractTerms {
   term_date: string;
   fee_schedule_id: string;
   fee_schedule: Map<string, number>; // procedure_code -> allowed_cents
-  reimbursement_method: 'fee_schedule' | 'percent_of_billed' | 'per_diem' | 'drg';
+  reimbursement_method: "fee_schedule" | "percent_of_billed" | "per_diem" | "drg";
   percent_of_billed?: number;
 }
 
@@ -114,7 +114,8 @@ export interface CoveredService {
   benefit_limit?: BenefitLimit;
 }
 
-export type COBPolicyType = 'standard' | 'non_duplication' | 'carve_out' | 'maintenance_of_benefits';
+export type COBPolicyType =
+  "standard" | "non_duplication" | "carve_out" | "maintenance_of_benefits";
 
 export interface PriorPayerOutcome {
   payer_id: string;
@@ -125,7 +126,7 @@ export interface PriorPayerOutcome {
   paid: number;
   patient_responsibility: number;
   adjustments: PriorAdjustment[];
-  source: 'edi_835' | 'ocr_pdf' | 'manual_entry';
+  source: "edi_835" | "ocr_pdf" | "manual_entry";
   confidence: number; // 0-1
   source_document_ref?: string;
 }
@@ -150,12 +151,12 @@ export interface AdjudicationLineResult {
   adjustments: AdjustmentDetail[];
   cob_allocations: COBAllocation[];
   status:
-    | 'paid'
-    | 'denied'
-    | 'adjusted'
-    | 'deductible_applied'
-    | 'benefit_limit_exhausted'
-    | 'benefit_limit_partial';
+    | "paid"
+    | "denied"
+    | "adjusted"
+    | "deductible_applied"
+    | "benefit_limit_exhausted"
+    | "benefit_limit_partial";
   denial_reasons?: string[];
 }
 
@@ -163,15 +164,15 @@ export interface AdjustmentDetail {
   reason_code: string;
   amount: number;
   category:
-    | 'contractual'
-    | 'non_covered'
-    | 'deductible'
-    | 'coinsurance'
-    | 'copay'
-    | 'cob'
-    | 'benefit_limit'
-    | 'oop_max'
-    | 'other';
+    | "contractual"
+    | "non_covered"
+    | "deductible"
+    | "coinsurance"
+    | "copay"
+    | "cob"
+    | "benefit_limit"
+    | "oop_max"
+    | "other";
 }
 
 export interface COBAllocation {

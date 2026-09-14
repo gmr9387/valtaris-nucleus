@@ -225,8 +225,7 @@ function summarizeAreas(areas: AreaReadiness[]) {
   const score =
     areas.length > 0
       ? Math.round(
-          ((summary.ready * 100 + summary.partial * 50 + summary.unknown * 25) /
-            areas.length),
+          (summary.ready * 100 + summary.partial * 50 + summary.unknown * 25) / areas.length,
         )
       : 0;
 
@@ -284,12 +283,7 @@ function deriveAreas(r: RawCounts): AreaReadiness[] {
     {
       key: "workflows",
       label: "Workflows",
-      level:
-        r.workflows === 0
-          ? "absent"
-          : r.workflowsActive > 0
-            ? "ready"
-            : "partial",
+      level: r.workflows === 0 ? "absent" : r.workflowsActive > 0 ? "ready" : "partial",
       primary: r.workflows,
       detail:
         r.workflows === 0
@@ -299,12 +293,7 @@ function deriveAreas(r: RawCounts): AreaReadiness[] {
     {
       key: "runs",
       label: "Workflow runs (24h)",
-      level:
-        r.workflowRunsRecent === 0
-          ? "absent"
-          : r.workflowRunsFailed > 0
-            ? "partial"
-            : "ready",
+      level: r.workflowRunsRecent === 0 ? "absent" : r.workflowRunsFailed > 0 ? "partial" : "ready",
       primary: r.workflowRunsRecent,
       detail:
         r.workflowRunsRecent === 0

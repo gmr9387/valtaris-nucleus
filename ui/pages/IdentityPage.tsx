@@ -7,10 +7,7 @@ export const IdentityPage = ({ navItems, active, onSelect, identities }) => {
   return (
     <DashboardShell navItems={navItems} active={active} onSelect={onSelect}>
       <Panel title="Identities">
-        <DataTable
-          columns={["email", "role", "created"]}
-          rows={identities}
-        />
+        <DataTable columns={["email", "role", "created"]} rows={identities} />
       </Panel>
     </DashboardShell>
   );

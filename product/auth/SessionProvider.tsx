@@ -15,16 +15,10 @@ export const SessionProvider = ({ children }) => {
   });
 
   useEffect(() => {
-    fetchSession().then((data) =>
-      setSession({ user: data.user, org: data.org, loading: false })
-    );
+    fetchSession().then((data) => setSession({ user: data.user, org: data.org, loading: false }));
   }, []);
 
-  return (
-    <SessionContext.Provider value={session}>
-      {children}
-    </SessionContext.Provider>
-  );
+  return <SessionContext.Provider value={session}>{children}</SessionContext.Provider>;
 };
 
 export const useSession = () => useContext(SessionContext);

@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.SUPABASE_URL as string,
-  process.env.SUPABASE_SERVICE_ROLE_KEY as string
+  process.env.SUPABASE_SERVICE_ROLE_KEY as string,
 );
 
 export type PackSearchResult = {
@@ -22,9 +22,7 @@ type PackSearchFilters = {
   publisher?: string;
 };
 
-export const searchPacks = async (
-  filters: PackSearchFilters
-): Promise<PackSearchResult[]> => {
+export const searchPacks = async (filters: PackSearchFilters): Promise<PackSearchResult[]> => {
   let q = supabase
     .from("pack_registry")
     .select("id, name, version, description, capabilities, publisher");

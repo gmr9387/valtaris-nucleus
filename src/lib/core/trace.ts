@@ -13,9 +13,7 @@
 import type { TraceResult } from "./contracts";
 import type { RuleEvaluation } from "./types";
 
-export function generateTrace(
-  _evaluations: readonly RuleEvaluation[],
-): TraceResult {
+export function generateTrace(_evaluations: readonly RuleEvaluation[]): TraceResult {
   return {
     traceId: "",
 

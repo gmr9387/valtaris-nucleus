@@ -1,10 +1,6 @@
 import { z } from "zod";
 
-export const credentialStatusSchema = z.enum([
-  "active",
-  "rotating",
-  "deactivated",
-]);
+export const credentialStatusSchema = z.enum(["active", "rotating", "deactivated"]);
 
 export const connectorCategorySchema = z.enum([
   "ai",
@@ -16,24 +12,11 @@ export const connectorCategorySchema = z.enum([
   "other",
 ]);
 
-export const connectorStatusSchema = z.enum([
-  "available",
-  "beta",
-  "deprecated",
-]);
+export const connectorStatusSchema = z.enum(["available", "beta", "deprecated"]);
 
-export const bindingStatusSchema = z.enum([
-  "active",
-  "paused",
-  "error",
-]);
+export const bindingStatusSchema = z.enum(["active", "paused", "error"]);
 
-export const healthStatusSchema = z.enum([
-  "healthy",
-  "degraded",
-  "failed",
-  "unknown",
-]);
+export const healthStatusSchema = z.enum(["healthy", "degraded", "failed", "unknown"]);
 
 export const rotationReasonSchema = z.enum([
   "scheduled",

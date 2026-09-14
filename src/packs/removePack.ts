@@ -2,10 +2,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
 export const removePack = async (packId: string) => {
   // Disable pack first
@@ -17,10 +14,7 @@ export const removePack = async (packId: string) => {
   if (disableErr) throw new Error(`Disable failed: ${disableErr.message}`);
 
   // Remove pack metadata
-  const { error } = await supabase
-    .from("pack_registry")
-    .delete()
-    .eq("id", packId);
+  const { error } = await supabase.from("pack_registry").delete().eq("id", packId);
 
   if (error) throw new Error(`Remove failed: ${error.message}`);
 

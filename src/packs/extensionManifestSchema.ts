@@ -8,9 +8,7 @@ export type ExtensionManifest = {
   entrypoint: string;
 };
 
-export const validateExtensionManifest = (
-  manifest: unknown
-): manifest is ExtensionManifest => {
+export const validateExtensionManifest = (manifest: unknown): manifest is ExtensionManifest => {
   if (!manifest || typeof manifest !== "object") return false;
 
   const m = manifest as Record<string, unknown>;

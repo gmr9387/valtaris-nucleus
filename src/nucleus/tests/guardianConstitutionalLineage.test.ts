@@ -19,6 +19,8 @@ describe("Guardian constitutional lineage", () => {
   });
 
   it("rejects contract names Guardian does not own", async () => {
-    await expect(GuardianRuntime.handle("payment", { organizationId: "test-org" })).rejects.toThrow();
+    await expect(
+      GuardianRuntime.handle("payment", { organizationId: "test-org" }),
+    ).rejects.toThrow();
   });
 });

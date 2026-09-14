@@ -10,11 +10,7 @@
  * This is the FIRST contract in the Valtara Loop.
  */
 
-import {
-  registerContract,
-  ContractDefinition,
-  ContractValidationResult,
-} from "./contractRegistry";
+import { registerContract, ContractDefinition, ContractValidationResult } from "./contractRegistry";
 
 export interface OpportunityV1 {
   id: string;

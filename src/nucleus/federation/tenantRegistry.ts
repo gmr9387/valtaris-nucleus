@@ -16,5 +16,5 @@ export const tenantRegistry: Record<string, TenantState> = Object.fromEntries(
       active: true,
       createdAt: new Date().toISOString(),
     },
-  ])
+  ]),
 );

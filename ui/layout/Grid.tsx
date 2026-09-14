@@ -1,12 +1,7 @@
 import React from "react";
 import { spacing } from "../tokens/spacing";
 
-export const Grid = ({
-  columns = 12,
-  gap = "md",
-  children,
-  style = {},
-}) => {
+export const Grid = ({ columns = 12, gap = "md", children, style = {} }) => {
   return (
     <div
       style={{

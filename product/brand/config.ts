@@ -3,5 +3,5 @@ export const brand = {
   logo: "/brand/logo.svg",
   primary: "#0A84FF",
   gold: "#F5C542",
-  black: "#0D0D0D"
+  black: "#0D0D0D",
 };

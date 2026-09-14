@@ -19,9 +19,9 @@ export class HealthEngine {
   private statuses: HealthStatus[] = [];
 
   async check(org: string, subsystem: string) {
-    const checks = nucleusDiagnostics.getChecks().filter(
-      (c) => c.org === org && c.subsystem === subsystem
-    );
+    const checks = nucleusDiagnostics
+      .getChecks()
+      .filter((c) => c.org === org && c.subsystem === subsystem);
 
     const diagnostics: Record<string, boolean> = {};
     let healthyCount = 0;
@@ -55,13 +55,7 @@ export class HealthEngine {
     console.log(prefix, `Status: ${status.toUpperCase()}`);
 
     // Audit
-    nucleusAudit.log(
-      org,
-      subsystem,
-      `health.status`,
-      "health-engine",
-      { status, diagnostics }
-    );
+    nucleusAudit.log(org, subsystem, `health.status`, "health-engine", { status, diagnostics });
 
     // Billing (health checks cost money)
     nucleusBilling.recordEvent(
@@ -70,7 +64,7 @@ export class HealthEngine {
       `health.status`,
       1,
       0.002, // $0.002 per health check
-      { status }
+      { status },
     );
 
     return health;

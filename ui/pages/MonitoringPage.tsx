@@ -7,10 +7,7 @@ export const MonitoringPage = ({ navItems, active, onSelect, metrics }) => {
   return (
     <DashboardShell navItems={navItems} active={active} onSelect={onSelect}>
       <Panel title="Monitoring">
-        <DataTable
-          columns={["metric", "value", "timestamp"]}
-          rows={metrics}
-        />
+        <DataTable columns={["metric", "value", "timestamp"]} rows={metrics} />
       </Panel>
     </DashboardShell>
   );

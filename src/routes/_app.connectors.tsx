@@ -62,7 +62,11 @@ function ConnectorsPage() {
       <PageBody>
         <div className="space-y-6">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <MetricCard label="Catalog" value={stats.catalog} icon={<PlugZap className="h-4 w-4" />} />
+            <MetricCard
+              label="Catalog"
+              value={stats.catalog}
+              icon={<PlugZap className="h-4 w-4" />}
+            />
             <MetricCard label="Bindings" value={stats.bound} tone="neutral" />
             <MetricCard label="Active" value={stats.active} tone="good" />
           </div>
@@ -71,20 +75,39 @@ function ConnectorsPage() {
             <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
               <div className="relative flex-1 max-w-sm">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                <input className="input pl-8" placeholder="Search connectors…" value={query} onChange={(e) => setQuery(e.target.value)} />
+                <input
+                  className="input pl-8"
+                  placeholder="Search connectors…"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
               </div>
-              <span className="text-mono-xs text-muted-foreground">{filtered.length} of {stats.catalog}</span>
+              <span className="text-mono-xs text-muted-foreground">
+                {filtered.length} of {stats.catalog}
+              </span>
             </div>
             <table className="w-full text-sm">
               <thead className="bg-surface-1/40 text-mono-xs text-muted-foreground">
-                <tr><Th>Connector</Th><Th>Category</Th><Th>Status</Th><Th>Capabilities</Th><Th>Bindings</Th></tr>
+                <tr>
+                  <Th>Connector</Th>
+                  <Th>Category</Th>
+                  <Th>Status</Th>
+                  <Th>Capabilities</Th>
+                  <Th>Bindings</Th>
+                </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {filtered.map((c) => {
                   const connectorCaps = (caps.data ?? []).filter((x) => x.connector_id === c.id);
-                  const connectorBindings = (bindings.data ?? []).filter((b) => b.connector_id === c.id);
+                  const connectorBindings = (bindings.data ?? []).filter(
+                    (b) => b.connector_id === c.id,
+                  );
                   return (
-                    <tr key={c.id} className="cursor-pointer hover:bg-surface-2/60" onClick={() => setSelected(c)}>
+                    <tr
+                      key={c.id}
+                      className="cursor-pointer hover:bg-surface-2/60"
+                      onClick={() => setSelected(c)}
+                    >
                       <Td>
                         <div className="flex items-center gap-2">
                           <ConnectorAvatar connector={c} />
@@ -94,14 +117,39 @@ function ConnectorsPage() {
                           </div>
                         </div>
                       </Td>
-                      <Td><span className="rounded border border-border bg-surface-2 px-1.5 py-0.5 text-mono-xs text-muted-foreground capitalize">{c.category}</span></Td>
-                      <Td><StatusPill status={c.status === "available" ? "active" : c.status === "beta" ? "planned" : "archived"}>{c.status.toUpperCase()}</StatusPill></Td>
+                      <Td>
+                        <span className="rounded border border-border bg-surface-2 px-1.5 py-0.5 text-mono-xs text-muted-foreground capitalize">
+                          {c.category}
+                        </span>
+                      </Td>
+                      <Td>
+                        <StatusPill
+                          status={
+                            c.status === "available"
+                              ? "active"
+                              : c.status === "beta"
+                                ? "planned"
+                                : "archived"
+                          }
+                        >
+                          {c.status.toUpperCase()}
+                        </StatusPill>
+                      </Td>
                       <Td>
                         <div className="flex flex-wrap gap-1">
                           {connectorCaps.slice(0, 4).map((cap) => (
-                            <span key={cap.id} className="rounded border border-primary/15 bg-primary/5 px-1.5 py-0.5 text-[10px] text-primary">{cap.capability_key}</span>
+                            <span
+                              key={cap.id}
+                              className="rounded border border-primary/15 bg-primary/5 px-1.5 py-0.5 text-[10px] text-primary"
+                            >
+                              {cap.capability_key}
+                            </span>
                           ))}
-                          {connectorCaps.length > 4 && <span className="text-mono-xs text-muted-foreground">+{connectorCaps.length - 4}</span>}
+                          {connectorCaps.length > 4 && (
+                            <span className="text-mono-xs text-muted-foreground">
+                              +{connectorCaps.length - 4}
+                            </span>
+                          )}
                         </div>
                       </Td>
                       <Td>
@@ -111,7 +159,10 @@ function ConnectorsPage() {
                           <div className="flex items-center gap-1.5">
                             <span className="text-mono-xs">{connectorBindings.length}</span>
                             <HealthIndicator
-                              status={(health.data?.[connectorBindings[0].id]?.health_status as Health) ?? "unknown"}
+                              status={
+                                (health.data?.[connectorBindings[0].id]?.health_status as Health) ??
+                                "unknown"
+                              }
                               latencyMs={health.data?.[connectorBindings[0].id]?.latency_ms}
                             />
                           </div>
@@ -165,12 +216,22 @@ function ConnectorAvatar({ connector }: { connector: Connector }) {
 }
 
 function ConnectorPanel({
-  connector, orgId, canManage, onClose,
-}: { connector: Connector; orgId: string | null; canManage: boolean; onClose: () => void }) {
+  connector,
+  orgId,
+  canManage,
+  onClose,
+}: {
+  connector: Connector;
+  orgId: string | null;
+  canManage: boolean;
+  onClose: () => void;
+}) {
   const caps = useConnectorCapabilities();
   const bindings = useConnectorBindings(orgId);
   const credentials = useCredentials(orgId);
-  const health = useLatestHealthChecks((bindings.data ?? []).filter((b) => b.connector_id === connector.id).map((b) => b.id));
+  const health = useLatestHealthChecks(
+    (bindings.data ?? []).filter((b) => b.connector_id === connector.id).map((b) => b.id),
+  );
   const connectorCaps = (caps.data ?? []).filter((x) => x.connector_id === connector.id);
   const connectorBindings = (bindings.data ?? []).filter((b) => b.connector_id === connector.id);
   const projects = useProjects(orgId);
@@ -198,35 +259,51 @@ function ConnectorPanel({
           status: "active",
           created_by: user.id,
         })
-        .select().single();
+        .select()
+        .single();
       if (error) throw error;
       await logAudit({
-        organization_id: orgId, module: "connectors", entity_type: "binding",
-        entity_id: data.id, action: "create",
+        organization_id: orgId,
+        module: "connectors",
+        entity_type: "binding",
+        entity_id: data.id,
+        action: "create",
         after: { connector_id: connector.id, credential_id: credentialId || null },
       });
       return data;
     },
     onSuccess: () => {
       toast.success("Binding created");
-      setCredentialId(""); setProjectId(""); setEnvironmentId("");
+      setCredentialId("");
+      setProjectId("");
+      setEnvironmentId("");
       qc.invalidateQueries({ queryKey: ["connector-bindings"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-stretch justify-end bg-background/80 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-xl overflow-y-auto border-l border-border bg-surface-1" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-50 flex items-stretch justify-end bg-background/80 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-xl overflow-y-auto border-l border-border bg-surface-1"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-start justify-between border-b border-border px-5 py-4">
           <div className="flex items-center gap-3">
             <ConnectorAvatar connector={connector} />
             <div>
-              <div className="text-mono-xs uppercase tracking-wider text-muted-foreground">{connector.category}</div>
+              <div className="text-mono-xs uppercase tracking-wider text-muted-foreground">
+                {connector.category}
+              </div>
               <h2 className="text-lg font-semibold">{connector.label}</h2>
             </div>
           </div>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">✕</button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            ✕
+          </button>
         </div>
 
         <div className="space-y-6 p-5">
@@ -238,21 +315,34 @@ function ConnectorPanel({
           </div>
 
           {connector.documentation_url && (
-            <a href={connector.documentation_url} target="_blank" rel="noreferrer"
-               className="inline-flex items-center gap-1.5 text-mono-xs text-primary hover:underline">
+            <a
+              href={connector.documentation_url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-mono-xs text-primary hover:underline"
+            >
               <BookOpen className="h-3 w-3" /> Documentation
             </a>
           )}
 
           <section>
-            <h3 className="mb-2 text-mono-xs uppercase tracking-wider text-muted-foreground">Capabilities</h3>
+            <h3 className="mb-2 text-mono-xs uppercase tracking-wider text-muted-foreground">
+              Capabilities
+            </h3>
             <div className="flex flex-wrap gap-1.5">
               {connectorCaps.map((c) => (
-                <span key={c.id} className="rounded border border-primary/15 bg-primary/5 px-2 py-1 text-mono-xs text-primary">
+                <span
+                  key={c.id}
+                  className="rounded border border-primary/15 bg-primary/5 px-2 py-1 text-mono-xs text-primary"
+                >
                   {c.capability_label}
                 </span>
               ))}
-              {connectorCaps.length === 0 && <span className="text-mono-xs text-muted-foreground">No capabilities registered.</span>}
+              {connectorCaps.length === 0 && (
+                <span className="text-mono-xs text-muted-foreground">
+                  No capabilities registered.
+                </span>
+              )}
             </div>
           </section>
 
@@ -263,12 +353,19 @@ function ConnectorPanel({
             {!orgId ? (
               <p className="text-sm text-muted-foreground">No org selected.</p>
             ) : connectorBindings.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No bindings yet for this organization.</p>
+              <p className="text-sm text-muted-foreground">
+                No bindings yet for this organization.
+              </p>
             ) : (
               <div className="overflow-hidden rounded-md border border-border">
                 <table className="w-full text-sm">
                   <thead className="bg-surface-2 text-mono-xs text-muted-foreground">
-                    <tr><Th>Scope</Th><Th>Credential</Th><Th>Status</Th><Th>Health</Th></tr>
+                    <tr>
+                      <Th>Scope</Th>
+                      <Th>Credential</Th>
+                      <Th>Status</Th>
+                      <Th>Health</Th>
+                    </tr>
                   </thead>
                   <tbody className="divide-y divide-border bg-surface-1">
                     {connectorBindings.map((b) => {
@@ -280,15 +377,43 @@ function ConnectorPanel({
                         <tr key={b.id}>
                           <Td>
                             <div className="flex flex-wrap gap-1 text-mono-xs text-muted-foreground">
-                              <span className="rounded border border-border bg-surface-2 px-1.5 py-0.5">{proj?.name ?? "org-wide"}</span>
-                              {env && <span className="rounded border border-border bg-surface-2 px-1.5 py-0.5">{env.env_type}</span>}
+                              <span className="rounded border border-border bg-surface-2 px-1.5 py-0.5">
+                                {proj?.name ?? "org-wide"}
+                              </span>
+                              {env && (
+                                <span className="rounded border border-border bg-surface-2 px-1.5 py-0.5">
+                                  {env.env_type}
+                                </span>
+                              )}
                             </div>
                           </Td>
                           <Td>
-                            {cred ? <span className="font-mono text-xs">{cred.label}</span> : <span className="inline-flex items-center gap-1 text-mono-xs text-muted-foreground"><KeyRound className="h-3 w-3" />none</span>}
+                            {cred ? (
+                              <span className="font-mono text-xs">{cred.label}</span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-mono-xs text-muted-foreground">
+                                <KeyRound className="h-3 w-3" />
+                                none
+                              </span>
+                            )}
                           </Td>
-                          <Td><StatusPill status={b.status === "active" ? "active" : b.status === "paused" ? "planned" : "failed"} /></Td>
-                          <Td><HealthIndicator status={(h?.health_status as Health) ?? "unknown"} latencyMs={h?.latency_ms} /></Td>
+                          <Td>
+                            <StatusPill
+                              status={
+                                b.status === "active"
+                                  ? "active"
+                                  : b.status === "paused"
+                                    ? "planned"
+                                    : "failed"
+                              }
+                            />
+                          </Td>
+                          <Td>
+                            <HealthIndicator
+                              status={(h?.health_status as Health) ?? "unknown"}
+                              latencyMs={h?.latency_ms}
+                            />
+                          </Td>
                         </tr>
                       );
                     })}
@@ -300,34 +425,71 @@ function ConnectorPanel({
 
           {canManage && orgId && (
             <section className="rounded-lg border border-border p-3">
-              <h3 className="mb-3 text-mono-xs uppercase tracking-wider text-muted-foreground">New binding</h3>
-              <form onSubmit={(e) => { e.preventDefault(); createBinding.mutate(); }} className="space-y-2">
+              <h3 className="mb-3 text-mono-xs uppercase tracking-wider text-muted-foreground">
+                New binding
+              </h3>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  createBinding.mutate();
+                }}
+                className="space-y-2"
+              >
                 <Field label="Credential">
-                  <select className="input" value={credentialId} onChange={(e) => setCredentialId(e.target.value)}>
+                  <select
+                    className="input"
+                    value={credentialId}
+                    onChange={(e) => setCredentialId(e.target.value)}
+                  >
                     <option value="">No credential (policy only)</option>
-                    {matchingCreds.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                    {matchingCreds.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label}
+                      </option>
+                    ))}
                   </select>
                 </Field>
                 <div className="grid grid-cols-2 gap-2">
                   <Field label="Project">
-                    <select className="input" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+                    <select
+                      className="input"
+                      value={projectId}
+                      onChange={(e) => setProjectId(e.target.value)}
+                    >
                       <option value="">Org-wide</option>
-                      {projects.data?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      {projects.data?.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
                     </select>
                   </Field>
                   <Field label="Environment">
-                    <select className="input" value={environmentId} onChange={(e) => setEnvironmentId(e.target.value)} disabled={!projectId}>
+                    <select
+                      className="input"
+                      value={environmentId}
+                      onChange={(e) => setEnvironmentId(e.target.value)}
+                      disabled={!projectId}
+                    >
                       <option value="">Any</option>
-                      {envs.data?.filter((e) => !projectId || e.project_id === projectId).map((e) => (
-                        <option key={e.id} value={e.id}>{e.name} · {e.env_type}</option>
-                      ))}
+                      {envs.data
+                        ?.filter((e) => !projectId || e.project_id === projectId)
+                        .map((e) => (
+                          <option key={e.id} value={e.id}>
+                            {e.name} · {e.env_type}
+                          </option>
+                        ))}
                     </select>
                   </Field>
                 </div>
                 <div className="flex justify-end">
-                  <button type="submit" disabled={createBinding.isPending}
-                    className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">
-                    <Plus className="h-3.5 w-3.5" /> {createBinding.isPending ? "Creating…" : "Create binding"}
+                  <button
+                    type="submit"
+                    disabled={createBinding.isPending}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                  >
+                    <Plus className="h-3.5 w-3.5" />{" "}
+                    {createBinding.isPending ? "Creating…" : "Create binding"}
                   </button>
                 </div>
               </form>
@@ -336,8 +498,9 @@ function ConnectorPanel({
 
           <div className="rounded-lg border border-border bg-surface-2/40 p-3 text-xs text-muted-foreground">
             <Webhook className="mr-1 inline h-3 w-3" />
-            Connector execution and health probing are out of scope for Phase 2 — this surface manages metadata and
-            governance only. Workflow runtime will populate <code className="font-mono">connector_health_checks</code> in Phase 3+.
+            Connector execution and health probing are out of scope for Phase 2 — this surface
+            manages metadata and governance only. Workflow runtime will populate{" "}
+            <code className="font-mono">connector_health_checks</code> in Phase 3+.
           </div>
         </div>
       </div>
@@ -349,7 +512,9 @@ function Meta({ label, value, mono }: { label: string; value: string; mono?: boo
   return (
     <div className="rounded-md border border-border bg-surface-2/50 p-2">
       <div className="text-muted-foreground">{label}</div>
-      <div className={mono ? "font-mono text-foreground" : "text-foreground capitalize"}>{value}</div>
+      <div className={mono ? "font-mono text-foreground" : "text-foreground capitalize"}>
+        {value}
+      </div>
     </div>
   );
 }

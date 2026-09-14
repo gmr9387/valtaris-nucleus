@@ -78,13 +78,7 @@ export class StateEngine {
     console.log(prefix, `Set ${key} → version ${record.version}`);
 
     // Audit
-    nucleusAudit.log(
-      org,
-      subsystem,
-      `state.set.${key}`,
-      "state-engine",
-      { before, after: value }
-    );
+    nucleusAudit.log(org, subsystem, `state.set.${key}`, "state-engine", { before, after: value });
 
     // Billing (state writes cost money)
     nucleusBilling.recordEvent(
@@ -93,7 +87,7 @@ export class StateEngine {
       `state.set.${key}`,
       1,
       0.002, // $0.002 per state write
-      { before, after: value }
+      { before, after: value },
     );
 
     return record;
@@ -127,13 +121,7 @@ export class StateEngine {
     console.log(prefix, `Snapshot created`);
 
     // Audit
-    nucleusAudit.log(
-      org,
-      subsystem,
-      `state.snapshot`,
-      "state-engine",
-      { snapshot: snapshotData }
-    );
+    nucleusAudit.log(org, subsystem, `state.snapshot`, "state-engine", { snapshot: snapshotData });
 
     // Billing (snapshots cost money)
     nucleusBilling.recordEvent(
@@ -142,7 +130,7 @@ export class StateEngine {
       `state.snapshot`,
       1,
       0.005, // $0.005 per snapshot
-      { size: Object.keys(snapshotData).length }
+      { size: Object.keys(snapshotData).length },
     );
 
     return snapshot;

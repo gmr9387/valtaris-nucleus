@@ -15,11 +15,7 @@ export const ThemeProvider = ({ children }) => {
     current: valtarisTheme.modes[mode],
   };
 
-  return (
-    <ThemeContext.Provider value={{ theme, mode, setMode }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={{ theme, mode, setMode }}>{children}</ThemeContext.Provider>;
 };
 
 export const useTheme = () => useContext(ThemeContext);

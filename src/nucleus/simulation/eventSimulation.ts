@@ -9,7 +9,7 @@ export class EventSimulation {
     type: string,
     version: string,
     payload: unknown,
-    ctx: SimulationContext
+    ctx: SimulationContext,
   ): NucleusEvent {
     const event: NucleusEvent = {
       type,

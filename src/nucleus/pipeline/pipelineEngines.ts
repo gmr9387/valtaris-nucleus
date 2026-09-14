@@ -40,12 +40,7 @@ export class PipelineEngine {
   private definitions: Map<string, PipelineDefinition> = new Map();
   private executions: PipelineExecutionRecord[] = [];
 
-  register(
-    org: string,
-    name: string,
-    steps: Record<string, PipelineStep>,
-    entry: string
-  ) {
+  register(org: string, name: string, steps: Record<string, PipelineStep>, entry: string) {
     const id = randomUUID();
 
     const definition: PipelineDefinition = {
@@ -74,11 +69,7 @@ export class PipelineEngine {
     this.executeStep(definition, definition.entry, payload);
   }
 
-  private executeStep(
-    definition: PipelineDefinition,
-    stepId: string,
-    payload: any
-  ) {
+  private executeStep(definition: PipelineDefinition, stepId: string, payload: any) {
     const step = definition.steps[stepId];
     if (!step) {
       console.error(`[PIPELINE] Step not found: ${stepId}`);
@@ -89,12 +80,7 @@ export class PipelineEngine {
     console.log(prefix, `Executing step: ${step.action}`);
 
     // Publish event to subsystem
-    nucleusEventBus.publish(
-      definition.org,
-      step.subsystem,
-      step.action,
-      payload
-    );
+    nucleusEventBus.publish(definition.org, step.subsystem, step.action, payload);
 
     // Audit
     nucleusAudit.log(
@@ -102,7 +88,7 @@ export class PipelineEngine {
       step.subsystem,
       `pipeline.step.${step.action}`,
       "pipeline-engine",
-      { pipeline: definition.name, step: stepId }
+      { pipeline: definition.name, step: stepId },
     );
 
     // Billing (simple per-step billing)
@@ -112,7 +98,7 @@ export class PipelineEngine {
       `pipeline.step.${step.action}`,
       1,
       0.002, // $0.002 per step
-      { pipeline: definition.name, step: stepId }
+      { pipeline: definition.name, step: stepId },
     );
 
     // Record execution

@@ -40,11 +40,11 @@ export function wrapError(error: unknown, code: PlatformErrorCode = "UNKNOWN"): 
 
   if (error instanceof Error) {
     return new PlatformError(code, error.message, {
-      details: { stack: error.stack }
+      details: { stack: error.stack },
     });
   }
 
   return new PlatformError(code, "Unknown error", {
-    details: { value: error }
+    details: { value: error },
   });
 }

@@ -224,7 +224,10 @@ function WorkflowDetailPage() {
             </Panel>
           </PermissionGate>
 
-          <Panel title="Versions" description="Drafts can be edited; published versions are frozen.">
+          <Panel
+            title="Versions"
+            description="Drafts can be edited; published versions are frozen."
+          >
             {versions.isLoading ? (
               <LoadingState rows={2} />
             ) : (versions.data ?? []).length === 0 ? (
@@ -240,7 +243,8 @@ function WorkflowDetailPage() {
                     <StatusPill status={v.status} />
                     <div className="text-xs text-muted-foreground">
                       Created {new Date(v.created_at).toLocaleString()}
-                      {v.published_at && ` · Published ${new Date(v.published_at).toLocaleString()}`}
+                      {v.published_at &&
+                        ` · Published ${new Date(v.published_at).toLocaleString()}`}
                     </div>
                     <div className="text-right">
                       {v.status === "draft" && (

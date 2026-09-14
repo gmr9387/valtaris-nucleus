@@ -18,7 +18,7 @@ export class ApiGateway {
     method: ApiRoute["method"],
     path: string,
     subsystem: string,
-    handler: ApiRoute["handler"]
+    handler: ApiRoute["handler"],
   ) {
     this.routes.push({ method, path, subsystem, handler });
 
@@ -32,9 +32,7 @@ export class ApiGateway {
     this.server = http.createServer((req, res) => {
       const { method, url } = req;
 
-      const route = this.routes.find(
-        (r) => r.method === method && r.path === url
-      );
+      const route = this.routes.find((r) => r.method === method && r.path === url);
 
       if (!route) {
         res.statusCode = 404;

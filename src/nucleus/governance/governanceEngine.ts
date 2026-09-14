@@ -35,7 +35,7 @@ export class GovernanceEngine {
     subsystem: string,
     name: string,
     description: string,
-    evaluate: (payload: any) => boolean
+    evaluate: (payload: any) => boolean,
   ) {
     const id = randomUUID();
 
@@ -87,7 +87,7 @@ export class GovernanceEngine {
       rule.subsystem,
       `governance.rule.${rule.name}`,
       "governance-engine",
-      { allowed, payload }
+      { allowed, payload },
     );
 
     // Billing (governance checks cost money)
@@ -97,7 +97,7 @@ export class GovernanceEngine {
       `governance.rule.${rule.name}`,
       1,
       0.0015, // $0.0015 per governance check
-      { allowed, payload }
+      { allowed, payload },
     );
 
     return decision;

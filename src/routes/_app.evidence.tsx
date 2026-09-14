@@ -170,9 +170,9 @@ function EvidencePage() {
                   <div>
                     <h3 className="text-sm font-semibold">Principal constraint</h3>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Evidence must be provenance-first. Every future document should know where
-                      it came from, what entity it supports, whether it is verified, and which
-                      decision or workflow used it.
+                      Evidence must be provenance-first. Every future document should know where it
+                      came from, what entity it supports, whether it is verified, and which decision
+                      or workflow used it.
                     </p>
                   </div>
                 </div>
@@ -206,9 +206,7 @@ function Metric({
   return (
     <div className={`rounded-xl border p-4 ${cls}`}>
       <div className="flex items-center justify-between">
-        <span className="text-xs uppercase tracking-wider text-muted-foreground">
-          {label}
-        </span>
+        <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
         <div className="text-muted-foreground">{icon}</div>
       </div>
       <div className="mt-2 text-2xl font-semibold tracking-tight">{value}</div>

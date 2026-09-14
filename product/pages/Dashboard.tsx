@@ -10,11 +10,6 @@ export const Dashboard = ({ navItems, active, onSelect }) => {
   }, []);
 
   return (
-    <DashboardPage
-      navItems={navItems}
-      active={active}
-      onSelect={onSelect}
-      metrics={metrics}
-    />
+    <DashboardPage navItems={navItems} active={active} onSelect={onSelect} metrics={metrics} />
   );
 };

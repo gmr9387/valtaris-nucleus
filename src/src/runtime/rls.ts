@@ -42,11 +42,7 @@ export class RLS {
     }
   }
 
-  enforceAll(target: {
-    organizationId: string;
-    projectId: string;
-    environmentId: string;
-  }): void {
+  enforceAll(target: { organizationId: string; projectId: string; environmentId: string }): void {
     this.enforceOrganization(target.organizationId);
     this.enforceProject(target.projectId);
     this.enforceEnvironment(target.environmentId);

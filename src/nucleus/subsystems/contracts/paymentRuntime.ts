@@ -9,10 +9,7 @@ export class PaymentRuntime {
   private api: NucleusApi;
 
   constructor(private organizationId: string) {
-    this.telemetry = new NucleusTelemetryAdapter(
-      organizationId,
-      "payment-contract"
-    );
+    this.telemetry = new NucleusTelemetryAdapter(organizationId, "payment-contract");
 
     this.api = new NucleusApi("payment", organizationId);
   }

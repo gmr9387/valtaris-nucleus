@@ -25,7 +25,7 @@ function getClient(): SupabaseClient {
       throw new Error(
         "Supabase is not configured: VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY are not set. " +
           "This error only occurs when something actually tries to query Supabase " +
-          "(e.g. fetching member accumulators) -- boot itself no longer requires these."
+          "(e.g. fetching member accumulators) -- boot itself no longer requires these.",
       );
     }
     client = createClient(url, key);

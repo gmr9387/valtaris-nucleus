@@ -5,14 +5,14 @@ export const fetchMonitorPacks = async () => {
 
 export const installMonitorPack = async (id: string) => {
   const res = await fetch(`/api/monitorpacks/${id}/install`, {
-    method: "POST"
+    method: "POST",
   });
   return res.json();
 };
 
 export const removeMonitorPack = async (id: string) => {
   const res = await fetch(`/api/monitorpacks/${id}/remove`, {
-    method: "POST"
+    method: "POST",
   });
   return res.json();
 };

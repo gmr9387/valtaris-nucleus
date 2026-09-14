@@ -9,4 +9,3 @@ export async function certifyNucleus() {
   console.log("🔵 Phase 50 — Sovereign Certification Finished.");
   return result;
 }
-

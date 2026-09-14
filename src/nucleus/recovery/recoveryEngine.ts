@@ -35,7 +35,7 @@ export class RecoveryEngine {
     subsystem: string,
     name: string,
     description: string,
-    run: RecoveryAction["run"]
+    run: RecoveryAction["run"],
   ) {
     const id = randomUUID();
 
@@ -65,7 +65,7 @@ export class RecoveryEngine {
     }
 
     const actions = [...this.actions.values()].filter(
-      (a) => a.org === org && a.subsystem === subsystem
+      (a) => a.org === org && a.subsystem === subsystem,
     );
 
     let success = false;
@@ -86,17 +86,13 @@ export class RecoveryEngine {
       this.results.push(record);
 
       console.log(
-        `[RECOVERY][${subsystem.toUpperCase()}] Action ${action.name} → ${result ? "SUCCESS" : "FAIL"}`
+        `[RECOVERY][${subsystem.toUpperCase()}] Action ${action.name} → ${result ? "SUCCESS" : "FAIL"}`,
       );
 
       // Audit
-      nucleusAudit.log(
-        org,
-        subsystem,
-        `recovery.${action.name}`,
-        "recovery-engine",
-        { success: result }
-      );
+      nucleusAudit.log(org, subsystem, `recovery.${action.name}`, "recovery-engine", {
+        success: result,
+      });
 
       // Billing (recovery attempts cost money)
       nucleusBilling.recordEvent(
@@ -105,7 +101,7 @@ export class RecoveryEngine {
         `recovery.${action.name}`,
         1,
         0.004, // $0.004 per recovery attempt
-        { success: result }
+        { success: result },
       );
 
       if (result) {

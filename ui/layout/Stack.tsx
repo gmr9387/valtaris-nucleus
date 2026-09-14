@@ -1,11 +1,7 @@
 import React from "react";
 import { spacing } from "../tokens/spacing";
 
-export const Stack = ({
-  gap = "md",
-  children,
-  style = {},
-}) => {
+export const Stack = ({ gap = "md", children, style = {} }) => {
   return (
     <div
       style={{

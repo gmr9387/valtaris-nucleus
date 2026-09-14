@@ -19,44 +19,33 @@ export const qk = {
   },
   envs: {
     byOrg: (orgId: string | null) => ["envs", orgId] as const,
-    byProject: (projectId: string | null) =>
-      ["envs", "project", projectId] as const,
+    byProject: (projectId: string | null) => ["envs", "project", projectId] as const,
   },
   audit: {
-    list: (orgId: string | null, limit = 200) =>
-      ["audit", orgId, limit] as const,
+    list: (orgId: string | null, limit = 200) => ["audit", orgId, limit] as const,
     recent: (userId: string | undefined, limit = 100) =>
       ["audit", "recent", userId, limit] as const,
   },
   credentials: {
     providers: () => ["credentials", "providers"] as const,
     list: (orgId: string | null) => ["credentials", orgId] as const,
-    versions: (credentialId: string | null) =>
-      ["credentials", "versions", credentialId] as const,
+    versions: (credentialId: string | null) => ["credentials", "versions", credentialId] as const,
   },
   connectors: {
     catalog: () => ["connectors"] as const,
     capabilities: () => ["connectors", "capabilities"] as const,
-    versions: (connectorId: string | null) =>
-      ["connectors", "versions", connectorId] as const,
-    bindings: (orgId: string | null) =>
-      ["connectors", "bindings", orgId] as const,
+    versions: (connectorId: string | null) => ["connectors", "versions", connectorId] as const,
+    bindings: (orgId: string | null) => ["connectors", "bindings", orgId] as const,
   },
   health: {
-    forBinding: (bindingId: string | null) =>
-      ["health", "binding", bindingId] as const,
-    latest: (bindingIds: readonly string[]) =>
-      ["health", "latest", bindingIds] as const,
+    forBinding: (bindingId: string | null) => ["health", "binding", bindingId] as const,
+    latest: (bindingIds: readonly string[]) => ["health", "latest", bindingIds] as const,
   },
   telemetry: {
-    events: (orgId: string | null, limit = 200) =>
-      ["telemetry", "events", orgId, limit] as const,
+    events: (orgId: string | null, limit = 200) => ["telemetry", "events", orgId, limit] as const,
   },
 } as const;
 
 export type QueryKey = ReturnType<
-  | typeof qk.orgs.mine
-  | typeof qk.orgs.one
-  | typeof qk.projects.list
-  | typeof qk.audit.list
+  typeof qk.orgs.mine | typeof qk.orgs.one | typeof qk.projects.list | typeof qk.audit.list
 >;

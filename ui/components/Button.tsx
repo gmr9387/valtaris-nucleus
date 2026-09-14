@@ -1,12 +1,7 @@
 import React from "react";
 import { colors, spacing, radius, effects, typography } from "../tokens";
 
-export const Button = ({
-  children,
-  onClick,
-  variant = "primary",
-  style = {},
-}) => {
+export const Button = ({ children, onClick, variant = "primary", style = {} }) => {
   const variants = {
     primary: {
       background: colors.valtarisBlue,

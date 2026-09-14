@@ -14,7 +14,7 @@ export class ValtarisClient {
     const res = await fetch(`${this.api}${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
     });
     return res.json();
   }

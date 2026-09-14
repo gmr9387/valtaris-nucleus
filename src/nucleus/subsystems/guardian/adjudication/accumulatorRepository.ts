@@ -18,7 +18,7 @@ import type { MemberAccumulators } from "@/types/claim";
  */
 export async function fetchMemberAccumulators(
   memberId: string,
-  planYear: number
+  planYear: number,
 ): Promise<MemberAccumulators | null> {
   const { data, error } = await supabase
     .from("member_accumulators")

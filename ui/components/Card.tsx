@@ -1,11 +1,7 @@
 import React from "react";
 import { colors, spacing, radius, effects } from "../tokens";
 
-export const Card = ({
-  children,
-  padding = "lg",
-  style = {},
-}) => {
+export const Card = ({ children, padding = "lg", style = {} }) => {
   return (
     <div
       style={{

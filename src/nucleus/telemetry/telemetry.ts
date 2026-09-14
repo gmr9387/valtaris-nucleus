@@ -23,7 +23,7 @@ export class Telemetry {
     type: string,
     level: "info" | "warn" | "error",
     message: string,
-    payload?: any
+    payload?: any,
   ) {
     const signal: TelemetrySignal = {
       id: randomUUID(),
@@ -80,7 +80,7 @@ export function recordTelemetry(
   eventType: string,
   claimId: string | undefined,
   organizationId: string,
-  payload?: any
+  payload?: any,
 ) {
   return nucleusTelemetry.emit(
     organizationId,
@@ -88,6 +88,6 @@ export function recordTelemetry(
     eventType,
     "info",
     claimId ? `${eventType} (claim ${claimId})` : eventType,
-    payload
+    payload,
   );
 }

@@ -4,15 +4,13 @@ import { supabaseFederation } from "../federation/federationClient";
 import { ExtensionManifest } from "./extensionManifest";
 
 export const registerExtension = async (manifest: ExtensionManifest) => {
-  const { error } = await supabaseFederation
-    .from("extension_registry")
-    .insert({
-      extension_id: manifest.extension_id,
-      extension_name: manifest.extension_name,
-      extension_version: manifest.extension_version,
-      extension_description: manifest.extension_description,
-      installed: false,
-    });
+  const { error } = await supabaseFederation.from("extension_registry").insert({
+    extension_id: manifest.extension_id,
+    extension_name: manifest.extension_name,
+    extension_version: manifest.extension_version,
+    extension_description: manifest.extension_description,
+    installed: false,
+  });
 
   if (error) {
     throw new Error(`Failed to register extension: ${error.message}`);
@@ -22,15 +20,13 @@ export const registerExtension = async (manifest: ExtensionManifest) => {
 export const updateExtensionVersion = async (
   extension_id: string,
   newVersion: string,
-  changelog: string
+  changelog: string,
 ) => {
-  const { error: versionErr } = await supabaseFederation
-    .from("extension_versions")
-    .insert({
-      extension_id,
-      version: newVersion,
-      changelog,
-    });
+  const { error: versionErr } = await supabaseFederation.from("extension_versions").insert({
+    extension_id,
+    version: newVersion,
+    changelog,
+  });
 
   if (versionErr) {
     throw new Error(`Failed to record extension version: ${versionErr.message}`);
@@ -50,9 +46,7 @@ export const updateExtensionVersion = async (
 };
 
 export const listRegisteredExtensions = async () => {
-  const { data, error } = await supabaseFederation
-    .from("extension_registry")
-    .select("*");
+  const { data, error } = await supabaseFederation.from("extension_registry").select("*");
 
   if (error) {
     throw new Error(`Failed to list extensions: ${error.message}`);

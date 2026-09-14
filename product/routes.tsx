@@ -42,7 +42,7 @@ const navItems = [
   { id: "monitorpacks", label: "Monitoring Packs" },
   { id: "securitypacks", label: "Security Packs" },
   { id: "identitypacks", label: "Identity Packs" },
-  { id: "audit", label: "Audit Logs" }
+  { id: "audit", label: "Audit Logs" },
 ];
 
 export const AppRoutes = () => {
@@ -83,46 +83,16 @@ export const AppRoutes = () => {
         path="/settings"
         element={<Settings navItems={navItems} active={active} onSelect={setActive} />}
       />
-      <Route
-        path="/admin"
-        element={<AdminPage />}
-      />
-      <Route
-        path="/analytics"
-        element={<AnalyticsPage />}
-      />
-      <Route
-        path="/extensions"
-        element={<ExtensionsPage />}
-      />
-      <Route
-        path="/sdk"
-        element={<SDKDemo />}
-      />
-      <Route
-        path="/marketplace"
-        element={<MarketplacePage />}
-      />
-      <Route
-        path="/workflowpacks"
-        element={<PacksPage />}
-      />
-      <Route
-        path="/monitorpacks"
-        element={<MonitorPage />}
-      />
-      <Route
-        path="/securitypacks"
-        element={<SecurityPage />}
-      />
-      <Route
-        path="/identitypacks"
-        element={<IdentityPacksPage />}
-      />
-      <Route
-        path="/audit"
-        element={<AuditPage />}
-      />
+      <Route path="/admin" element={<AdminPage />} />
+      <Route path="/analytics" element={<AnalyticsPage />} />
+      <Route path="/extensions" element={<ExtensionsPage />} />
+      <Route path="/sdk" element={<SDKDemo />} />
+      <Route path="/marketplace" element={<MarketplacePage />} />
+      <Route path="/workflowpacks" element={<PacksPage />} />
+      <Route path="/monitorpacks" element={<MonitorPage />} />
+      <Route path="/securitypacks" element={<SecurityPage />} />
+      <Route path="/identitypacks" element={<IdentityPacksPage />} />
+      <Route path="/audit" element={<AuditPage />} />
     </Routes>
   );
 };

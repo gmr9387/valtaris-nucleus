@@ -45,14 +45,9 @@ export class ConfigEngine {
       version: record.version,
     });
 
-    nucleusBilling.recordEvent(
-      org,
-      subsystem,
-      `config.set.${key}`,
-      1,
-      0.0015,
-      { version: record.version }
-    );
+    nucleusBilling.recordEvent(org, subsystem, `config.set.${key}`, 1, 0.0015, {
+      version: record.version,
+    });
 
     return record;
   }

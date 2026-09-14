@@ -11,11 +11,7 @@
  * It is the constitutional financial execution contract.
  */
 
-import {
-  registerContract,
-  ContractDefinition,
-  ContractValidationResult,
-} from "./contractRegistry";
+import { registerContract, ContractDefinition, ContractValidationResult } from "./contractRegistry";
 
 export interface PaymentV1 {
   id: string; // payment id

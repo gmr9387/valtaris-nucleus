@@ -1,11 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Session, User, AuthChangeEvent } from "@supabase/supabase-js";
 import { useRouter } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -40,32 +33,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(
-      (event: AuthChangeEvent, nextSession: Session | null) => {
-        setSession(nextSession);
+    } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, nextSession: Session | null) => {
+      setSession(nextSession);
 
-        if (event === "SIGNED_OUT") {
-          // Clear all cached data immediately to prevent stale UI flashes.
-          qc.clear();
+      if (event === "SIGNED_OUT") {
+        // Clear all cached data immediately to prevent stale UI flashes.
+        qc.clear();
 
-          if (!intentionalSignOutRef.current) {
-            // Session expired or was invalidated server-side.
-            toast.error("Session expired", {
-              description: "Please sign in again to continue.",
-            });
-          }
-          intentionalSignOutRef.current = false;
-        } else if (event === "TOKEN_REFRESHED") {
-          // Silently reconnect realtime / refetch open queries.
-          void qc.invalidateQueries();
-        } else if (event === "SIGNED_IN") {
-          void qc.invalidateQueries();
+        if (!intentionalSignOutRef.current) {
+          // Session expired or was invalidated server-side.
+          toast.error("Session expired", {
+            description: "Please sign in again to continue.",
+          });
         }
+        intentionalSignOutRef.current = false;
+      } else if (event === "TOKEN_REFRESHED") {
+        // Silently reconnect realtime / refetch open queries.
+        void qc.invalidateQueries();
+      } else if (event === "SIGNED_IN") {
+        void qc.invalidateQueries();
+      }
 
-        // Defer router invalidation to avoid re-entrant updates.
-        queueMicrotask(() => router.invalidate());
-      },
-    );
+      // Defer router invalidation to avoid re-entrant updates.
+      queueMicrotask(() => router.invalidate());
+    });
 
     supabase.auth
       .getSession()

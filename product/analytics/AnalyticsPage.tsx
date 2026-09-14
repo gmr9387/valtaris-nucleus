@@ -5,7 +5,7 @@ export const AnalyticsPage = () => {
   const [summary, setSummary] = useState({
     totalUsers: 0,
     totalWorkflows: 0,
-    totalPayments: 0
+    totalPayments: 0,
   });
 
   const [usage, setUsage] = useState({});

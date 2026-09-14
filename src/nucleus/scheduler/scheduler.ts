@@ -20,13 +20,7 @@ export class Scheduler {
   private tasks: Map<string, ScheduledTask> = new Map();
   private timers: Map<string, NodeJS.Timeout> = new Map();
 
-  register(
-    org: string,
-    subsystem: string,
-    name: string,
-    intervalMs: number,
-    payload: any
-  ) {
+  register(org: string, subsystem: string, name: string, intervalMs: number, payload: any) {
     const id = randomUUID();
 
     const task: ScheduledTask = {
@@ -50,13 +44,10 @@ export class Scheduler {
     this.timers.set(id, timer);
 
     // Audit
-    nucleusAudit.log(
-      org,
-      subsystem,
-      `scheduler.${name}`,
-      "scheduler-engine",
-      { intervalMs, payload }
-    );
+    nucleusAudit.log(org, subsystem, `scheduler.${name}`, "scheduler-engine", {
+      intervalMs,
+      payload,
+    });
 
     // Billing
     nucleusBilling.recordEvent(
@@ -65,7 +56,7 @@ export class Scheduler {
       `scheduler.${name}`,
       1,
       0.002, // $0.002 per scheduled cycle
-      { intervalMs }
+      { intervalMs },
     );
 
     return task;

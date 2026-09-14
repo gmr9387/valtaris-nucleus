@@ -6,8 +6,7 @@ import { AgentManifest } from "./agentManifest";
 import { loadAgentManifest } from "./agentLoader";
 
 export type AgentExecutionResult =
-  | { status: "success"; output: any }
-  | { status: "error"; error: string };
+  { status: "success"; output: any } | { status: "error"; error: string };
 
 const loadAgentModule = (agentPath: string, moduleName: string) => {
   const modulePath = path.join(agentPath, moduleName);
@@ -39,10 +38,7 @@ export const executeAgentCapability = async (params: {
     }
 
     // 2. Load capability module
-    const capabilityModule = loadAgentModule(
-      agentPath,
-      `capabilities/${params.capabilityName}.js`
-    );
+    const capabilityModule = loadAgentModule(agentPath, `capabilities/${params.capabilityName}.js`);
 
     // 3. Execute capability
     const output = await capabilityModule.run(params.input);

@@ -9,12 +9,5 @@ export const Security = ({ navItems, active, onSelect }) => {
     fetchSecurityEvents().then(setEvents);
   }, []);
 
-  return (
-    <SecurityPage
-      navItems={navItems}
-      active={active}
-      onSelect={onSelect}
-      events={events}
-    />
-  );
+  return <SecurityPage navItems={navItems} active={active} onSelect={onSelect} events={events} />;
 };

@@ -29,8 +29,7 @@ export const certificationProofs = {
     environmentCheck: federationEngine.identity.validateEnvironment("dev"),
   }),
 
-  "autonomy.proof": () =>
-    autonomyEngine.health.checkAll(autonomyEngine.manifest.subsystems),
+  "autonomy.proof": () => autonomyEngine.health.checkAll(autonomyEngine.manifest.subsystems),
 
   "pipeline.proof": () => constitutionalPipeline.execute(),
 

@@ -18,13 +18,7 @@
  * "guardian", "glue", "dualpay", "contracts", "telemetry".
  */
 
-export type SubsystemId =
-  | "contracts"
-  | "guardian"
-  | "glue"
-  | "weaver"
-  | "dualpay"
-  | "telemetry";
+export type SubsystemId = "contracts" | "guardian" | "glue" | "weaver" | "dualpay" | "telemetry";
 
 export interface SubsystemRegistration {
   id: SubsystemId;

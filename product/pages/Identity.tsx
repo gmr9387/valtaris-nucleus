@@ -10,11 +10,6 @@ export const Identity = ({ navItems, active, onSelect }) => {
   }, []);
 
   return (
-    <IdentityPage
-      navItems={navItems}
-      active={active}
-      onSelect={onSelect}
-      identities={identities}
-    />
+    <IdentityPage navItems={navItems} active={active} onSelect={onSelect} identities={identities} />
   );
 };

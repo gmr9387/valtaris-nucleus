@@ -7,10 +7,7 @@ export const SecurityPage = ({ navItems, active, onSelect, events }) => {
   return (
     <DashboardShell navItems={navItems} active={active} onSelect={onSelect}>
       <Panel title="Security Events">
-        <DataTable
-          columns={["event", "actor", "timestamp"]}
-          rows={events}
-        />
+        <DataTable columns={["event", "actor", "timestamp"]} rows={events} />
       </Panel>
     </DashboardShell>
   );

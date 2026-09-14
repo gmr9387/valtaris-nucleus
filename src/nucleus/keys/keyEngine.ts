@@ -52,7 +52,14 @@ export class KeyEngine {
     console.log(`[KEYS][${record.subsystem.toUpperCase()}] Revoked key: ${record.name}`);
 
     nucleusAudit.log(record.org, record.subsystem, `keys.revoke.${record.name}`, "key-engine", {});
-    nucleusBilling.recordEvent(record.org, record.subsystem, `keys.revoke.${record.name}`, 1, 0.002, {});
+    nucleusBilling.recordEvent(
+      record.org,
+      record.subsystem,
+      `keys.revoke.${record.name}`,
+      1,
+      0.002,
+      {},
+    );
 
     return record;
   }

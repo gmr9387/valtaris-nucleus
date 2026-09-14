@@ -22,4 +22,3 @@ export const useForm = (initial) => {
 
   return { values, set, errors, validate };
 };
-

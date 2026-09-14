@@ -23,7 +23,7 @@ export const Settings = ({ navItems, active, onSelect }) => {
         values: settings,
         errors: {},
         set: (field, value) => setSettings({ ...settings, [field]: value }),
-        onSubmit: submit
+        onSubmit: submit,
       }}
     />
   );

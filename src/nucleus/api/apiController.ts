@@ -19,10 +19,7 @@ export class APIController {
       }
 
       // Step 1 — Gateway normalization
-      const gatewayPayload = GatewayAdapter.ingress(
-        organizationId,
-        claimPayload
-      );
+      const gatewayPayload = GatewayAdapter.ingress(organizationId, claimPayload);
 
       // Step 2 — OS pipeline execution
       const result = OSPipeline.runClaimFromGateway(gatewayPayload);

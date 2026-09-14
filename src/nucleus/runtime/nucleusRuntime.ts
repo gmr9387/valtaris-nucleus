@@ -14,7 +14,9 @@ export class NucleusRuntime {
   }
 
   boot() {
-    console.log(`Booting NucleusRuntime for subsystem=${this.subsystem}, org=${this.organizationId}`);
+    console.log(
+      `Booting NucleusRuntime for subsystem=${this.subsystem}, org=${this.organizationId}`,
+    );
 
     // FIXED: StateEngine.set() was called as a static method, but set()
     // is an instance method on the nucleusState singleton, not the class.
@@ -25,12 +27,10 @@ export class NucleusRuntime {
     // with a single object, which left `subsystem` undefined inside
     // recordEvent() and crashed on subsystem.toUpperCase(). Caught by
     // actually running the boot chain, not by inspection.
-    nucleusTelemetry.recordEvent(
-      this.organizationId,
-      this.subsystem,
-      "runtime.boot",
-      { subsystem: this.subsystem, organizationId: this.organizationId }
-    );
+    nucleusTelemetry.recordEvent(this.organizationId, this.subsystem, "runtime.boot", {
+      subsystem: this.subsystem,
+      organizationId: this.organizationId,
+    });
 
     // FIXED: eventBus.publish() requires four positional arguments
     // (org, subsystem, type, payload) -- it was being called with a

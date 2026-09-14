@@ -5,12 +5,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import {
-  canManageProjects,
-  useEnvironments,
-  useMyOrgMembership,
-  useProjects,
-} from "@/lib/queries";
+import { canManageProjects, useEnvironments, useMyOrgMembership, useProjects } from "@/lib/queries";
 import { useOrgStore } from "@/lib/org-store";
 import { PageHeader, PageBody, EmptyState, StatusDot } from "@/components/platform-ui";
 import { Field, Th, Td, FieldStyles } from "./_app.organizations";

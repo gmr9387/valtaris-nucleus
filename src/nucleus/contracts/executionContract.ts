@@ -11,11 +11,7 @@
  * It is the constitutional "DO" contract.
  */
 
-import {
-  registerContract,
-  ContractDefinition,
-  ContractValidationResult,
-} from "./contractRegistry";
+import { registerContract, ContractDefinition, ContractValidationResult } from "./contractRegistry";
 
 export interface ExecutionV1 {
   id: string; // execution id

@@ -69,13 +69,7 @@ export interface AuditEventRow {
 
 export type CredentialStatus = "active" | "rotating" | "deactivated";
 export type ConnectorCategory =
-  | "ai"
-  | "payments"
-  | "messaging"
-  | "social"
-  | "database"
-  | "universal"
-  | "other";
+  "ai" | "payments" | "messaging" | "social" | "database" | "universal" | "other";
 
 export type ConnectorStatus = "available" | "beta" | "deprecated";
 export type BindingStatus = "active" | "paused" | "error";

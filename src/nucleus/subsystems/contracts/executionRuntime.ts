@@ -9,10 +9,7 @@ export class ExecutionRuntime {
   private api: NucleusApi;
 
   constructor(private organizationId: string) {
-    this.telemetry = new NucleusTelemetryAdapter(
-      organizationId,
-      "execution-contract"
-    );
+    this.telemetry = new NucleusTelemetryAdapter(organizationId, "execution-contract");
 
     this.api = new NucleusApi("execution", organizationId);
   }

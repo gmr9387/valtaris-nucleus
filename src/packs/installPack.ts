@@ -4,10 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { validatePackManifest, PackManifest } from "./manifestSchema";
 import { loadPackById } from "./loadPack";
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
 export const installPack = async (manifest: unknown) => {
   if (!validatePackManifest(manifest)) {

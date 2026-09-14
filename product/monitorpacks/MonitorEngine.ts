@@ -1,8 +1,4 @@
-import {
-  fetchMonitorPacks,
-  installMonitorPack,
-  removeMonitorPack
-} from "./MonitorAPI";
+import { fetchMonitorPacks, installMonitorPack, removeMonitorPack } from "./MonitorAPI";
 
 export class MonitorEngine {
   private packs: any[] = [];

@@ -19,9 +19,16 @@
 import { lineageEngine } from "../lineage/lineageEngine";
 import type { NucleusEvent } from "../events/nucleusEvent";
 
-export type ContractName = "opportunity" | "recommendation" | "authorization" | "execution" | "payment";
+export type ContractName =
+  "opportunity" | "recommendation" | "authorization" | "execution" | "payment";
 
-const CHAIN_ORDER: ContractName[] = ["opportunity", "recommendation", "authorization", "execution", "payment"];
+const CHAIN_ORDER: ContractName[] = [
+  "opportunity",
+  "recommendation",
+  "authorization",
+  "execution",
+  "payment",
+];
 
 const SUBSYSTEM_PERMISSIONS: Record<string, ContractName[]> = {
   weaver: ["opportunity", "recommendation"],
@@ -97,7 +104,9 @@ export class NucleusApi {
   lineage(): ChainRecord {
     const chain = chains.get(this.organizationId);
     if (!chain || !chain.opportunity) {
-      throw new Error(`No constitutional lineage recorded for organization "${this.organizationId}".`);
+      throw new Error(
+        `No constitutional lineage recorded for organization "${this.organizationId}".`,
+      );
     }
     return chain;
   }

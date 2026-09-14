@@ -10,7 +10,7 @@ export class ContractSimulation {
     name: string,
     version: string,
     payload: unknown,
-    ctx: SimulationContext
+    ctx: SimulationContext,
   ): NucleusEvent {
     const validation = validateContract(name, version, payload);
     if (!validation.ok) {

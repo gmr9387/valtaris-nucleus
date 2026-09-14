@@ -20,18 +20,14 @@ export type Region = {
 };
 
 export const getClusters = async (): Promise<Cluster[]> => {
-  const { data, error } = await supabaseFederation
-    .from("cluster_registry")
-    .select("*");
+  const { data, error } = await supabaseFederation.from("cluster_registry").select("*");
 
   if (error) throw new Error(`Failed to load clusters: ${error.message}`);
   return (data ?? []) as Cluster[];
 };
 
 export const getRegions = async (): Promise<Region[]> => {
-  const { data, error } = await supabaseFederation
-    .from("region_registry")
-    .select("*");
+  const { data, error } = await supabaseFederation.from("region_registry").select("*");
 
   if (error) throw new Error(`Failed to load regions: ${error.message}`);
   return (data ?? []) as Region[];

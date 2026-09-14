@@ -25,9 +25,7 @@ export class EnvironmentActivationEngine {
   }
 
   activateAll() {
-    return environmentActivationManifest.activationOrder.map((env) =>
-      this.activate(env)
-    );
+    return environmentActivationManifest.activationOrder.map((env) => this.activate(env));
   }
 
   getState(environment: string) {

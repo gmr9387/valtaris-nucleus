@@ -5,8 +5,8 @@ export const api = async (path: string, options: RequestInit = {}) => {
     ...options,
     headers: {
       "Content-Type": "application/json",
-      ...(options.headers || {})
-    }
+      ...(options.headers || {}),
+    },
   });
 
   return res.json();

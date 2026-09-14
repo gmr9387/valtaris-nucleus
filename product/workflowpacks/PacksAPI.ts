@@ -5,14 +5,14 @@ export const fetchWorkflowPacks = async () => {
 
 export const installWorkflowPack = async (id: string) => {
   const res = await fetch(`/api/workflowpacks/${id}/install`, {
-    method: "POST"
+    method: "POST",
   });
   return res.json();
 };
 
 export const removeWorkflowPack = async (id: string) => {
   const res = await fetch(`/api/workflowpacks/${id}/remove`, {
-    method: "POST"
+    method: "POST",
   });
   return res.json();
 };

@@ -74,7 +74,7 @@ export class SecretsEngine {
       `secrets.set.${key}`,
       1,
       0.003, // $0.003 per secret write
-      { version: record.version }
+      { version: record.version },
     );
 
     return record;

@@ -15,10 +15,7 @@ export class DecisionCommand {
     const raw = fs.readFileSync(file, "utf-8");
     const context = JSON.parse(raw);
 
-    const engine = new DecisionEngine(
-      context.organizationId,
-      context.subsystem
-    );
+    const engine = new DecisionEngine(context.organizationId, context.subsystem);
 
     const result = engine.evaluate(context);
     console.log(JSON.stringify(result, null, 2));

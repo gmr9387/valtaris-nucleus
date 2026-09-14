@@ -1,11 +1,5 @@
 import { useEffect } from "react";
-import {
-  createFileRoute,
-  Link,
-  Outlet,
-  useNavigate,
-  useRouterState,
-} from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { LogOut } from "lucide-react";
 
 import { AppSidebar } from "@/components/AppSidebar";
@@ -76,9 +70,7 @@ function AppLayout() {
 
             <span className="text-border-strong">/</span>
 
-            <span className="truncate text-sm font-medium">
-              {title}
-            </span>
+            <span className="truncate text-sm font-medium">{title}</span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -88,9 +80,7 @@ function AppLayout() {
               </span>
             )}
 
-            <span className="hidden text-xs text-muted-foreground sm:inline">
-              {user?.email}
-            </span>
+            <span className="hidden text-xs text-muted-foreground sm:inline">{user?.email}</span>
 
             <button
               onClick={async () => {
@@ -132,9 +122,7 @@ function EmptyOrgPrompt() {
       <div className="max-w-md rounded-lg border border-border bg-surface-1 p-8 text-center">
         <p className="text-mono-xs text-primary">NO_ORGANIZATION</p>
 
-        <h2 className="mt-3 text-xl font-semibold">
-          Create your first organization
-        </h2>
+        <h2 className="mt-3 text-xl font-semibold">Create your first organization</h2>
 
         <p className="mt-2 text-sm text-muted-foreground">
           Every resource in ValtariOS Core belongs to an organization.

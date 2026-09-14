@@ -1,8 +1,4 @@
-import {
-  fetchSecurityPacks,
-  installSecurityPack,
-  removeSecurityPack
-} from "./SecurityAPI";
+import { fetchSecurityPacks, installSecurityPack, removeSecurityPack } from "./SecurityAPI";
 
 export class SecurityEngine {
   private packs: any[] = [];

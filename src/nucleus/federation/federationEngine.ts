@@ -61,11 +61,7 @@ export class FederationEngine {
     return node;
   }
 
-  linkNodes(
-    sourceNode: string,
-    targetNode: string,
-    type: FederationLink["type"]
-  ) {
+  linkNodes(sourceNode: string, targetNode: string, type: FederationLink["type"]) {
     const id = randomUUID();
 
     const link: FederationLink = {
@@ -83,12 +79,7 @@ export class FederationEngine {
     return link;
   }
 
-  forwardEvent(
-    sourceNode: string,
-    targetNode: string,
-    type: string,
-    payload: any
-  ) {
+  forwardEvent(sourceNode: string, targetNode: string, type: string, payload: any) {
     const event: FederationEvent = {
       id: randomUUID(),
       sourceNode,
@@ -103,13 +94,11 @@ export class FederationEngine {
     console.log(`[FED][EVENT] ${sourceNode} → ${targetNode}: ${type}`);
 
     // Audit
-    nucleusAudit.log(
-      "federation",
-      "federation",
-      `federation.event.${type}`,
-      "federation-engine",
-      { sourceNode, targetNode, payload }
-    );
+    nucleusAudit.log("federation", "federation", `federation.event.${type}`, "federation-engine", {
+      sourceNode,
+      targetNode,
+      payload,
+    });
 
     // Billing (federation events cost money)
     nucleusBilling.recordEvent(
@@ -118,7 +107,7 @@ export class FederationEngine {
       `federation.event.${type}`,
       1,
       0.004, // $0.004 per federated event
-      { sourceNode, targetNode }
+      { sourceNode, targetNode },
     );
 
     return event;

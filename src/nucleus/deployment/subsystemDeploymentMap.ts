@@ -9,19 +9,15 @@ export interface SubsystemDeployment {
   resources: string[];
 }
 
-export const subsystemDeploymentMap: SubsystemDeployment[] =
-  deploymentManifest.subsystems.map((subsystem) => {
+export const subsystemDeploymentMap: SubsystemDeployment[] = deploymentManifest.subsystems.map(
+  (subsystem) => {
     const capabilities = deploymentManifest.capabilities.filter((c) =>
-      c.startsWith(`${subsystem}.`)
+      c.startsWith(`${subsystem}.`),
     );
 
-    const contracts = deploymentManifest.contracts.filter((c) =>
-      c.includes(`(${subsystem}.`)
-    );
+    const contracts = deploymentManifest.contracts.filter((c) => c.includes(`(${subsystem}.`));
 
-    const resources = deploymentManifest.resources.filter((r) =>
-      r.includes(`(${subsystem}.`)
-    );
+    const resources = deploymentManifest.resources.filter((r) => r.includes(`(${subsystem}.`));
 
     return {
       subsystem,
@@ -29,4 +25,5 @@ export const subsystemDeploymentMap: SubsystemDeployment[] =
       contracts,
       resources,
     };
-  });
+  },
+);

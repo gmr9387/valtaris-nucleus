@@ -5,7 +5,7 @@ export const fetchOrgs = async () => {
 
 export const switchOrg = async (id: string) => {
   const res = await fetch(`/api/orgs/${id}/switch`, {
-    method: "POST"
+    method: "POST",
   });
   return res.json();
 };

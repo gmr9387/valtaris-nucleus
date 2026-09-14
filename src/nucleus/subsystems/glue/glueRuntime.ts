@@ -50,13 +50,7 @@ export class GlueRuntime {
 
     eventBus.emit("glue.execution.processed", result);
 
-    recordTelemetry(
-      "glue",
-      "execution",
-      result.claimId,
-      result.organizationId,
-      result
-    );
+    recordTelemetry("glue", "execution", result.claimId, result.organizationId, result);
 
     return result;
   }

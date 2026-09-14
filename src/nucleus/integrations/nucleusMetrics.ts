@@ -95,8 +95,7 @@ export function getMetricsSnapshot() {
     ...metrics,
     averagePipelineLatencyMs:
       metrics.pipelineLatencyMs.length > 0
-        ? metrics.pipelineLatencyMs.reduce((a, b) => a + b, 0) /
-          metrics.pipelineLatencyMs.length
+        ? metrics.pipelineLatencyMs.reduce((a, b) => a + b, 0) / metrics.pipelineLatencyMs.length
         : 0,
   };
 }

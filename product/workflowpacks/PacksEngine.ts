@@ -1,8 +1,4 @@
-import {
-  fetchWorkflowPacks,
-  installWorkflowPack,
-  removeWorkflowPack
-} from "./PacksAPI";
+import { fetchWorkflowPacks, installWorkflowPack, removeWorkflowPack } from "./PacksAPI";
 
 export class PacksEngine {
   private packs: any[] = [];

@@ -75,7 +75,10 @@ function WorkflowsPage() {
         ) : (
           <div className="space-y-6">
             {creating && (
-              <Panel title="New workflow" description="Creates a draft workflow. Add a version next.">
+              <Panel
+                title="New workflow"
+                description="Creates a draft workflow. Add a version next."
+              >
                 <form onSubmit={handleCreate} className="space-y-3">
                   <div>
                     <label className="text-mono-xs text-muted-foreground">NAME</label>
@@ -127,7 +130,6 @@ function WorkflowsPage() {
                 error={workflows.error}
                 onRetry={() => void workflows.refetch()}
               />
-
             ) : (workflows.data ?? []).length === 0 ? (
               <EmptyState
                 title="No workflows yet"

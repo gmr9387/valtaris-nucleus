@@ -35,7 +35,7 @@ export class BillingEngine {
     type: string,
     units: number,
     unitCost: number,
-    metadata?: any
+    metadata?: any,
   ) {
     const totalCost = units * unitCost;
 
@@ -61,7 +61,7 @@ export class BillingEngine {
 
   generateInvoice(org: string, periodStart: number, periodEnd: number) {
     const events = this.events.filter(
-      (e) => e.org === org && e.timestamp >= periodStart && e.timestamp <= periodEnd
+      (e) => e.org === org && e.timestamp >= periodStart && e.timestamp <= periodEnd,
     );
 
     const total = events.reduce((sum, e) => sum + e.totalCost, 0);

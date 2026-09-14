@@ -39,7 +39,14 @@ export interface ConnectorBinding {
 export interface ConnectorEvent {
   id: string;
   connectorId: string;
-  type: "created" | "updated" | "config_added" | "config_removed" | "binding_added" | "binding_removed" | "error";
+  type:
+    | "created"
+    | "updated"
+    | "config_added"
+    | "config_removed"
+    | "binding_added"
+    | "binding_removed"
+    | "error";
   timestamp: string;
   metadata: Record<string, unknown>;
 }

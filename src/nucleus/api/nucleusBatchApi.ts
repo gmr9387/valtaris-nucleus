@@ -30,13 +30,19 @@ export class NucleusBatchApi {
   emitBatch(items: BatchItem[]): { ok: boolean } {
     const { maxBatchSize } = RuntimeConfig.get();
     if (items.length > maxBatchSize) {
-      throw new Error(`Batch size ${items.length} exceeds configured maxBatchSize ${maxBatchSize}.`);
+      throw new Error(
+        `Batch size ${items.length} exceeds configured maxBatchSize ${maxBatchSize}.`,
+      );
     }
 
     for (const item of items) {
       const start = Date.now();
       this.api.emit(item.name, item.version, item.payload);
-      this.samples.push({ contractName: item.name, durationMs: Date.now() - start, at: Date.now() });
+      this.samples.push({
+        contractName: item.name,
+        durationMs: Date.now() - start,
+        at: Date.now(),
+      });
     }
 
     return { ok: true };

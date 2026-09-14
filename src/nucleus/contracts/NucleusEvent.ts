@@ -21,11 +21,11 @@ import { NucleusIdentity } from "./NucleusIdentity";
 export interface NucleusEvent {
   id: string;
   source: string; // subsystem name: nucleus, weaver, guardian, glue, dualpay, etc.
-  type: string;   // event type: workflow.started, opportunity.detected, action.authorized, etc.
+  type: string; // event type: workflow.started, opportunity.detected, action.authorized, etc.
 
   context: NucleusIdentity;
 
-  payload: any;   // subsystem-specific data
+  payload: any; // subsystem-specific data
 
   timestamp: string;
 }

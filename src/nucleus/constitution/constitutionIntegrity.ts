@@ -19,16 +19,12 @@ export function runConstitutionIntegrityCheck() {
 
   const subsystemCapabilityCheck = constitution.subsystems.every((s) =>
     s.capabilities.every((cap) =>
-      constitution.contracts.some(
-        (c) => c.subsystem === s.name && c.capability === cap
-      )
-    )
+      constitution.contracts.some((c) => c.subsystem === s.name && c.capability === cap),
+    ),
   );
 
   const resourceBindingCheck = constitution.resources.every((r) =>
-    constitution.contracts.some(
-      (c) => c.resources.includes(r.type)
-    )
+    constitution.contracts.some((c) => c.resources.includes(r.type)),
   );
 
   return {

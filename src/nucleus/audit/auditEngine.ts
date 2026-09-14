@@ -16,13 +16,7 @@ export type AuditRecord = {
 export class AuditEngine {
   private records: AuditRecord[] = [];
 
-  log(
-    org: string,
-    subsystem: string,
-    action: string,
-    actor: string,
-    metadata?: any
-  ) {
+  log(org: string, subsystem: string, action: string, actor: string, metadata?: any) {
     const record: AuditRecord = {
       id: randomUUID(),
       org,

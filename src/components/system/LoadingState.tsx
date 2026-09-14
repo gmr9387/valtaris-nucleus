@@ -1,20 +1,11 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-export function LoadingState({
-  label = "Loading…",
-  rows = 4,
-}: {
-  label?: string;
-  rows?: number;
-}) {
+export function LoadingState({ label = "Loading…", rows = 4 }: { label?: string; rows?: number }) {
   return (
     <div className="space-y-3" role="status" aria-busy="true" aria-live="polite">
       <span className="sr-only">{label}</span>
       {Array.from({ length: rows }).map((_, i) => (
-        <Skeleton
-          key={i}
-          className="h-9 w-full rounded-md border border-border bg-surface-2/40"
-        />
+        <Skeleton key={i} className="h-9 w-full rounded-md border border-border bg-surface-2/40" />
       ))}
     </div>
   );

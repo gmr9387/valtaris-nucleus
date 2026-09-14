@@ -15,15 +15,11 @@ export class FederatedResourceEngine {
   }
 
   listByTenant(tenantId: string) {
-    return resourceGraph.listResources().filter(
-      (r) => r.identity.tenantId === tenantId
-    );
+    return resourceGraph.listResources().filter((r) => r.identity.tenantId === tenantId);
   }
 
   listByEnvironment(environmentId: string) {
-    return resourceGraph.listResources().filter(
-      (r) => r.identity.environmentId === environmentId
-    );
+    return resourceGraph.listResources().filter((r) => r.identity.environmentId === environmentId);
   }
 }
 

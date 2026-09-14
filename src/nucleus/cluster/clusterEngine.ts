@@ -34,11 +34,7 @@ export class ClusterEngine {
   private assignments: ClusterTaskAssignment[] = [];
   private heartbeats: ClusterHeartbeat[] = [];
 
-  registerNode(
-    name: string,
-    role: ClusterNode["role"],
-    metadata?: any
-  ) {
+  registerNode(name: string, role: ClusterNode["role"], metadata?: any) {
     const id = randomUUID();
 
     const node: ClusterNode = {
@@ -75,13 +71,9 @@ export class ClusterEngine {
     console.log(`[CLUSTER][HEARTBEAT] ${node.name} → ${status}`);
 
     // Audit
-    nucleusAudit.log(
-      "cluster",
-      "cluster",
-      `cluster.node.${node.name}.status`,
-      "cluster-engine",
-      { status }
-    );
+    nucleusAudit.log("cluster", "cluster", `cluster.node.${node.name}.status`, "cluster-engine", {
+      status,
+    });
 
     // Billing (cluster heartbeat costs money)
     nucleusBilling.recordEvent(
@@ -90,7 +82,7 @@ export class ClusterEngine {
       `cluster.node.${node.name}.heartbeat`,
       1,
       0.001, // $0.001 per heartbeat
-      { status }
+      { status },
     );
 
     return heartbeat;
@@ -116,13 +108,10 @@ export class ClusterEngine {
     console.log(`[CLUSTER][TASK] ${node.name} assigned: ${taskType}`);
 
     // Audit
-    nucleusAudit.log(
-      "cluster",
-      "cluster",
-      `cluster.task.${taskType}`,
-      "cluster-engine",
-      { node: node.name, payload }
-    );
+    nucleusAudit.log("cluster", "cluster", `cluster.task.${taskType}`, "cluster-engine", {
+      node: node.name,
+      payload,
+    });
 
     // Billing (task assignment costs money)
     nucleusBilling.recordEvent(
@@ -131,7 +120,7 @@ export class ClusterEngine {
       `cluster.task.${taskType}`,
       1,
       0.003, // $0.003 per task assignment
-      { node: node.name }
+      { node: node.name },
     );
 
     return assignment;

@@ -6,8 +6,7 @@ import { ExtensionManifest } from "./extensionManifest";
 import { loadExtensionManifest } from "./extensionLoader";
 
 export type ExtensionExecutionResult =
-  | { status: "success"; output: any }
-  | { status: "error"; error: string };
+  { status: "success"; output: any } | { status: "error"; error: string };
 
 const loadExtensionModule = (extensionPath: string, moduleName: string) => {
   const modulePath = path.join(extensionPath, moduleName);
@@ -39,10 +38,7 @@ export const executeExtensionTrigger = async (params: {
     }
 
     // 2. Load trigger module
-    const triggerModule = loadExtensionModule(
-      extensionPath,
-      `triggers/${params.triggerName}.js`
-    );
+    const triggerModule = loadExtensionModule(extensionPath, `triggers/${params.triggerName}.js`);
 
     // 3. Execute trigger
     const output = await triggerModule.run(params.context);

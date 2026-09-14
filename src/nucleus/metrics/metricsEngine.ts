@@ -38,7 +38,7 @@ export class MetricsEngine {
     subsystem: string,
     name: string,
     value: number,
-    labels?: Record<string, string>
+    labels?: Record<string, string>,
   ) {
     const point: MetricPoint = {
       id: randomUUID(),
@@ -56,13 +56,7 @@ export class MetricsEngine {
     console.log(prefix, `${name} = ${value}`, labels ?? "");
 
     // Audit
-    nucleusAudit.log(
-      org,
-      subsystem,
-      `metrics.${name}`,
-      "metrics-engine",
-      { value, labels }
-    );
+    nucleusAudit.log(org, subsystem, `metrics.${name}`, "metrics-engine", { value, labels });
 
     // Billing (metrics ingestion costs money)
     nucleusBilling.recordEvent(
@@ -71,7 +65,7 @@ export class MetricsEngine {
       `metrics.${name}`,
       1,
       0.0005, // $0.0005 per metric point
-      { value, labels }
+      { value, labels },
     );
 
     return point;
@@ -81,7 +75,7 @@ export class MetricsEngine {
     org: string,
     subsystem: string,
     name: string,
-    labelsFilter?: Record<string, string>
+    labelsFilter?: Record<string, string>,
   ) {
     const filtered = this.points.filter((p) => {
       if (p.org !== org || p.subsystem !== subsystem || p.name !== name) {
@@ -120,19 +114,10 @@ export class MetricsEngine {
     this.aggregates.push(aggregate);
 
     const prefix = `[METRICS][${subsystem.toUpperCase()}]`;
-    console.log(
-      prefix,
-      `Aggregate ${name}: count=${aggregate.count} avg=${aggregate.avg}`
-    );
+    console.log(prefix, `Aggregate ${name}: count=${aggregate.count} avg=${aggregate.avg}`);
 
     // Audit
-    nucleusAudit.log(
-      org,
-      subsystem,
-      `metrics.aggregate.${name}`,
-      "metrics-engine",
-      { aggregate }
-    );
+    nucleusAudit.log(org, subsystem, `metrics.aggregate.${name}`, "metrics-engine", { aggregate });
 
     // Billing (aggregations cost money)
     nucleusBilling.recordEvent(
@@ -141,7 +126,7 @@ export class MetricsEngine {
       `metrics.aggregate.${name}`,
       1,
       0.0015, // $0.0015 per aggregation
-      { aggregate }
+      { aggregate },
     );
 
     return aggregate;

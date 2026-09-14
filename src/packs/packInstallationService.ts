@@ -24,16 +24,14 @@ export const installPack = async (packsRoot: string, packFolder: string) => {
 
   // 3. Register if not present
   if (!existing) {
-    const { error: regErr } = await supabaseFederation
-      .from("pack_registry")
-      .insert({
-        pack_id: manifest.pack_id,
-        pack_name: manifest.pack_name,
-        pack_version: manifest.pack_version,
-        pack_description: manifest.pack_description,
-        installed: true,
-        installed_at: new Date().toISOString(),
-      });
+    const { error: regErr } = await supabaseFederation.from("pack_registry").insert({
+      pack_id: manifest.pack_id,
+      pack_name: manifest.pack_name,
+      pack_version: manifest.pack_version,
+      pack_description: manifest.pack_description,
+      installed: true,
+      installed_at: new Date().toISOString(),
+    });
 
     if (regErr) {
       throw new Error(`Failed to register pack: ${regErr.message}`);

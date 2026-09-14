@@ -9,20 +9,21 @@ export const recordFederationSignature = async (params: {
   subject_id: string;
   signature: string;
 }) => {
-  const { error } = await supabaseFederation
-    .from("federation_signature")
-    .insert({
-      cluster_id: params.cluster_id,
-      region_id: params.region_id ?? null,
-      subject_type: params.subject_type,
-      subject_id: params.subject_id,
-      signature: params.signature,
-    });
+  const { error } = await supabaseFederation.from("federation_signature").insert({
+    cluster_id: params.cluster_id,
+    region_id: params.region_id ?? null,
+    subject_type: params.subject_type,
+    subject_id: params.subject_id,
+    signature: params.signature,
+  });
 
   if (error) throw new Error(`Failed to record federation signature: ${error.message}`);
 };
 
-export const getFederationSignaturesForSubject = async (subject_type: string, subject_id: string) => {
+export const getFederationSignaturesForSubject = async (
+  subject_type: string,
+  subject_id: string,
+) => {
   const { data, error } = await supabaseFederation
     .from("federation_signature")
     .select("*")

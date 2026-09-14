@@ -12,9 +12,7 @@ export type MarketplaceItem = {
 };
 
 export const discoverPacks = async (): Promise<MarketplaceItem[]> => {
-  const { data, error } = await supabaseFederation
-    .from("pack_registry")
-    .select("*");
+  const { data, error } = await supabaseFederation.from("pack_registry").select("*");
 
   if (error) {
     throw new Error(`Failed to discover packs: ${error.message}`);
@@ -31,9 +29,7 @@ export const discoverPacks = async (): Promise<MarketplaceItem[]> => {
 };
 
 export const discoverExtensions = async (): Promise<MarketplaceItem[]> => {
-  const { data, error } = await supabaseFederation
-    .from("extension_registry")
-    .select("*");
+  const { data, error } = await supabaseFederation.from("extension_registry").select("*");
 
   if (error) {
     throw new Error(`Failed to discover extensions: ${error.message}`);
@@ -91,10 +87,7 @@ export const discoverAllMarketplaceItems = async (params: {
   agentsRoot: string;
   workflowsRoot: string;
 }): Promise<MarketplaceItem[]> => {
-  const [packs, extensions] = await Promise.all([
-    discoverPacks(),
-    discoverExtensions(),
-  ]);
+  const [packs, extensions] = await Promise.all([discoverPacks(), discoverExtensions()]);
 
   const agents = discoverAgents(params.agentsRoot);
   const workflows = discoverWorkflows(params.workflowsRoot);

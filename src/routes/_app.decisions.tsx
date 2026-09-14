@@ -129,9 +129,7 @@ function DecisionsPage() {
                   >
                     <div>
                       <div className="font-medium text-foreground">{item.name}</div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        Decision profile
-                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">Decision profile</div>
                     </div>
 
                     <div>
@@ -218,9 +216,7 @@ function Metric({
   return (
     <div className={`rounded-xl border p-4 ${cls}`}>
       <div className="flex items-center justify-between">
-        <span className="text-xs uppercase tracking-wider text-muted-foreground">
-          {label}
-        </span>
+        <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
         <div className="text-muted-foreground">{icon}</div>
       </div>
 

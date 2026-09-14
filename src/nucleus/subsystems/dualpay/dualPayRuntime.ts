@@ -19,7 +19,7 @@ export class DualPayRuntime {
       execution: payload.execution,
       opportunity: payload.opportunity,
       authorization: payload.authorization,
-      recommendation: payload.recommendation
+      recommendation: payload.recommendation,
     };
 
     const result = DualPayEngine.react(input);
@@ -28,8 +28,8 @@ export class DualPayRuntime {
       ...payload,
       payment: {
         ...result,
-        timestamp: Date.now()
-      }
+        timestamp: Date.now(),
+      },
     };
 
     eventBus.emit("dualpay.payment.processed", final);

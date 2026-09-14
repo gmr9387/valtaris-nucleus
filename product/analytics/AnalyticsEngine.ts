@@ -15,7 +15,7 @@ export class AnalyticsEngine {
     return {
       totalUsers: this.analytics?.totalUsers || 0,
       totalWorkflows: this.analytics?.totalWorkflows || 0,
-      totalPayments: this.analytics?.totalPayments || 0
+      totalPayments: this.analytics?.totalPayments || 0,
     };
   }
 

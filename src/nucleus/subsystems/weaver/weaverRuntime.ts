@@ -25,13 +25,7 @@ export class WeaverRuntime {
 
     eventBus.emit("weaver.opportunity.processed", result);
 
-    recordTelemetry(
-      "weaver",
-      "opportunity",
-      result.claimId,
-      result.organizationId,
-      result
-    );
+    recordTelemetry("weaver", "opportunity", result.claimId, result.organizationId, result);
 
     return result;
   }
@@ -45,13 +39,7 @@ export class WeaverRuntime {
 
     eventBus.emit("weaver.recommendation.processed", result);
 
-    recordTelemetry(
-      "weaver",
-      "recommendation",
-      result.claimId,
-      result.organizationId,
-      result
-    );
+    recordTelemetry("weaver", "recommendation", result.claimId, result.organizationId, result);
 
     return result;
   }

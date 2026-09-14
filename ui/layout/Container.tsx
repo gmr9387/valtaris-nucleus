@@ -1,12 +1,7 @@
 import React from "react";
 import { spacing } from "../tokens/spacing";
 
-export const Container = ({
-  maxWidth = 1200,
-  padding = "lg",
-  children,
-  style = {},
-}) => {
+export const Container = ({ maxWidth = 1200, padding = "lg", children, style = {} }) => {
   return (
     <div
       style={{

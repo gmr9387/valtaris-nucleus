@@ -15,12 +15,7 @@ import { nucleusBilling } from "../../src/nucleus/billing/billingEngine";
 
 export class PaymentsService {
   async registerPaymentMethod(org: string, user: string, cardNumber: string) {
-    const encrypted = nucleusSecrets.set(
-      org,
-      "payments",
-      `${user}.card`,
-      cardNumber
-    );
+    const encrypted = nucleusSecrets.set(org, "payments", `${user}.card`, cardNumber);
 
     nucleusAudit.log(org, "payments", "paymentMethod.register", "payments-service", {
       user,
@@ -30,12 +25,7 @@ export class PaymentsService {
     return { user, version: encrypted.version };
   }
 
-  async initiatePayment(
-    org: string,
-    user: string,
-    amount: number,
-    currency: string = "USD"
-  ) {
+  async initiatePayment(org: string, user: string, amount: number, currency: string = "USD") {
     const paymentId = randomUUID();
 
     // Governance check

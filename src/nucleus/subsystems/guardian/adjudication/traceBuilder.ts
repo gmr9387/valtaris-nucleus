@@ -10,18 +10,12 @@
  * The trace receives its canonical SHA-256 fingerprint from the caller.
  */
 
-import type {
-  TraceObject,
-  RuleFiring,
-  RuleCategory,
-  MathStep,
-  SourceBadge,
-} from '@/types/trace';
-import type { PlanBenefits, ContractTerms } from '@/types/claim';
+import type { TraceObject, RuleFiring, RuleCategory, MathStep, SourceBadge } from "@/types/trace";
+import type { PlanBenefits, ContractTerms } from "@/types/claim";
 
-const RULE_SET_VERSION = '1.0.0';
-const CALC_POLICY_VERSION = '1.0.0';
-const DEFAULT_TRACE_TIMESTAMP = '1970-01-01T00:00:00.000Z';
+const RULE_SET_VERSION = "1.0.0";
+const CALC_POLICY_VERSION = "1.0.0";
+const DEFAULT_TRACE_TIMESTAMP = "1970-01-01T00:00:00.000Z";
 
 export interface BuildTraceOptions {
   fingerprint?: string;
@@ -76,7 +70,7 @@ export function createMathStep(
 
 export function createSourceBadge(
   fieldPath: string,
-  sourceType: SourceBadge['source_type'],
+  sourceType: SourceBadge["source_type"],
   confidence: number,
   documentRef?: string,
 ): SourceBadge {
@@ -101,21 +95,13 @@ export function buildTrace(
   mathSteps: MathStep[],
   options: BuildTraceOptions = {},
 ): TraceObject {
-  const traceId =
-    options.traceId ??
-    fallbackTraceId(runId, claimId);
+  const traceId = options.traceId ?? fallbackTraceId(runId, claimId);
 
-  const fingerprint =
-    options.fingerprint ??
-    `unfingerprinted_${claimId}_${runId}`;
+  const fingerprint = options.fingerprint ?? `unfingerprinted_${claimId}_${runId}`;
 
-  const timestamp =
-    options.timestamp ??
-    DEFAULT_TRACE_TIMESTAMP;
+  const timestamp = options.timestamp ?? DEFAULT_TRACE_TIMESTAMP;
 
-  const snapshotRef =
-    options.snapshotRef ??
-    `snapshots/${runId}/${fingerprint}`;
+  const snapshotRef = options.snapshotRef ?? `snapshots/${runId}/${fingerprint}`;
 
   return {
     trace_id: traceId,

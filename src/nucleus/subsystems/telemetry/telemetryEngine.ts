@@ -15,7 +15,7 @@ export class TelemetryEngine {
       claimId: payload.claimId,
       organizationId: payload.organizationId,
       payload,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
   }
 }

@@ -40,9 +40,7 @@ export const evaluateRegionHealth = async (region_id: string): Promise<RegionHea
 };
 
 export const evaluateAllRegions = async () => {
-  const { data: regions, error } = await supabaseFederation
-    .from("region_registry")
-    .select("id");
+  const { data: regions, error } = await supabaseFederation.from("region_registry").select("id");
 
   if (error) {
     throw new Error(`Failed to load regions: ${error.message}`);

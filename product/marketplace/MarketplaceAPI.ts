@@ -5,14 +5,14 @@ export const fetchMarketplaceItems = async () => {
 
 export const installMarketplaceItem = async (id: string) => {
   const res = await fetch(`/api/marketplace/${id}/install`, {
-    method: "POST"
+    method: "POST",
   });
   return res.json();
 };
 
 export const removeMarketplaceItem = async (id: string) => {
   const res = await fetch(`/api/marketplace/${id}/remove`, {
-    method: "POST"
+    method: "POST",
   });
   return res.json();
 };

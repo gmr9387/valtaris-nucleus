@@ -3,8 +3,7 @@
 import { supabaseFederation } from "./federationClient";
 
 export type FederationValidationResult =
-  | { valid: true; reason: string }
-  | { valid: false; reason: string };
+  { valid: true; reason: string } | { valid: false; reason: string };
 
 export const validateFederationSignature = async (params: {
   subject_type: string;

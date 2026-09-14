@@ -19,7 +19,7 @@ export class OpenApiGenerator {
     subsystem: string,
     description: string,
     requestSchema?: any,
-    responseSchema?: any
+    responseSchema?: any,
   ) {
     this.routes.push({
       method,

@@ -11,11 +11,7 @@
  * It is the constitutional enforcement point.
  */
 
-import {
-  registerContract,
-  ContractDefinition,
-  ContractValidationResult,
-} from "./contractRegistry";
+import { registerContract, ContractDefinition, ContractValidationResult } from "./contractRegistry";
 
 export interface AuthorizationV1 {
   id: string; // authorization id

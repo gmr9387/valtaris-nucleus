@@ -38,7 +38,7 @@ export class CronEngine {
     subsystem: string,
     name: string,
     intervalMs: number,
-    handler: CronJob["handler"]
+    handler: CronJob["handler"],
   ) {
     const id = randomUUID();
 
@@ -87,13 +87,7 @@ export class CronEngine {
       console.log(prefix, `Executed job: ${job.name}`);
 
       // Audit
-      nucleusAudit.log(
-        job.org,
-        job.subsystem,
-        `cron.job.${job.name}`,
-        "cron-engine",
-        { result }
-      );
+      nucleusAudit.log(job.org, job.subsystem, `cron.job.${job.name}`, "cron-engine", { result });
 
       // Billing (cron jobs cost money)
       nucleusBilling.recordEvent(
@@ -102,7 +96,7 @@ export class CronEngine {
         `cron.job.${job.name}`,
         1,
         0.003, // $0.003 per cron execution
-        { result }
+        { result },
       );
 
       return execution;
@@ -124,23 +118,14 @@ export class CronEngine {
       console.error(prefix, `Job failed: ${job.name}`, err);
 
       // Audit
-      nucleusAudit.log(
-        job.org,
-        job.subsystem,
-        `cron.job.${job.name}.failed`,
-        "cron-engine",
-        { error: err }
-      );
+      nucleusAudit.log(job.org, job.subsystem, `cron.job.${job.name}.failed`, "cron-engine", {
+        error: err,
+      });
 
       // Billing (failed cron still costs money)
-      nucleusBilling.recordEvent(
-        job.org,
-        job.subsystem,
-        `cron.job.${job.name}.failed`,
-        1,
-        0.003,
-        { error: err }
-      );
+      nucleusBilling.recordEvent(job.org, job.subsystem, `cron.job.${job.name}.failed`, 1, 0.003, {
+        error: err,
+      });
 
       return execution;
     }

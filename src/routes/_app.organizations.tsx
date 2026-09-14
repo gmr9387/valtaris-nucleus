@@ -15,7 +15,11 @@ export const Route = createFileRoute("/_app/organizations")({ component: OrgsPag
 
 const newOrgSchema = z.object({
   name: z.string().min(2).max(80),
-  slug: z.string().min(2).max(60).regex(/^[a-z0-9-]+$/, "lowercase letters, numbers, dashes"),
+  slug: z
+    .string()
+    .min(2)
+    .max(60)
+    .regex(/^[a-z0-9-]+$/, "lowercase letters, numbers, dashes"),
 });
 
 function OrgsPage() {
@@ -33,15 +37,25 @@ function OrgsPage() {
       const { data, error } = await supabase
         .from("organizations")
         .insert({ name: parsed.name, slug: parsed.slug, created_by: user!.id })
-        .select().single();
+        .select()
+        .single();
       if (error) throw error;
-      await logAudit({ organization_id: data.id, module: "tenancy", entity_type: "organization", entity_id: data.id, action: "create", after: data });
+      await logAudit({
+        organization_id: data.id,
+        module: "tenancy",
+        entity_type: "organization",
+        entity_id: data.id,
+        action: "create",
+        after: data,
+      });
       return data;
     },
     onSuccess: (data) => {
       toast.success("Organization created");
       setCurrentOrgId(data.id);
-      setName(""); setSlug(""); setOpen(false);
+      setName("");
+      setSlug("");
+      setOpen(false);
       qc.invalidateQueries({ queryKey: ["my-orgs"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -65,20 +79,46 @@ function OrgsPage() {
       <PageBody>
         {open && (
           <form
-            onSubmit={(e) => { e.preventDefault(); create.mutate(); }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              create.mutate();
+            }}
             className="mb-6 rounded-lg border border-border bg-surface-1 p-4"
           >
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <Field label="Name">
-                <input className="input" value={name} onChange={(e) => { setName(e.target.value); setSlug(slugify(e.target.value)); }} required />
+                <input
+                  className="input"
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    setSlug(slugify(e.target.value));
+                  }}
+                  required
+                />
               </Field>
               <Field label="Slug">
-                <input className="input font-mono" value={slug} onChange={(e) => setSlug(e.target.value)} required />
+                <input
+                  className="input font-mono"
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value)}
+                  required
+                />
               </Field>
             </div>
             <div className="mt-3 flex justify-end gap-2">
-              <button type="button" onClick={() => setOpen(false)} className="h-9 rounded-md border border-border bg-surface-2 px-3 text-sm hover:bg-surface-3">Cancel</button>
-              <button type="submit" disabled={create.isPending} className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="h-9 rounded-md border border-border bg-surface-2 px-3 text-sm hover:bg-surface-3"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={create.isPending}
+                className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
                 {create.isPending ? "Creating…" : "Create"}
               </button>
             </div>
@@ -90,16 +130,32 @@ function OrgsPage() {
             <table className="w-full text-sm">
               <thead className="bg-surface-1 text-mono-xs text-muted-foreground">
                 <tr>
-                  <Th>Name</Th><Th>Slug</Th><Th>Status</Th><Th>Created</Th>
+                  <Th>Name</Th>
+                  <Th>Slug</Th>
+                  <Th>Status</Th>
+                  <Th>Created</Th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border bg-surface-1/40">
                 {orgs.data.map((o) => (
                   <tr key={o.id} className="hover:bg-surface-2/60">
-                    <Td><div className="font-medium">{o.name}</div></Td>
-                    <Td><span className="font-mono text-xs text-muted-foreground">{o.slug}</span></Td>
-                    <Td><span className="inline-flex items-center gap-1.5"><StatusDot status={o.status} /><span className="capitalize">{o.status}</span></span></Td>
-                    <Td><span className="text-muted-foreground">{new Date(o.created_at).toLocaleDateString()}</span></Td>
+                    <Td>
+                      <div className="font-medium">{o.name}</div>
+                    </Td>
+                    <Td>
+                      <span className="font-mono text-xs text-muted-foreground">{o.slug}</span>
+                    </Td>
+                    <Td>
+                      <span className="inline-flex items-center gap-1.5">
+                        <StatusDot status={o.status} />
+                        <span className="capitalize">{o.status}</span>
+                      </span>
+                    </Td>
+                    <Td>
+                      <span className="text-muted-foreground">
+                        {new Date(o.created_at).toLocaleDateString()}
+                      </span>
+                    </Td>
                   </tr>
                 ))}
               </tbody>
@@ -110,7 +166,10 @@ function OrgsPage() {
             title="No organizations yet"
             description="Create your first organization to start using ValtariOS Core."
             action={
-              <button onClick={() => setOpen(true)} className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90">
+              <button
+                onClick={() => setOpen(true)}
+                className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90"
+              >
                 <Plus className="h-3.5 w-3.5" /> New organization
               </button>
             }
@@ -123,7 +182,12 @@ function OrgsPage() {
 }
 
 function slugify(s: string) {
-  return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+  return s
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 60);
 }
 
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {

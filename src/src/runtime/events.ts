@@ -22,20 +22,20 @@ export class RuntimeEvent {
   static create(
     type: string,
     source: string,
-    metadata: RuntimeEventMetadata = {}
+    metadata: RuntimeEventMetadata = {},
   ): RuntimeEventEnvelope {
     return {
       id: crypto.randomUUID(),
       type,
       source,
       timestamp: new Date().toISOString(),
-      metadata
+      metadata,
     };
   }
 
   static dispatch(
     handler: (event: RuntimeEventEnvelope) => Promise<void>,
-    event: RuntimeEventEnvelope
+    event: RuntimeEventEnvelope,
   ): Promise<void> {
     return handler(event);
   }

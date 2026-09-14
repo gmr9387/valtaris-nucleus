@@ -1,12 +1,7 @@
 import React from "react";
 import { colors, spacing, radius, typography } from "../tokens";
 
-export const Input = ({
-  value,
-  onChange,
-  placeholder = "",
-  style = {},
-}) => {
+export const Input = ({ value, onChange, placeholder = "", style = {} }) => {
   return (
     <input
       value={value}

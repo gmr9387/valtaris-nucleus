@@ -8,10 +8,13 @@ export class NucleusDBBridge {
   private client = createNucleusClient();
   private telemetry: NucleusTelemetryAdapter;
 
-  constructor(private organizationId?: string, private subsystem?: string) {
+  constructor(
+    private organizationId?: string,
+    private subsystem?: string,
+  ) {
     this.telemetry = new NucleusTelemetryAdapter(
       organizationId ?? "nucleus-db-org",
-      subsystem ?? "nucleus-db"
+      subsystem ?? "nucleus-db",
     );
   }
 
@@ -20,12 +23,7 @@ export class NucleusDBBridge {
     return this.client;
   }
 
-  async insertContract(
-    table: string,
-    organizationId: string,
-    version: string,
-    payload: any
-  ) {
+  async insertContract(table: string, organizationId: string, version: string, payload: any) {
     const span = this.telemetry.startSpan(`db:insertContract:${table}`);
 
     const { error } = await this.client.from(table).insert({
@@ -48,7 +46,7 @@ export class NucleusDBBridge {
     subsystem: string,
     name: string,
     version: string,
-    payload: any
+    payload: any,
   ) {
     const span = this.telemetry.startSpan(`db:insertEvent:${name}`);
 
@@ -69,11 +67,7 @@ export class NucleusDBBridge {
     this.telemetry.endSpan(span.spanId);
   }
 
-  async insertLineage(
-    organizationId: string,
-    chain: any,
-    finalized: boolean = false
-  ) {
+  async insertLineage(organizationId: string, chain: any, finalized: boolean = false) {
     const span = this.telemetry.startSpan("db:insertLineage");
 
     const { error } = await this.client.from("nucleus_lineage").insert({
@@ -100,7 +94,7 @@ export class NucleusDBBridge {
     subsystem: string,
     level: string,
     message: string,
-    metadata: any = null
+    metadata: any = null,
   ) {
     const span = this.telemetry.startSpan("db:insertTelemetry");
 

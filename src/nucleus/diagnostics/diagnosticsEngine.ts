@@ -34,7 +34,7 @@ export class DiagnosticsEngine {
     subsystem: string,
     name: string,
     description: string,
-    run: DiagnosticCheck["run"]
+    run: DiagnosticCheck["run"],
   ) {
     const id = randomUUID();
 
@@ -85,7 +85,7 @@ export class DiagnosticsEngine {
       check.subsystem,
       `diagnostics.${check.name}`,
       "diagnostics-engine",
-      { healthy }
+      { healthy },
     );
 
     // Billing (diagnostic checks cost money)
@@ -95,7 +95,7 @@ export class DiagnosticsEngine {
       `diagnostics.${check.name}`,
       1,
       0.001, // $0.001 per diagnostic check
-      { healthy }
+      { healthy },
     );
 
     return result;

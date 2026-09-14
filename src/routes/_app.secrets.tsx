@@ -3,22 +3,9 @@ import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import {
-  KeyRound,
-  LockKeyhole,
-  Plus,
-  RefreshCcw,
-  ShieldOff,
-  Search,
-} from "lucide-react";
+import { KeyRound, LockKeyhole, Plus, RefreshCcw, ShieldOff, Search } from "lucide-react";
 
-import {
-  PageHeader,
-  PageBody,
-  EmptyState,
-  StatusPill,
-  MetricCard,
-} from "@/components/platform-ui";
+import { PageHeader, PageBody, EmptyState, StatusPill, MetricCard } from "@/components/platform-ui";
 import { Field, Th, Td, FieldStyles } from "./_app.organizations";
 import { useOrgStore } from "@/lib/org-store";
 import {
@@ -31,11 +18,7 @@ import {
   useProjects,
   type CredentialRow,
 } from "@/lib/queries";
-import {
-  createSecret,
-  rotateSecret,
-  deactivateSecret,
-} from "@/lib/secrets.functions";
+import { createSecret, rotateSecret, deactivateSecret } from "@/lib/secrets.functions";
 
 export const Route = createFileRoute("/_app/secrets")({
   component: SecretsPage,
@@ -223,7 +206,9 @@ function SecretsPage() {
           </div>
         )}
 
-        {open && currentOrgId && <NewSecretDialog orgId={currentOrgId} onClose={() => setOpen(false)} />}
+        {open && currentOrgId && (
+          <NewSecretDialog orgId={currentOrgId} onClose={() => setOpen(false)} />
+        )}
 
         {selected && (
           <SecretDetail

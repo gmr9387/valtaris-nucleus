@@ -1,7 +1,7 @@
 import {
   fetchMarketplaceItems,
   installMarketplaceItem,
-  removeMarketplaceItem
+  removeMarketplaceItem,
 } from "./MarketplaceAPI";
 
 export class MarketplaceEngine {

@@ -5,14 +5,14 @@ export const fetchIdentityPacks = async () => {
 
 export const installIdentityPack = async (id: string) => {
   const res = await fetch(`/api/identitypacks/${id}/install`, {
-    method: "POST"
+    method: "POST",
   });
   return res.json();
 };
 
 export const removeIdentityPack = async (id: string) => {
   const res = await fetch(`/api/identitypacks/${id}/remove`, {
-    method: "POST"
+    method: "POST",
   });
   return res.json();
 };

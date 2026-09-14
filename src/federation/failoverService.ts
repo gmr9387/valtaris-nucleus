@@ -9,9 +9,7 @@ export type FailoverDecision =
 
 const FAILOVER_ELIGIBLE_STATUS: RegionHealthStatus[] = ["offline", "degraded"];
 
-export const decideFailoverForRegion = async (
-  region_id: string
-): Promise<FailoverDecision> => {
+export const decideFailoverForRegion = async (region_id: string): Promise<FailoverDecision> => {
   const health = await evaluateRegionHealth(region_id);
 
   if (!FAILOVER_ELIGIBLE_STATUS.includes(health)) {
@@ -39,9 +37,7 @@ export const decideFailoverForRegion = async (
     throw new Error(`Failed to load candidate regions: ${candErr.message}`);
   }
 
-  const activeCandidates = (candidates ?? []).filter(
-    (r) => r.id !== region_id
-  );
+  const activeCandidates = (candidates ?? []).filter((r) => r.id !== region_id);
 
   if (activeCandidates.length === 0) {
     return {
