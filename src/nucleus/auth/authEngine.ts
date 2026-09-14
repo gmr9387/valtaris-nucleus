@@ -1,7 +1,6 @@
 // src/nucleus/auth/authEngine.ts
 // Unified constitutional authentication engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import crypto from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
@@ -20,7 +19,7 @@ export class AuthEngine {
   private tokens: Map<string, AuthToken> = new Map();
 
   issue(org: string, subsystem: string, identity: string, ttlMs: number = 3600000) {
-    const id = randomUUID();
+    const id = crypto.randomUUID();
     const token = crypto.randomBytes(32).toString("hex");
 
     const record: AuthToken = {

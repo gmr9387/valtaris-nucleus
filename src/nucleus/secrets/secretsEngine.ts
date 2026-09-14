@@ -1,7 +1,6 @@
 // src/nucleus/secrets/secretsEngine.ts
 // Unified constitutional secrets engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import crypto from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
@@ -51,7 +50,7 @@ export class SecretsEngine {
     const encrypted = this.encrypt(value);
 
     const record: SecretRecord = {
-      id: existing?.id ?? randomUUID(),
+      id: existing?.id ?? crypto.randomUUID(),
       org,
       subsystem,
       key,

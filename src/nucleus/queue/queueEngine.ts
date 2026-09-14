@@ -1,7 +1,6 @@
 // src/nucleus/queue/queueEngine.ts
 // Unified constitutional distributed queue engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
 import type { Dynamic } from "../types/dynamic";
@@ -32,7 +31,7 @@ export class QueueEngine {
 
   enqueue(org: string, queue: string, payload: Dynamic, maxAttempts: number = 3) {
     const message: QueueMessage = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       org,
       queue,
       payload,
@@ -85,7 +84,7 @@ export class QueueEngine {
       await handler(message);
 
       const delivery: QueueDelivery = {
-        id: randomUUID(),
+        id: crypto.randomUUID(),
         messageId: message.id,
         queue,
         status: "delivered",
@@ -114,7 +113,7 @@ export class QueueEngine {
       return delivery;
     } catch (err) {
       const delivery: QueueDelivery = {
-        id: randomUUID(),
+        id: crypto.randomUUID(),
         messageId: message.id,
         queue,
         status: "failed",

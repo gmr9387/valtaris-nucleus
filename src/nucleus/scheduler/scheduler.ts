@@ -1,7 +1,6 @@
 // src/nucleus/scheduler/scheduler.ts
 // Unified constitutional scheduler for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusQueue } from "../queue/queueEngine";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
@@ -22,7 +21,7 @@ export class Scheduler {
   private timers: Map<string, NodeJS.Timeout> = new Map();
 
   register(org: string, subsystem: string, name: string, intervalMs: number, payload: Dynamic) {
-    const id = randomUUID();
+    const id = crypto.randomUUID();
 
     const task: ScheduledTask = {
       id,

@@ -1,7 +1,6 @@
 // src/nucleus/keys/keyEngine.ts
 // Unified constitutional key engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import crypto from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
@@ -20,7 +19,7 @@ export class KeyEngine {
   private keys: Map<string, KeyRecord> = new Map();
 
   generate(org: string, subsystem: string, name: string) {
-    const id = randomUUID();
+    const id = crypto.randomUUID();
     const key = crypto.randomBytes(32).toString("hex");
 
     const record: KeyRecord = {

@@ -1,7 +1,6 @@
 // src/nucleus/telemetry/telemetry.ts
 // Unified telemetry spine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import type { Dynamic } from "../types/dynamic";
 
 export type TelemetrySignal = {
@@ -27,7 +26,7 @@ export class Telemetry {
     payload?: Dynamic,
   ) {
     const signal: TelemetrySignal = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       org,
       subsystem,
       type,

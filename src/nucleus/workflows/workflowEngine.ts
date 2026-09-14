@@ -1,7 +1,6 @@
 // src/nucleus/workflows/workflowEngine.ts
 // Unified constitutional workflow engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusEventBus } from "../events/eventBus";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
@@ -44,7 +43,7 @@ export class WorkflowEngine {
   private executions: WorkflowExecutionRecord[] = [];
 
   register(org: string, name: string, steps: Record<string, WorkflowStep>, entry: string) {
-    const id = randomUUID();
+    const id = crypto.randomUUID();
 
     const definition: WorkflowDefinition = {
       id,
@@ -106,7 +105,7 @@ export class WorkflowEngine {
 
     // Record execution
     const execution: WorkflowExecutionRecord = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       workflowId: definition.id,
       org: definition.org,
       name: definition.name,

@@ -1,7 +1,6 @@
 // src/nucleus/governance/governanceEngine.ts
 // Unified constitutional governance engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
 import type { Dynamic } from "../types/dynamic";
@@ -38,7 +37,7 @@ export class GovernanceEngine {
     description: string,
     evaluate: (payload: Dynamic) => boolean,
   ) {
-    const id = randomUUID();
+    const id = crypto.randomUUID();
 
     const rule: GovernanceRule = {
       id,
@@ -67,7 +66,7 @@ export class GovernanceEngine {
     const allowed = rule.evaluate(payload);
 
     const decision: GovernanceDecision = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       ruleId,
       org: rule.org,
       subsystem: rule.subsystem,

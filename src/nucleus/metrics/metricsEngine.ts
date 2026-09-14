@@ -1,7 +1,6 @@
 // src/nucleus/metrics/metricsEngine.ts
 // Unified constitutional metrics engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
 
@@ -41,7 +40,7 @@ export class MetricsEngine {
     labels?: Record<string, string>,
   ) {
     const point: MetricPoint = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       org,
       subsystem,
       name,
@@ -98,7 +97,7 @@ export class MetricsEngine {
     const avg = sum / values.length;
 
     const aggregate: MetricAggregate = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       org,
       subsystem,
       name,

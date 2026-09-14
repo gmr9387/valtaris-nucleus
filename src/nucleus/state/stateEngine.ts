@@ -1,7 +1,6 @@
 // src/nucleus/state/stateEngine.ts
 // Unified constitutional distributed state engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
 import type { Dynamic } from "../types/dynamic";
@@ -51,7 +50,7 @@ export class StateEngine {
     const before = existing ? existing.value : null;
 
     const record: StateRecord = {
-      id: existing?.id ?? randomUUID(),
+      id: existing?.id ?? crypto.randomUUID(),
       org,
       subsystem,
       key,
@@ -64,7 +63,7 @@ export class StateEngine {
     this.state.set(compositeKey, record);
 
     const diff: StateDiff = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       org,
       subsystem,
       key,
@@ -109,7 +108,7 @@ export class StateEngine {
     }
 
     const snapshot: StateSnapshot = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       org,
       subsystem,
       snapshot: snapshotData,

@@ -1,7 +1,6 @@
 // src/nucleus/audit/auditEngine.ts
 // Unified constitutional audit engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import type { Dynamic } from "../types/dynamic";
 
 export type AuditRecord = {
@@ -19,7 +18,7 @@ export class AuditEngine {
 
   log(org: string, subsystem: string, action: string, actor: string, metadata?: Dynamic) {
     const record: AuditRecord = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       org,
       subsystem,
       action,

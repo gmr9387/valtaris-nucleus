@@ -1,7 +1,6 @@
 // src/nucleus/certification/certificationEngine.ts
 // Unified constitutional certification engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
 import type { Dynamic } from "../types/dynamic";
@@ -38,7 +37,7 @@ export class CertificationEngine {
     description: string,
     validate: (payload: Dynamic) => boolean,
   ) {
-    const id = randomUUID();
+    const id = crypto.randomUUID();
 
     const check: CertificationCheck = {
       id,
@@ -67,7 +66,7 @@ export class CertificationEngine {
     const passed = check.validate(payload);
 
     const result: CertificationResult = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       checkId,
       org: check.org,
       subsystem: check.subsystem,

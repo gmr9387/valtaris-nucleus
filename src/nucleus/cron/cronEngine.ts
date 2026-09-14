@@ -1,7 +1,6 @@
 // src/nucleus/cron/cronEngine.ts
 // Unified constitutional distributed cron engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
 import type { Dynamic } from "../types/dynamic";
@@ -41,7 +40,7 @@ export class CronEngine {
     intervalMs: number,
     handler: CronJob["handler"],
   ) {
-    const id = randomUUID();
+    const id = crypto.randomUUID();
 
     const job: CronJob = {
       id,
@@ -72,7 +71,7 @@ export class CronEngine {
       const result = await job.handler();
 
       const execution: CronExecution = {
-        id: randomUUID(),
+        id: crypto.randomUUID(),
         jobId: job.id,
         org: job.org,
         subsystem: job.subsystem,
@@ -103,7 +102,7 @@ export class CronEngine {
       return execution;
     } catch (err) {
       const execution: CronExecution = {
-        id: randomUUID(),
+        id: crypto.randomUUID(),
         jobId: job.id,
         org: job.org,
         subsystem: job.subsystem,

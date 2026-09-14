@@ -1,7 +1,6 @@
 // src/nucleus/events/eventBus.ts
 // Unified constitutional event bus for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import type { NucleusEvent } from "./nucleusEvent";
 import type { Dynamic } from "../types/dynamic";
 
@@ -27,7 +26,7 @@ export class EventBus {
 
   publish(org: string, subsystem: string, type: string, payload: EventPayload) {
     const event: EventRecord = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       org,
       subsystem,
       type,

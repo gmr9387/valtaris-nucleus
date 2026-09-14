@@ -12,7 +12,7 @@
     "lint": "eslint . --ext .ts,.tsx",
     "format": "prettier --write .",
     "test": "vitest run",
-    "ci": "ts-node src/nucleus/ci/runCI.ts",
+    "ci": "bun run src/nucleus/ci/runCI.ts",
     "shell": "ts-node src/nucleus/shell/shell.ts",
     "dashboard": "ts-node src/nucleus/dashboard/startDashboard.ts"
   },
@@ -76,7 +76,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
+    "@eslint/js": "^9.11.0",
     "@lovable.dev/vite-tanstack-config": "^2.21.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/body-parser": "^1.19.6",
@@ -92,7 +92,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.6",
     "globals": "^17.12.0",
-    "nitro": "^3.0.260903-beta",
+    "nitro": "^3.0.260603-beta",
     "prettier": "^3.9.6",
     "tailwindcss": "^4.3.3",
     "ts-node": "^10.9.2",

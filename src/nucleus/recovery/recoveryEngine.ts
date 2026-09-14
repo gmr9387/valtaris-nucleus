@@ -1,7 +1,6 @@
 // src/nucleus/recovery/recoveryEngine.ts
 // Unified constitutional recovery engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusHealth } from "../health/healthEngine";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
@@ -37,7 +36,7 @@ export class RecoveryEngine {
     description: string,
     run: RecoveryAction["run"],
   ) {
-    const id = randomUUID();
+    const id = crypto.randomUUID();
 
     const action: RecoveryAction = {
       id,
@@ -74,7 +73,7 @@ export class RecoveryEngine {
       const result = await action.run();
 
       const record: RecoveryResult = {
-        id: randomUUID(),
+        id: crypto.randomUUID(),
         actionId: action.id,
         org,
         subsystem,

@@ -100,3 +100,49 @@ export const constitution: NucleusConstitution = {
     actor: true,
   },
 };
+
+/**
+ * Validates the constitution's internal consistency: every contract's
+ * subsystem/capability must be declared on that subsystem, every
+ * contract's resource references must exist in the resource list, and
+ * every resource's subsystem/capability must likewise be declared.
+ * Throws with the specific violation rather than returning a boolean,
+ * since a broken constitution should stop pipeline boot, not degrade
+ * silently.
+ */
+export function enforceConstitution(c: NucleusConstitution = constitution): { valid: true } {
+  const subsystemCapabilities = new Map(c.subsystems.map((s) => [s.name, new Set(s.capabilities)]));
+  const resourceTypes = new Set(c.resources.map((r) => r.type));
+
+  for (const contract of c.contracts) {
+    const capabilities = subsystemCapabilities.get(contract.subsystem);
+    if (!capabilities) {
+      throw new Error(
+        `Constitution violation: contract "${contract.name}" references unknown subsystem "${contract.subsystem}"`,
+      );
+    }
+    if (!capabilities.has(contract.capability)) {
+      throw new Error(
+        `Constitution violation: contract "${contract.name}" references capability "${contract.capability}" not declared on subsystem "${contract.subsystem}"`,
+      );
+    }
+    for (const resourceType of contract.resources) {
+      if (!resourceTypes.has(resourceType)) {
+        throw new Error(
+          `Constitution violation: contract "${contract.name}" references undeclared resource type "${resourceType}"`,
+        );
+      }
+    }
+  }
+
+  for (const resource of c.resources) {
+    const capabilities = subsystemCapabilities.get(resource.subsystem);
+    if (!capabilities || !capabilities.has(resource.capability)) {
+      throw new Error(
+        `Constitution violation: resource "${resource.type}" references capability "${resource.capability}" not declared on subsystem "${resource.subsystem}"`,
+      );
+    }
+  }
+
+  return { valid: true };
+}

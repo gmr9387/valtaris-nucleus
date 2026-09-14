@@ -1,7 +1,6 @@
 // src/nucleus/cluster/clusterEngine.ts
 // Unified constitutional cluster engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
 import type { Dynamic } from "../types/dynamic";
@@ -36,7 +35,7 @@ export class ClusterEngine {
   private heartbeats: ClusterHeartbeat[] = [];
 
   registerNode(name: string, role: ClusterNode["role"], metadata?: Dynamic) {
-    const id = randomUUID();
+    const id = crypto.randomUUID();
 
     const node: ClusterNode = {
       id,
@@ -61,7 +60,7 @@ export class ClusterEngine {
     node.status = status;
 
     const heartbeat: ClusterHeartbeat = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       nodeId,
       status,
       timestamp: Date.now(),
@@ -97,7 +96,7 @@ export class ClusterEngine {
     }
 
     const assignment: ClusterTaskAssignment = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       nodeId,
       taskType,
       payload,

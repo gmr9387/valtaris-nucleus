@@ -1,7 +1,6 @@
 // src/nucleus/health/healthEngine.ts
 // Unified constitutional health engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusDiagnostics } from "../diagnostics/diagnosticsEngine";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
@@ -41,7 +40,7 @@ export class HealthEngine {
     }
 
     const health: HealthStatus = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       org,
       subsystem,
       status,

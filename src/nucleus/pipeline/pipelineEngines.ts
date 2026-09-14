@@ -1,7 +1,6 @@
 // src/nucleus/pipeline/pipelineEngine.ts
 // Unified constitutional pipeline engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusEventBus } from "../events/eventBus";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
@@ -42,7 +41,7 @@ export class PipelineEngine {
   private executions: PipelineExecutionRecord[] = [];
 
   register(org: string, name: string, steps: Record<string, PipelineStep>, entry: string) {
-    const id = randomUUID();
+    const id = crypto.randomUUID();
 
     const definition: PipelineDefinition = {
       id,
@@ -104,7 +103,7 @@ export class PipelineEngine {
 
     // Record execution
     const execution: PipelineExecutionRecord = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       pipelineId: definition.id,
       org: definition.org,
       name: definition.name,

@@ -1,7 +1,6 @@
 // src/nucleus/access/accessEngine.ts
 // Unified constitutional access control engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
 
@@ -19,7 +18,7 @@ export class AccessEngine {
   private rules: Map<string, AccessRule> = new Map();
 
   define(org: string, subsystem: string, role: string, action: string, allowed: boolean) {
-    const id = randomUUID();
+    const id = crypto.randomUUID();
 
     const rule: AccessRule = {
       id,

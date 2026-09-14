@@ -1,7 +1,6 @@
 // src/nucleus/telemetry/telemetryEngine.ts
 // Unified constitutional telemetry engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
 import type { Dynamic } from "../types/dynamic";
@@ -36,7 +35,7 @@ export class TelemetryEngine {
 
   recordEvent(org: string, subsystem: string, type: string, payload: Dynamic) {
     const event: TelemetryEvent = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       org,
       subsystem,
       type,
@@ -67,7 +66,7 @@ export class TelemetryEngine {
 
   startSpan(org: string, subsystem: string, name: string, metadata?: Record<string, Dynamic>) {
     const span: TelemetrySpan = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       org,
       subsystem,
       name,

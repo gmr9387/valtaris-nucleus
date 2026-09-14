@@ -1,7 +1,6 @@
 // src/nucleus/diagnostics/diagnosticsEngine.ts
 // Unified constitutional diagnostics engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
 
@@ -36,7 +35,7 @@ export class DiagnosticsEngine {
     description: string,
     run: DiagnosticCheck["run"],
   ) {
-    const id = randomUUID();
+    const id = crypto.randomUUID();
 
     const check: DiagnosticCheck = {
       id,
@@ -65,7 +64,7 @@ export class DiagnosticsEngine {
     const healthy = await check.run();
 
     const result: DiagnosticResult = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       checkId,
       org: check.org,
       subsystem: check.subsystem,

@@ -1,7 +1,6 @@
 // src/nucleus/identity/orgEngine.ts
 // Unified constitutional org engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import type { Dynamic } from "../types/dynamic";
 
 export type OrgRecord = {
@@ -18,7 +17,7 @@ export class OrgEngine {
 
   register(org: string, displayName: string, metadata: Record<string, Dynamic> = {}) {
     const record: OrgRecord = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       org,
       displayName,
       metadata,

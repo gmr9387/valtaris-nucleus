@@ -1,7 +1,6 @@
 // src/nucleus/federation/federationEngine.ts
 // Unified constitutional federation engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
 import { federatedIdentityEngine } from "./federatedIdentityEngine";
@@ -44,7 +43,7 @@ export class FederationEngine {
   readonly identity = federatedIdentityEngine;
 
   registerNode(name: string, region: string, url: string, metadata?: Dynamic) {
-    const id = randomUUID();
+    const id = crypto.randomUUID();
 
     const node: FederationNode = {
       id,
@@ -63,7 +62,7 @@ export class FederationEngine {
   }
 
   linkNodes(sourceNode: string, targetNode: string, type: FederationLink["type"]) {
-    const id = randomUUID();
+    const id = crypto.randomUUID();
 
     const link: FederationLink = {
       id,
@@ -82,7 +81,7 @@ export class FederationEngine {
 
   forwardEvent(sourceNode: string, targetNode: string, type: string, payload: Dynamic) {
     const event: FederationEvent = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       sourceNode,
       targetNode,
       type,

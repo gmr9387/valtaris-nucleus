@@ -1,7 +1,6 @@
 // src/nucleus/network/networkEngine.ts
 // Unified constitutional network engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
 import type { Dynamic } from "../types/dynamic";
@@ -21,7 +20,7 @@ export class NetworkEngine {
 
   send(org: string, source: string, target: string, action: string, payload: Dynamic) {
     const msg: NetworkMessage = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       org,
       source,
       target,

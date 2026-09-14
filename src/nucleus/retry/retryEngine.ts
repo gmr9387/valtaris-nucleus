@@ -1,7 +1,6 @@
 // src/nucleus/retry/retryEngine.ts
 // Unified constitutional retry engine for the entire Valtaris ecosystem.
 
-import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
 
@@ -41,7 +40,7 @@ export class RetryEngine {
     jitterMs: number,
     handler: RetryPolicy["handler"],
   ) {
-    const id = randomUUID();
+    const id = crypto.randomUUID();
 
     const policy: RetryPolicy = {
       id,
@@ -70,7 +69,7 @@ export class RetryEngine {
       const success = await policy.handler();
 
       const record: RetryAttempt = {
-        id: randomUUID(),
+        id: crypto.randomUUID(),
         policyId,
         org: policy.org,
         subsystem: policy.subsystem,
