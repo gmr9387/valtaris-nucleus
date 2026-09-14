@@ -5,6 +5,7 @@ import { randomUUID } from "crypto";
 import { nucleusEventBus } from "../events/eventBus";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export type WorkflowStep = {
   id: string;
@@ -12,7 +13,7 @@ export type WorkflowStep = {
   action: string;
   next?: string;
   branches?: Record<string, string>; // conditionName -> nextStepId
-  condition?: (payload: any) => string | null; // returns branch key
+  condition?: (payload: Dynamic) => string | null; // returns branch key
 };
 
 export type WorkflowDefinition = {
@@ -33,8 +34,8 @@ export type WorkflowExecutionRecord = {
   subsystem: string;
   action: string;
   status: "success" | "error";
-  payload?: any;
-  error?: any;
+  payload?: Dynamic;
+  error?: Dynamic;
   timestamp: number;
 };
 
@@ -61,7 +62,7 @@ export class WorkflowEngine {
     return definition;
   }
 
-  start(workflowId: string, payload: any) {
+  start(workflowId: string, payload: Dynamic) {
     const definition = this.definitions.get(workflowId);
     if (!definition) {
       console.error(`[WORKFLOW] Definition not found: ${workflowId}`);
@@ -71,7 +72,7 @@ export class WorkflowEngine {
     this.executeStep(definition, definition.entry, payload);
   }
 
-  private executeStep(definition: WorkflowDefinition, stepId: string, payload: any) {
+  private executeStep(definition: WorkflowDefinition, stepId: string, payload: Dynamic) {
     const step = definition.steps[stepId];
     if (!step) {
       console.error(`[WORKFLOW] Step not found: ${stepId}`);

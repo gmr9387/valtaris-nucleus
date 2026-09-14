@@ -1,8 +1,9 @@
 // src/nucleus/telemetry/nucleusTracing.ts
 // Full file — Nucleus Tracing Engine
 
+import type { Dynamic } from "../types/dynamic";
 export class NucleusTracing {
-  private spans: Record<string, any> = {};
+  private spans: Record<string, Dynamic> = {};
 
   startSpan(name: string, subsystem: string) {
     const spanId = `${name}-${Date.now()}-${Math.random().toString(36).slice(2)}`;

@@ -4,12 +4,13 @@
 import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export type QueueMessage = {
   id: string;
   org: string;
   queue: string;
-  payload: any;
+  payload: Dynamic;
   attempts: number;
   maxAttempts: number;
   createdAt: number;
@@ -21,7 +22,7 @@ export type QueueDelivery = {
   messageId: string;
   queue: string;
   status: "delivered" | "failed";
-  error?: any;
+  error?: Dynamic;
   timestamp: number;
 };
 
@@ -29,7 +30,7 @@ export class QueueEngine {
   private queues: Map<string, QueueMessage[]> = new Map();
   private deliveries: QueueDelivery[] = [];
 
-  enqueue(org: string, queue: string, payload: any, maxAttempts: number = 3) {
+  enqueue(org: string, queue: string, payload: Dynamic, maxAttempts: number = 3) {
     const message: QueueMessage = {
       id: randomUUID(),
       org,
@@ -73,7 +74,7 @@ export class QueueEngine {
     return message;
   }
 
-  async deliver(queue: string, handler: (msg: QueueMessage) => Promise<any> | any) {
+  async deliver(queue: string, handler: (msg: QueueMessage) => Promise<Dynamic> | Dynamic) {
     const message = this.dequeue(queue);
     if (!message) return null;
 

@@ -4,6 +4,7 @@ import { adjudicateClaim } from "./adjudication/calculationEngine";
 import { demoContract, demoPlan } from "./adjudication/demoContractPlan";
 import { fetchMemberAccumulators } from "./adjudication/accumulatorRepository";
 import type { ClaimLine, MemberAccumulators } from "@/types/claim";
+import type { Dynamic } from "../../types/dynamic";
 
 // A default accumulator used only when no real record exists yet for
 // this member/year (e.g. brand-new member, no claims history). This is
@@ -35,7 +36,7 @@ function emptyAccumulators(memberId: string, planYear: number): MemberAccumulato
 // since it changes what the "allowed" amount actually means.
 const PLACEHOLDER_PROCEDURE_CODE = "99213";
 
-function buildClaimLine(payload: any): { line: ClaimLine; usedPlaceholder: boolean } {
+function buildClaimLine(payload: Dynamic): { line: ClaimLine; usedPlaceholder: boolean } {
   const procedureCode = payload.claimPayload?.procedure_code;
   const usedPlaceholder = !procedureCode;
 
@@ -55,7 +56,7 @@ function buildClaimLine(payload: any): { line: ClaimLine; usedPlaceholder: boole
 }
 
 export class GuardianRuntime {
-  static async handle(contractName: string, payload: any) {
+  static async handle(contractName: string, payload: Dynamic) {
     switch (contractName) {
       case "authorization":
         return this.handleAuthorization(payload);
@@ -65,7 +66,7 @@ export class GuardianRuntime {
     }
   }
 
-  private static async handleAuthorization(payload: any) {
+  private static async handleAuthorization(payload: Dynamic) {
     const memberId = payload.claimPayload?.memberId ?? payload.organizationId;
     const planYear = payload.claimPayload?.planYear ?? new Date().getFullYear();
 

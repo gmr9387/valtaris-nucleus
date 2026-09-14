@@ -24,11 +24,12 @@ import { RecommendationRuntime } from "./recommendationRuntime";
 import { AuthorizationRuntime } from "./authorizationRuntime";
 import { ExecutionRuntime } from "./executionRuntime";
 import { PaymentRuntime } from "./paymentRuntime";
+import type { Dynamic } from "../../types/dynamic";
 
 const DEFAULT_VERSION = "v1";
 
 export class ContractsRuntime {
-  static async handle(contractName: string, payload: any, ctx?: { organizationId?: string }) {
+  static async handle(contractName: string, payload: Dynamic, ctx?: { organizationId?: string }) {
     const organizationId = ctx?.organizationId ?? payload?.organizationId ?? "unassigned";
     const version = payload?.version ?? DEFAULT_VERSION;
 

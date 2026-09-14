@@ -8,9 +8,10 @@
  */
 
 import { OSPipeline } from "./osPipeline";
+import type { Dynamic } from "../types/dynamic";
 
 export class OSWorkflowEngine {
-  static async processClaim(organizationId: string, claimPayload: Record<string, any>) {
+  static async processClaim(organizationId: string, claimPayload: Record<string, Dynamic>) {
     const pipeline = await OSPipeline.runClaim(organizationId, claimPayload);
 
     return {

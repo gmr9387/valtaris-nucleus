@@ -1,8 +1,9 @@
 import { eventBus } from "../../events/eventBus";
 import { recordTelemetry } from "../../telemetry/telemetry";
+import type { Dynamic } from "../../types/dynamic";
 
 export class GlueRuntime {
-  static handle(contractName: string, payload: any) {
+  static handle(contractName: string, payload: Dynamic) {
     switch (contractName) {
       case "execution":
         return this.handleExecution(payload);
@@ -12,7 +13,7 @@ export class GlueRuntime {
     }
   }
 
-  private static handleExecution(payload: any) {
+  private static handleExecution(payload: Dynamic) {
     const { authorization } = payload;
 
     const decision = authorization?.decision ?? "deny";

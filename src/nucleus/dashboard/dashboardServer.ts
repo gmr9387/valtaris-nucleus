@@ -4,6 +4,7 @@ import express from "express";
 import { dashboardManifest } from "./dashboardManifest";
 import { dashboardProviders } from "./dashboardProviders";
 import { dashboardState } from "./dashboardState";
+import type { Dynamic } from "../types/dynamic";
 
 export class DashboardServer {
   app = express();
@@ -38,7 +39,7 @@ export class DashboardServer {
 
     for (const key of Object.keys(dashboardProviders)) {
       this.app.get(`/${key}`, async (req, res) => {
-        const result = await (dashboardProviders as any)[key]();
+        const result = await (dashboardProviders as Dynamic)[key]();
         res.json(result);
       });
     }

@@ -4,13 +4,14 @@
 import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export type TelemetryEvent = {
   id: string;
   org: string;
   subsystem: string;
   type: string;
-  payload: any;
+  payload: Dynamic;
   timestamp: number;
   // Not populated by recordEvent()/emit() today -- federation/constitution
   // callers that filter by tenant/environment degrade to an empty result
@@ -26,14 +27,14 @@ export type TelemetrySpan = {
   start: number;
   end?: number;
   duration?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, Dynamic>;
 };
 
 export class TelemetryEngine {
   private events: TelemetryEvent[] = [];
   private spans: Map<string, TelemetrySpan> = new Map();
 
-  recordEvent(org: string, subsystem: string, type: string, payload: any) {
+  recordEvent(org: string, subsystem: string, type: string, payload: Dynamic) {
     const event: TelemetryEvent = {
       id: randomUUID(),
       org,
@@ -64,7 +65,7 @@ export class TelemetryEngine {
     return event;
   }
 
-  startSpan(org: string, subsystem: string, name: string, metadata?: Record<string, any>) {
+  startSpan(org: string, subsystem: string, name: string, metadata?: Record<string, Dynamic>) {
     const span: TelemetrySpan = {
       id: randomUUID(),
       org,

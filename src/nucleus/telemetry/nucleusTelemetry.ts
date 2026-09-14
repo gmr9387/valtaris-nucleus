@@ -6,6 +6,7 @@
 // filesystems (Mac/Windows dev machines) but fails on Linux/CI/prod.
 // Confirmed by actually running the boot chain, not just compiling it.
 import { NucleusDBBridge } from "../db/nucleusDBBridge";
+import type { Dynamic } from "../types/dynamic";
 
 export type TelemetryLevel = "info" | "warn" | "error" | "debug";
 
@@ -17,7 +18,7 @@ export class NucleusTelemetry {
     subsystem: string,
     level: TelemetryLevel,
     message: string,
-    metadata: any = null,
+    metadata: Dynamic = null,
   ) {
     await this.db.insertTelemetry(organizationId, subsystem, level, message, metadata);
   }

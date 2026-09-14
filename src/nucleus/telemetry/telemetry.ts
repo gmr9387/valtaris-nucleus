@@ -2,6 +2,7 @@
 // Unified telemetry spine for the entire Valtaris ecosystem.
 
 import { randomUUID } from "crypto";
+import type { Dynamic } from "../types/dynamic";
 
 export type TelemetrySignal = {
   id: string;
@@ -10,7 +11,7 @@ export type TelemetrySignal = {
   type: string;
   level: "info" | "warn" | "error";
   message: string;
-  payload?: any;
+  payload?: Dynamic;
   timestamp: number;
 };
 
@@ -23,7 +24,7 @@ export class Telemetry {
     type: string,
     level: "info" | "warn" | "error",
     message: string,
-    payload?: any,
+    payload?: Dynamic,
   ) {
     const signal: TelemetrySignal = {
       id: randomUUID(),
@@ -80,7 +81,7 @@ export function recordTelemetry(
   eventType: string,
   claimId: string | undefined,
   organizationId: string,
-  payload?: any,
+  payload?: Dynamic,
 ) {
   return nucleusTelemetry.emit(
     organizationId,

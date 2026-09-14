@@ -2,6 +2,7 @@
 // Unified constitutional billing engine for the entire Valtaris ecosystem.
 
 import { randomUUID } from "crypto";
+import type { Dynamic } from "../types/dynamic";
 
 export type BillingEvent = {
   id: string;
@@ -11,7 +12,7 @@ export type BillingEvent = {
   units: number;
   unitCost: number;
   totalCost: number;
-  metadata?: any;
+  metadata?: Dynamic;
   timestamp: number;
 };
 
@@ -35,7 +36,7 @@ export class BillingEngine {
     type: string,
     units: number,
     unitCost: number,
-    metadata?: any,
+    metadata?: Dynamic,
   ) {
     const totalCost = units * unitCost;
 

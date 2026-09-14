@@ -12,6 +12,7 @@
  */
 
 import { registerContract, ContractDefinition, ContractValidationResult } from "./contractRegistry";
+import type { Dynamic } from "../types/dynamic";
 
 export interface AuthorizationV1 {
   id: string; // authorization id
@@ -27,7 +28,7 @@ export interface AuthorizationV1 {
   riskScore: number; // 0–1
   confidence: number; // 0–1
 
-  payload: Record<string, any>;
+  payload: Record<string, Dynamic>;
 }
 
 /**

@@ -8,9 +8,10 @@
  */
 
 import { OSWorkflowEngine } from "./osWorkflowEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export class OSDecisionRouter {
-  static routeClaim(organizationId: string, claimPayload: Record<string, any>) {
+  static routeClaim(organizationId: string, claimPayload: Record<string, Dynamic>) {
     return OSWorkflowEngine.processClaim(organizationId, claimPayload);
   }
 }

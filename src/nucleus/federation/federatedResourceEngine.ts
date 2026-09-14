@@ -2,9 +2,10 @@
 
 import { resourceGraph } from "../resources/resourceGraph";
 import { federatedIdentityEngine } from "./federatedIdentityEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export class FederatedResourceEngine {
-  create(resourceId: string, type: string, identity: any, data: any) {
+  create(resourceId: string, type: string, identity: Dynamic, data: Dynamic) {
     const enforcement = federatedIdentityEngine.enforce(identity);
 
     if (!enforcement.tenantValid || !enforcement.environmentValid) {

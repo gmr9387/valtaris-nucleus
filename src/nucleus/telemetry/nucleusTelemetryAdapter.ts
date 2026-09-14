@@ -3,6 +3,7 @@
 
 import { NucleusTelemetry } from "./nucleusTelemetry";
 import { NucleusTracing } from "./nucleusTracing";
+import type { Dynamic } from "../types/dynamic";
 
 export class NucleusTelemetryAdapter {
   private telemetry = new NucleusTelemetry();
@@ -21,19 +22,19 @@ export class NucleusTelemetryAdapter {
     this.tracing.endSpan(spanId);
   }
 
-  async info(message: string, metadata: any = null) {
+  async info(message: string, metadata: Dynamic = null) {
     await this.telemetry.emit(this.organizationId, this.subsystem, "info", message, metadata);
   }
 
-  async warn(message: string, metadata: any = null) {
+  async warn(message: string, metadata: Dynamic = null) {
     await this.telemetry.emit(this.organizationId, this.subsystem, "warn", message, metadata);
   }
 
-  async error(message: string, metadata: any = null) {
+  async error(message: string, metadata: Dynamic = null) {
     await this.telemetry.emit(this.organizationId, this.subsystem, "error", message, metadata);
   }
 
-  async debug(message: string, metadata: any = null) {
+  async debug(message: string, metadata: Dynamic = null) {
     await this.telemetry.emit(this.organizationId, this.subsystem, "debug", message, metadata);
   }
 

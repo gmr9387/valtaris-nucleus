@@ -3,6 +3,7 @@
 import { pipelineManifest } from "./pipelineManifest";
 import { pipelineState } from "./pipelineState";
 import { pipelineEngines } from "./pipelineEngines";
+import type { Dynamic } from "../types/dynamic";
 
 export class ConstitutionalPipeline {
   async execute() {
@@ -13,7 +14,7 @@ export class ConstitutionalPipeline {
     for (const step of pipelineManifest.steps) {
       const [domain, action] = step.split(".");
 
-      const engine = (pipelineEngines as any)[domain];
+      const engine = (pipelineEngines as Dynamic)[domain];
       if (!engine || !engine[action]) {
         throw new Error(`Unknown pipeline step: ${step}`);
       }

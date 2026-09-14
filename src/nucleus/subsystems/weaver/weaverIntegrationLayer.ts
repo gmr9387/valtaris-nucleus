@@ -2,13 +2,14 @@
 
 import { WeaverOpportunityEngine } from "./weaverOpportunityEngine";
 import { WeaverRecommendationEngine } from "./weaverRecommendationEngine";
+import type { Dynamic } from "../../types/dynamic";
 
 export class WeaverIntegrationLayer {
-  static processOpportunity(payload: any) {
+  static processOpportunity(payload: Dynamic) {
     return WeaverOpportunityEngine.evaluate(payload);
   }
 
-  static processRecommendation(payload: any) {
+  static processRecommendation(payload: Dynamic) {
     return WeaverRecommendationEngine.evaluate(payload);
   }
 }

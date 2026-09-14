@@ -4,13 +4,14 @@
 import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export type ClusterNode = {
   id: string;
   name: string;
   role: "worker" | "controller" | "scheduler";
   status: "online" | "offline";
-  metadata?: any;
+  metadata?: Dynamic;
   createdAt: number;
 };
 
@@ -18,7 +19,7 @@ export type ClusterTaskAssignment = {
   id: string;
   nodeId: string;
   taskType: string;
-  payload: any;
+  payload: Dynamic;
   timestamp: number;
 };
 
@@ -34,7 +35,7 @@ export class ClusterEngine {
   private assignments: ClusterTaskAssignment[] = [];
   private heartbeats: ClusterHeartbeat[] = [];
 
-  registerNode(name: string, role: ClusterNode["role"], metadata?: any) {
+  registerNode(name: string, role: ClusterNode["role"], metadata?: Dynamic) {
     const id = randomUUID();
 
     const node: ClusterNode = {
@@ -88,7 +89,7 @@ export class ClusterEngine {
     return heartbeat;
   }
 
-  assignTask(nodeId: string, taskType: string, payload: any) {
+  assignTask(nodeId: string, taskType: string, payload: Dynamic) {
     const node = this.nodes.get(nodeId);
     if (!node || node.status !== "online") {
       console.error(`[CLUSTER] Cannot assign task: node offline or missing`);

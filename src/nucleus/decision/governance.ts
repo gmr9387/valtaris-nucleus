@@ -1,10 +1,11 @@
 // src/nucleus/decision/governance.ts
 // Full file swap — Governance rule engine
 
+import type { Dynamic } from "../types/dynamic";
 export type GovernanceRule = {
   id: string;
   name: string;
-  condition: (ctx: any) => boolean;
+  condition: (ctx: Dynamic) => boolean;
   effect: "allow" | "deny";
 };
 
@@ -15,7 +16,7 @@ export class Governance {
     this.rules.push(rule);
   }
 
-  evaluate(context: any): "allow" | "deny" {
+  evaluate(context: Dynamic): "allow" | "deny" {
     for (const rule of this.rules) {
       if (rule.condition(context)) {
         return rule.effect;

@@ -18,6 +18,7 @@
 
 import { lineageEngine } from "../lineage/lineageEngine";
 import type { NucleusEvent } from "../events/nucleusEvent";
+import type { Dynamic } from "../types/dynamic";
 
 export type ContractName =
   "opportunity" | "recommendation" | "authorization" | "execution" | "payment";
@@ -38,11 +39,11 @@ const SUBSYSTEM_PERMISSIONS: Record<string, ContractName[]> = {
 };
 
 export interface ChainRecord {
-  opportunity?: any;
-  recommendation?: any;
-  authorization?: any;
-  execution?: any;
-  payment?: any;
+  opportunity?: Dynamic;
+  recommendation?: Dynamic;
+  authorization?: Dynamic;
+  execution?: Dynamic;
+  payment?: Dynamic;
 }
 
 // Keyed by organizationId. Module-level so every NucleusApi instance for
@@ -56,7 +57,7 @@ export class NucleusApi {
     private organizationId: string,
   ) {}
 
-  emit(contractName: ContractName, version: string, payload: any): void {
+  emit(contractName: ContractName, version: string, payload: Dynamic): void {
     const allowed = SUBSYSTEM_PERMISSIONS[this.subsystem];
     if (!allowed || !allowed.includes(contractName)) {
       throw new Error(

@@ -4,13 +4,14 @@
 import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export type StateRecord = {
   id: string;
   org: string;
   subsystem: string;
   key: string;
-  value: any;
+  value: Dynamic;
   version: number;
   createdAt: number;
   updatedAt: number;
@@ -20,7 +21,7 @@ export type StateSnapshot = {
   id: string;
   org: string;
   subsystem: string;
-  snapshot: Record<string, any>;
+  snapshot: Record<string, Dynamic>;
   timestamp: number;
 };
 
@@ -29,8 +30,8 @@ export type StateDiff = {
   org: string;
   subsystem: string;
   key: string;
-  before: any;
-  after: any;
+  before: Dynamic;
+  after: Dynamic;
   timestamp: number;
 };
 
@@ -43,7 +44,7 @@ export class StateEngine {
     return `${org}.${subsystem}.${key}`;
   }
 
-  set(org: string, subsystem: string, key: string, value: any) {
+  set(org: string, subsystem: string, key: string, value: Dynamic) {
     const compositeKey = this.makeKey(org, subsystem, key);
     const existing = this.state.get(compositeKey);
 
@@ -99,7 +100,7 @@ export class StateEngine {
   }
 
   snapshot(org: string, subsystem: string) {
-    const snapshotData: Record<string, any> = {};
+    const snapshotData: Record<string, Dynamic> = {};
 
     for (const record of this.state.values()) {
       if (record.org === org && record.subsystem === subsystem) {

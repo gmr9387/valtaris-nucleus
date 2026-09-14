@@ -9,9 +9,10 @@
 
 import { OSDecisionRouter } from "./osDecisionRouter";
 import { OSEntryValidation } from "./osEntry.validation";
+import type { Dynamic } from "../types/dynamic";
 
 export class OSEntry {
-  static processClaim(organizationId: string, claimPayload: Record<string, any>) {
+  static processClaim(organizationId: string, claimPayload: Record<string, Dynamic>) {
     OSEntryValidation.validateOrganizationId(organizationId);
     OSEntryValidation.validateClaimPayload(claimPayload);
 

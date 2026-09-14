@@ -4,6 +4,7 @@
 import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export type GovernanceRule = {
   id: string;
@@ -11,7 +12,7 @@ export type GovernanceRule = {
   subsystem: string;
   name: string;
   description: string;
-  evaluate: (payload: any) => boolean;
+  evaluate: (payload: Dynamic) => boolean;
   createdAt: number;
 };
 
@@ -22,7 +23,7 @@ export type GovernanceDecision = {
   subsystem: string;
   name: string;
   allowed: boolean;
-  payload: any;
+  payload: Dynamic;
   timestamp: number;
 };
 
@@ -35,7 +36,7 @@ export class GovernanceEngine {
     subsystem: string,
     name: string,
     description: string,
-    evaluate: (payload: any) => boolean,
+    evaluate: (payload: Dynamic) => boolean,
   ) {
     const id = randomUUID();
 
@@ -56,7 +57,7 @@ export class GovernanceEngine {
     return rule;
   }
 
-  enforce(ruleId: string, payload: any) {
+  enforce(ruleId: string, payload: Dynamic) {
     const rule = this.rules.get(ruleId);
     if (!rule) {
       console.error(`[GOV] Rule not found: ${ruleId}`);

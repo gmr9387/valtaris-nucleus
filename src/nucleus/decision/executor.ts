@@ -1,10 +1,11 @@
 // src/nucleus/decision/executor.ts
 // Full file swap — Core decision executor
 
+import type { Dynamic } from "../types/dynamic";
 export type DecisionInput = {
   organizationId: string;
   subsystem: string;
-  context: any;
+  context: Dynamic;
 };
 
 export type DecisionResult = {

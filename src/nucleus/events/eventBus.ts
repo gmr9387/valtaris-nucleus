@@ -3,8 +3,9 @@
 
 import { randomUUID } from "crypto";
 import type { NucleusEvent } from "./nucleusEvent";
+import type { Dynamic } from "../types/dynamic";
 
-export type EventPayload = any;
+export type EventPayload = Dynamic;
 
 export type EventRecord = {
   id: string;
@@ -17,7 +18,7 @@ export type EventRecord = {
 
 export type EventHandler = (event: EventRecord) => void;
 
-export type PayloadHandler = (payload: any) => void;
+export type PayloadHandler = (payload: Dynamic) => void;
 
 export class EventBus {
   private handlers: Map<string, EventHandler[]> = new Map();
@@ -88,7 +89,7 @@ export class EventBus {
 
     // Single pre-built event object (e.g. a NucleusEvent from
     // eventSimulation.ts): { type, source, context: { tenantId }, payload }
-    const event = typeOrEvent as any;
+    const event = typeOrEvent as Dynamic;
     const subsystem = event.source ?? event.subsystem ?? "unknown";
     const org = event.context?.tenantId ?? event.organizationId ?? "unknown";
     return this.publish(org, subsystem, event.type, event.payload);

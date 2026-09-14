@@ -6,11 +6,12 @@
 
 import { NucleusApi, type ContractName } from "./nucleusApi";
 import { RuntimeConfig } from "../runtime/runtimeConfig";
+import type { Dynamic } from "../types/dynamic";
 
 export interface BatchItem {
   name: ContractName;
   version: string;
-  payload: any;
+  payload: Dynamic;
 }
 
 export interface BatchSample {

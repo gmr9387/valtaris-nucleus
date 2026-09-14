@@ -4,6 +4,7 @@
 import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export type CronJob = {
   id: string;
@@ -11,7 +12,7 @@ export type CronJob = {
   subsystem: string;
   name: string;
   intervalMs: number;
-  handler: () => Promise<any> | any;
+  handler: () => Promise<Dynamic> | Dynamic;
   lastRun: number | null;
   createdAt: number;
 };
@@ -23,8 +24,8 @@ export type CronExecution = {
   subsystem: string;
   name: string;
   status: "success" | "error";
-  result?: any;
-  error?: any;
+  result?: Dynamic;
+  error?: Dynamic;
   timestamp: number;
 };
 

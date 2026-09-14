@@ -1,7 +1,8 @@
 // src/nucleus/subsystems/weaver/weaverOpportunityEngine.ts
 
+import type { Dynamic } from "../../types/dynamic";
 export class WeaverOpportunityEngine {
-  static evaluate(payload: any) {
+  static evaluate(payload: Dynamic) {
     /**
      * Minimal, deterministic opportunity detection.
      * No ML, no heuristics — aligned to Nucleus architecture.

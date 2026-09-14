@@ -5,13 +5,14 @@ import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
 import { federatedIdentityEngine } from "./federatedIdentityEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export type FederationNode = {
   id: string;
   name: string;
   region: string;
   url: string;
-  metadata?: any;
+  metadata?: Dynamic;
   createdAt: number;
 };
 
@@ -28,7 +29,7 @@ export type FederationEvent = {
   sourceNode: string;
   targetNode: string;
   type: string;
-  payload: any;
+  payload: Dynamic;
   timestamp: number;
 };
 
@@ -42,7 +43,7 @@ export class FederationEngine {
   // already expect this surface.
   readonly identity = federatedIdentityEngine;
 
-  registerNode(name: string, region: string, url: string, metadata?: any) {
+  registerNode(name: string, region: string, url: string, metadata?: Dynamic) {
     const id = randomUUID();
 
     const node: FederationNode = {
@@ -79,7 +80,7 @@ export class FederationEngine {
     return link;
   }
 
-  forwardEvent(sourceNode: string, targetNode: string, type: string, payload: any) {
+  forwardEvent(sourceNode: string, targetNode: string, type: string, payload: Dynamic) {
     const event: FederationEvent = {
       id: randomUUID(),
       sourceNode,

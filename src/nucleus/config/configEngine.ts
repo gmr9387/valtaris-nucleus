@@ -4,13 +4,14 @@
 import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export type ConfigRecord = {
   id: string;
   org: string;
   subsystem: string;
   key: string;
-  value: any;
+  value: Dynamic;
   version: number;
   createdAt: number;
 };
@@ -22,7 +23,7 @@ export class ConfigEngine {
     return `${org}.${subsystem}.${key}`;
   }
 
-  set(org: string, subsystem: string, key: string, value: any) {
+  set(org: string, subsystem: string, key: string, value: Dynamic) {
     const compositeKey = this.makeKey(org, subsystem, key);
     const existing = this.configs.get(compositeKey);
 

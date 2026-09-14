@@ -5,6 +5,7 @@ import { randomUUID } from "crypto";
 import { nucleusQueue } from "../queue/queueEngine";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export type ScheduledTask = {
   id: string;
@@ -12,7 +13,7 @@ export type ScheduledTask = {
   subsystem: string;
   name: string;
   intervalMs: number;
-  payload: any;
+  payload: Dynamic;
   createdAt: number;
 };
 
@@ -20,7 +21,7 @@ export class Scheduler {
   private tasks: Map<string, ScheduledTask> = new Map();
   private timers: Map<string, NodeJS.Timeout> = new Map();
 
-  register(org: string, subsystem: string, name: string, intervalMs: number, payload: any) {
+  register(org: string, subsystem: string, name: string, intervalMs: number, payload: Dynamic) {
     const id = randomUUID();
 
     const task: ScheduledTask = {

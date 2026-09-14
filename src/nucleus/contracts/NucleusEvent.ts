@@ -1,6 +1,7 @@
 // src/nucleus/contracts/NucleusEvent.ts
 
 import { NucleusIdentity } from "./NucleusIdentity";
+import type { Dynamic } from "../types/dynamic";
 
 /**
  * NucleusEvent
@@ -25,7 +26,7 @@ export interface NucleusEvent {
 
   context: NucleusIdentity;
 
-  payload: any; // subsystem-specific data
+  payload: Dynamic; // subsystem-specific data
 
   timestamp: string;
 }
@@ -40,7 +41,7 @@ export function createEvent(params: {
   source: string;
   type: string;
   context: NucleusIdentity;
-  payload: any;
+  payload: Dynamic;
 }): NucleusEvent {
   return {
     id: crypto.randomUUID(),

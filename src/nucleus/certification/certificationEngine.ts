@@ -4,6 +4,7 @@
 import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export type CertificationCheck = {
   id: string;
@@ -11,7 +12,7 @@ export type CertificationCheck = {
   subsystem: string;
   name: string;
   description: string;
-  validate: (payload: any) => boolean;
+  validate: (payload: Dynamic) => boolean;
   createdAt: number;
 };
 
@@ -22,7 +23,7 @@ export type CertificationResult = {
   subsystem: string;
   name: string;
   passed: boolean;
-  payload: any;
+  payload: Dynamic;
   timestamp: number;
 };
 
@@ -35,7 +36,7 @@ export class CertificationEngine {
     subsystem: string,
     name: string,
     description: string,
-    validate: (payload: any) => boolean,
+    validate: (payload: Dynamic) => boolean,
   ) {
     const id = randomUUID();
 
@@ -56,7 +57,7 @@ export class CertificationEngine {
     return check;
   }
 
-  run(checkId: string, payload: any) {
+  run(checkId: string, payload: Dynamic) {
     const check = this.checks.get(checkId);
     if (!check) {
       console.error(`[CERT] Check not found: ${checkId}`);
@@ -108,7 +109,7 @@ export class CertificationEngine {
    * whole-ecosystem certification sweeps (certifyNucleus()) rather than
    * validating one specific check's outcome.
    */
-  certify(payload: any = {}) {
+  certify(payload: Dynamic = {}) {
     const results = this.getChecks().map((check) => this.run(check.id, payload)!);
     return {
       ok: results.every((r) => r.passed),

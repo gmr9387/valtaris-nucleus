@@ -1,8 +1,9 @@
 import { eventBus } from "../../events/eventBus";
 import { DualPayEngine } from "./dualPayEngine";
+import type { Dynamic } from "../../types/dynamic";
 
 export class DualPayRuntime {
-  static handle(contractName: string, payload: any) {
+  static handle(contractName: string, payload: Dynamic) {
     switch (contractName) {
       case "payment":
         return this.handlePayment(payload);
@@ -12,7 +13,7 @@ export class DualPayRuntime {
     }
   }
 
-  private static handlePayment(payload: any) {
+  private static handlePayment(payload: Dynamic) {
     const input = {
       claimId: payload.claimId,
       organizationId: payload.organizationId,

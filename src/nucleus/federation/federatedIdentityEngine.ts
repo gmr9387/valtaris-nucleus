@@ -1,6 +1,7 @@
 // Phase 38 — Federated Identity Engine
 
 import { federationManifest } from "./federationManifest";
+import type { Dynamic } from "../types/dynamic";
 
 export class FederatedIdentityEngine {
   validateTenant(tenantId: string) {
@@ -11,7 +12,7 @@ export class FederatedIdentityEngine {
     return federationManifest.environments.includes(environmentId);
   }
 
-  enforce(identity: any) {
+  enforce(identity: Dynamic) {
     const tenantValid = this.validateTenant(identity.tenantId);
     const envValid = this.validateEnvironment(identity.environmentId);
 

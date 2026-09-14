@@ -1,5 +1,6 @@
 // src/nucleus/api/apiController.ts
 
+import type { Request, Response } from "express";
 import { GatewayAdapter } from "../subsystems/gateway/gatewayAdapter";
 import { OSPipeline } from "../runtime/osPipeline";
 
@@ -8,7 +9,7 @@ export class APIController {
    * POST /claim
    * Main entrypoint for external organizations.
    */
-  static submitClaim(req: any, res: any) {
+  static submitClaim(req: Request, res: Response) {
     try {
       const { organizationId, claimPayload } = req.body;
 
@@ -25,10 +26,10 @@ export class APIController {
       const result = OSPipeline.runClaimFromGateway(gatewayPayload);
 
       return res.status(200).json(result);
-    } catch (err: any) {
+    } catch (err: unknown) {
       return res.status(500).json({
         error: "Internal server error",
-        details: err.message,
+        details: err instanceof Error ? err.message : String(err),
       });
     }
   }

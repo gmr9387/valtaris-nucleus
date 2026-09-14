@@ -9,6 +9,7 @@
 // each independently -- see runtimeGuards.ts's own stopgap comment for
 // why the two were never reconciled.
 
+import type { Dynamic } from "../types/dynamic";
 export interface ContractValidationResult {
   ok: boolean;
   errors?: string[];
@@ -23,7 +24,7 @@ export interface ContractDefinition {
   resources?: string[];
   validatePayload?: (payload: unknown) => boolean;
 
-  invariant?: (payload: any) => boolean;
-  validate?: (payload: any) => ContractValidationResult;
+  invariant?: (payload: Dynamic) => boolean;
+  validate?: (payload: Dynamic) => ContractValidationResult;
   compatibleWith?: string[];
 }

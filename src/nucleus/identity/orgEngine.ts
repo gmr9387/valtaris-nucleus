@@ -2,12 +2,13 @@
 // Unified constitutional org engine for the entire Valtaris ecosystem.
 
 import { randomUUID } from "crypto";
+import type { Dynamic } from "../types/dynamic";
 
 export type OrgRecord = {
   id: string;
   org: string;
   displayName: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, Dynamic>;
   createdAt: number;
   updatedAt: number;
 };
@@ -15,7 +16,7 @@ export type OrgRecord = {
 export class OrgEngine {
   private orgs: Map<string, OrgRecord> = new Map();
 
-  register(org: string, displayName: string, metadata: Record<string, any> = {}) {
+  register(org: string, displayName: string, metadata: Record<string, Dynamic> = {}) {
     const record: OrgRecord = {
       id: randomUUID(),
       org,
@@ -32,7 +33,7 @@ export class OrgEngine {
     return record;
   }
 
-  update(org: string, metadata: Record<string, any>) {
+  update(org: string, metadata: Record<string, Dynamic>) {
     const existing = this.orgs.get(org);
     if (!existing) return null;
 

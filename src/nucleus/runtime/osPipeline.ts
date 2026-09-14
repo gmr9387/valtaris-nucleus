@@ -6,6 +6,7 @@ import { GlueRuntime } from "../subsystems/glue/glueRuntime";
 import { DualPayRuntime } from "../subsystems/dualpay/dualPayRuntime";
 
 import { TelemetryAdapter } from "../subsystems/telemetry/telemetryAdapter";
+import type { Dynamic } from "../types/dynamic";
 
 export class OSPipeline {
   /**
@@ -17,7 +18,7 @@ export class OSPipeline {
    * DualPay would have received a pending Promise object instead of the
    * real authorization result.
    */
-  static async runClaim(organizationId: string, claimPayload: Record<string, any>) {
+  static async runClaim(organizationId: string, claimPayload: Record<string, Dynamic>) {
     const claimId = claimPayload.claimId || `claim-${Date.now()}`;
 
     const base = { claimId, organizationId, claimPayload };
@@ -75,7 +76,7 @@ export class OSPipeline {
    * Gateway entrypoint — Phase 23
    * Accepts normalized payload from GatewayRuntime.
    */
-  static async runClaimFromGateway(gatewayPayload: any) {
+  static async runClaimFromGateway(gatewayPayload: Dynamic) {
     const { organizationId, claimPayload } = gatewayPayload;
     return this.runClaim(organizationId, claimPayload);
   }

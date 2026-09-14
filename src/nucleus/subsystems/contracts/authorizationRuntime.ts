@@ -3,6 +3,7 @@
 
 import { NucleusApi } from "../../api/nucleusApi";
 import { NucleusTelemetryAdapter } from "../../telemetry/nucleusTelemetryAdapter";
+import type { Dynamic } from "../../types/dynamic";
 
 export class AuthorizationRuntime {
   private telemetry: NucleusTelemetryAdapter;
@@ -14,7 +15,7 @@ export class AuthorizationRuntime {
     this.api = new NucleusApi("authorization", organizationId);
   }
 
-  async run(version: string, payload: any) {
+  async run(version: string, payload: Dynamic) {
     const span = this.telemetry.startSpan("authorization:run");
 
     try {

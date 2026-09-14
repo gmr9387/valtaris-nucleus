@@ -249,7 +249,7 @@ export function calculateCOBAllocation(
   const totalPriorPaid = Math.min(rawPriorPaid, safeAllowed);
   const remainingAllowed = Math.max(0, safeAllowed - totalPriorPaid);
 
-  let adjustment = 0;
+  let adjustment: number;
 
   switch (cobPolicy) {
     case "standard": {

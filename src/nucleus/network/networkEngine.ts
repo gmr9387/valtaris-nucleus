@@ -4,6 +4,7 @@
 import { randomUUID } from "crypto";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export type NetworkMessage = {
   id: string;
@@ -11,14 +12,14 @@ export type NetworkMessage = {
   source: string;
   target: string;
   action: string;
-  payload: any;
+  payload: Dynamic;
   timestamp: number;
 };
 
 export class NetworkEngine {
   private messages: NetworkMessage[] = [];
 
-  send(org: string, source: string, target: string, action: string, payload: any) {
+  send(org: string, source: string, target: string, action: string, payload: Dynamic) {
     const msg: NetworkMessage = {
       id: randomUUID(),
       org,

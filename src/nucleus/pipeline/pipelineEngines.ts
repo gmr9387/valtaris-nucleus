@@ -5,6 +5,7 @@ import { randomUUID } from "crypto";
 import { nucleusEventBus } from "../events/eventBus";
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
+import type { Dynamic } from "../types/dynamic";
 
 export type PipelineStep = {
   id: string;
@@ -31,8 +32,8 @@ export type PipelineExecutionRecord = {
   subsystem: string;
   action: string;
   status: "success" | "error";
-  payload?: any;
-  error?: any;
+  payload?: Dynamic;
+  error?: Dynamic;
   timestamp: number;
 };
 
@@ -59,7 +60,7 @@ export class PipelineEngine {
     return definition;
   }
 
-  start(pipelineId: string, payload: any) {
+  start(pipelineId: string, payload: Dynamic) {
     const definition = this.definitions.get(pipelineId);
     if (!definition) {
       console.error(`[PIPELINE] Definition not found: ${pipelineId}`);
@@ -69,7 +70,7 @@ export class PipelineEngine {
     this.executeStep(definition, definition.entry, payload);
   }
 
-  private executeStep(definition: PipelineDefinition, stepId: string, payload: any) {
+  private executeStep(definition: PipelineDefinition, stepId: string, payload: Dynamic) {
     const step = definition.steps[stepId];
     if (!step) {
       console.error(`[PIPELINE] Step not found: ${stepId}`);

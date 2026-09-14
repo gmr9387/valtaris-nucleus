@@ -2,9 +2,10 @@
 
 import { eventBus } from "../../events/eventBus";
 import { recordTelemetry } from "../../telemetry/telemetry";
+import type { Dynamic } from "../../types/dynamic";
 
 export class WeaverRuntime {
-  static handle(contractName: string, payload: any) {
+  static handle(contractName: string, payload: Dynamic) {
     switch (contractName) {
       case "opportunity":
         return this.handleOpportunity(payload);
@@ -17,7 +18,7 @@ export class WeaverRuntime {
     }
   }
 
-  private static handleOpportunity(payload: any) {
+  private static handleOpportunity(payload: Dynamic) {
     const result = {
       ...payload,
       score: payload.claimPayload?.amount ? Math.min(payload.claimPayload.amount / 20, 100) : 0,
@@ -30,7 +31,7 @@ export class WeaverRuntime {
     return result;
   }
 
-  private static handleRecommendation(payload: any) {
+  private static handleRecommendation(payload: Dynamic) {
     const result = {
       ...payload,
       action: "approve",

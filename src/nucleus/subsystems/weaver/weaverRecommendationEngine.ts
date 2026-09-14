@@ -1,7 +1,8 @@
 // src/nucleus/subsystems/weaver/weaverRecommendationEngine.ts
 
+import type { Dynamic } from "../../types/dynamic";
 export class WeaverRecommendationEngine {
-  static evaluate(payload: any) {
+  static evaluate(payload: Dynamic) {
     /**
      * Minimal, deterministic recommendation generation.
      */

@@ -1,5 +1,6 @@
 // src/nucleus/subsystems/subsystemRegistry.ts
 
+import type { Dynamic } from "../types/dynamic";
 /**
  * Subsystem Registry (fixed)
  * --------------------------
@@ -25,7 +26,7 @@ export interface SubsystemRegistration {
   label: string;
   enabled: boolean;
   runtime: {
-    handle: (contractName: string, payload: any, ctx?: any) => any;
+    handle: (contractName: string, payload: Dynamic, ctx?: Dynamic) => Dynamic;
   };
 }
 

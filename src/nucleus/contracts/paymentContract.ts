@@ -12,6 +12,7 @@
  */
 
 import { registerContract, ContractDefinition, ContractValidationResult } from "./contractRegistry";
+import type { Dynamic } from "../types/dynamic";
 
 export interface PaymentV1 {
   id: string; // payment id
@@ -30,7 +31,7 @@ export interface PaymentV1 {
 
   status: "pending" | "processing" | "completed" | "failed";
 
-  payload: Record<string, any>;
+  payload: Record<string, Dynamic>;
 }
 
 /**
