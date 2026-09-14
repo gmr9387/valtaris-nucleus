@@ -1,215 +1,189 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   FileText,
   FolderArchive,
   ShieldCheck,
-  Fingerprint,
   AlertTriangle,
-  Database,
-  UploadCloud,
+  Search,
+  DollarSign,
 } from "lucide-react";
-import { PageHeader, PageBody, EmptyState } from "@/components/platform-ui";
+import { PageHeader, PageBody, EmptyState, MetricCard, StatusPill } from "@/components/platform-ui";
+import { LoadingState } from "@/components/system/LoadingState";
+import { ErrorState } from "@/components/system/ErrorState";
+import { useDisputes } from "@/lib/queries";
 import { useOrgStore } from "@/lib/org-store";
+import { Th, Td } from "./_app.organizations";
 
 export const Route = createFileRoute("/_app/evidence")({
   component: EvidencePage,
 });
 
-const EVIDENCE_TYPES = [
-  {
-    name: "Claim Appeal Packet",
-    module: "Claim Clarity",
-    status: "planned",
-    documentTypes: ["EOB", "medical records", "authorization", "appeal letter"],
-    verification: "hash + manifest",
-  },
-  {
-    name: "Decision Trace Evidence",
-    module: "Guardian",
-    status: "planned",
-    documentTypes: ["inputs", "signals", "policy trace", "outcome"],
-    verification: "decision hash",
-  },
-  {
-    name: "Workflow Execution Evidence",
-    module: "Glue",
-    status: "planned",
-    documentTypes: ["checkpoint", "approval", "retry log", "dead letter"],
-    verification: "execution manifest",
-  },
-  {
-    name: "Connector Payload Evidence",
-    module: "Weaver",
-    status: "planned",
-    documentTypes: ["request", "response", "webhook", "normalized payload"],
-    verification: "payload hash",
-  },
-];
+function money(cents: number): string {
+  return (cents / 100).toLocaleString(undefined, { style: "currency", currency: "USD" });
+}
 
 function EvidencePage() {
   const { currentOrgId } = useOrgStore();
+  const disputes = useDisputes(currentOrgId);
+
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    if (!disputes.data) return [];
+    const q = query.toLowerCase();
+    if (!q) return disputes.data;
+
+    return disputes.data.filter(
+      (d) =>
+        d.claim_id.toLowerCase().includes(q) ||
+        d.payer_name.toLowerCase().includes(q) ||
+        (d.procedure_code ?? "").toLowerCase().includes(q) ||
+        d.status.toLowerCase().includes(q),
+    );
+  }, [disputes.data, query]);
 
   const stats = useMemo(() => {
-    return {
-      registries: EVIDENCE_TYPES.length,
-      modules: new Set(EVIDENCE_TYPES.map((item) => item.module)).size,
-      verified: 0,
-    };
-  }, []);
+    const rows = disputes.data ?? [];
+    const totalShortfall = rows.reduce((sum, d) => sum + d.shortfall_cents, 0);
+    const avgConfidence = rows.length
+      ? rows.reduce((sum, d) => sum + d.confidence, 0) / rows.length
+      : 0;
+
+    return { count: rows.length, totalShortfall, avgConfidence };
+  }, [disputes.data]);
 
   return (
     <>
       <PageHeader
         eyebrow="KNOWLEDGE"
         title="Evidence"
-        description="Shared evidence registry for documents, manifests, hashes, provenance, verification, and future AI extraction."
+        description="Underpayment disputes -- the appeal-packet evidence for each claim where allowed and paid amounts diverge."
       />
 
       <PageBody>
         {!currentOrgId ? (
           <EmptyState
             title="Select an organization"
-            description="Evidence is isolated per organization and later attached to projects, workflows, decisions, and claims."
+            description="Evidence is isolated per organization and tied to the claims that produced it."
             icon={<FolderArchive className="h-5 w-5" />}
           />
-        ) : (
+        ) : disputes.isLoading ? (
+          <LoadingState label="Loading evidence…" />
+        ) : disputes.isError ? (
+          <ErrorState error={disputes.error} onRetry={() => disputes.refetch()} />
+        ) : disputes.data?.length ? (
           <div className="space-y-6">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              <Metric
-                label="Evidence Registries"
-                value={String(stats.registries)}
+              <MetricCard
+                label="Open Evidence Packets"
+                value={String(stats.count)}
                 icon={<FolderArchive className="h-4 w-4" />}
               />
-              <Metric
-                label="Product Modules"
-                value={String(stats.modules)}
-                icon={<Database className="h-4 w-4" />}
-                tone="good"
-              />
-              <Metric
-                label="Verified Sets"
-                value={String(stats.verified)}
-                icon={<ShieldCheck className="h-4 w-4" />}
+
+              <MetricCard
+                label="Total Shortfall"
+                value={money(stats.totalShortfall)}
+                icon={<DollarSign className="h-4 w-4" />}
                 tone="warn"
               />
+
+              <MetricCard
+                label="Avg. Confidence"
+                value={`${Math.round(stats.avgConfidence * 100)}%`}
+                icon={<ShieldCheck className="h-4 w-4" />}
+                tone="good"
+              />
             </div>
 
-            <div className="rounded-xl border border-border bg-surface-1">
-              <div className="flex items-center justify-between border-b border-border px-5 py-4">
-                <div>
-                  <h2 className="text-sm font-semibold">Evidence Registry Blueprint</h2>
-                  <p className="text-xs text-muted-foreground">
-                    Shared evidence patterns across Claim Clarity, Guardian, Glue, and Weaver.
-                  </p>
-                </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <input
+                className="h-10 w-full rounded-md border border-border bg-surface-1 pl-9 pr-3 text-sm outline-none focus:border-primary"
+                placeholder="Search claim, payer, procedure, status..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
 
-                <span className="rounded border border-status-pending/30 bg-status-pending/10 px-2 py-1 text-mono-xs text-status-pending">
-                  Phase 4
-                </span>
-              </div>
+            <div className="overflow-hidden rounded-lg border border-border">
+              <table className="w-full text-sm">
+                <thead className="bg-surface-1 text-mono-xs text-muted-foreground">
+                  <tr>
+                    <Th>Claim</Th>
+                    <Th>Payer</Th>
+                    <Th>Procedure</Th>
+                    <Th>Allowed</Th>
+                    <Th>Paid</Th>
+                    <Th>Shortfall</Th>
+                    <Th>Basis</Th>
+                    <Th>Confidence</Th>
+                    <Th>Status</Th>
+                  </tr>
+                </thead>
 
-              <div className="divide-y divide-border">
-                {EVIDENCE_TYPES.map((item) => (
-                  <div
-                    key={item.name}
-                    className="grid grid-cols-[220px_130px_1fr_170px] gap-3 px-5 py-4 text-sm"
-                  >
-                    <div>
-                      <div className="font-medium text-foreground">{item.name}</div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        Evidence set template
-                      </div>
-                    </div>
-
-                    <div>
-                      <span className="rounded border border-primary/20 bg-primary/10 px-2 py-0.5 text-mono-xs text-primary">
-                        {item.module}
-                      </span>
-                    </div>
-
-                    <div className="flex flex-wrap gap-1">
-                      {item.documentTypes.map((doc) => (
-                        <span
-                          key={doc}
-                          className="rounded border border-border bg-surface-2 px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                        >
-                          <FileText className="mr-1 inline h-2.5 w-2.5" />
-                          {doc}
+                <tbody className="divide-y divide-border bg-surface-1/40">
+                  {filtered.map((d) => (
+                    <tr key={d.dispute_id} className="hover:bg-surface-2/60">
+                      <Td>
+                        <span className="font-mono text-xs">{d.claim_id}</span>
+                      </Td>
+                      <Td>{d.payer_name}</Td>
+                      <Td>
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {d.procedure_code ?? "—"}
                         </span>
-                      ))}
-                    </div>
-
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Fingerprint className="h-3.5 w-3.5 text-status-paid" />
-                      {item.verification}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                      </Td>
+                      <Td>
+                        <span className="font-mono text-xs">{money(d.allowed_cents)}</span>
+                      </Td>
+                      <Td>
+                        <span className="font-mono text-xs">{money(d.paid_cents)}</span>
+                      </Td>
+                      <Td>
+                        <span className="font-mono text-xs font-medium text-status-pending">
+                          {money(d.shortfall_cents)}
+                        </span>
+                      </Td>
+                      <Td>
+                        <span className="text-xs text-muted-foreground">{d.basis}</span>
+                      </Td>
+                      <Td>
+                        <span className="font-mono text-xs">{Math.round(d.confidence * 100)}%</span>
+                      </Td>
+                      <Td>
+                        <StatusPill status={d.status} />
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-              <div className="rounded-xl border border-border bg-surface-1 p-4">
-                <div className="flex items-start gap-3">
-                  <UploadCloud className="mt-0.5 h-4 w-4 text-primary" />
-                  <div>
-                    <h3 className="text-sm font-semibold">Future Upload Flow</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Uploads should write to Supabase Storage, create document rows, calculate
-                      SHA-style hashes, and attach each file to an evidence manifest. Browser
-                      components should never become the system of record by themselves.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-status-pending/30 bg-status-pending/5 p-4">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 text-status-pending" />
-                  <div>
-                    <h3 className="text-sm font-semibold">Principal constraint</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Evidence must be provenance-first. Every future document should know where it
-                      came from, what entity it supports, whether it is verified, and which decision
-                      or workflow used it.
-                    </p>
-                  </div>
+            <div className="rounded-xl border border-status-pending/30 bg-status-pending/5 p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="mt-0.5 h-4 w-4 text-status-pending" />
+                <div>
+                  <h3 className="text-sm font-semibold">Where this data comes from</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Each row is a real disputes record: allowed_cents vs. paid_cents from the payer
+                    contract and remittance, the shortfall between them, and the basis and
+                    confidence for disputing it. Full deterministic evidence -- deductible applied,
+                    coinsurance, payment waterfall -- for the underlying claim is available in
+                    Claims Workbench.
+                  </p>
                 </div>
               </div>
             </div>
           </div>
+        ) : (
+          <EmptyState
+            title="No disputes recorded yet"
+            description="Underpayment disputes appear here once claims are adjudicated against a real contract and a shortfall is detected."
+            icon={<FileText className="h-5 w-5" />}
+          />
         )}
       </PageBody>
     </>
-  );
-}
-
-function Metric({
-  label,
-  value,
-  icon,
-  tone,
-}: {
-  label: string;
-  value: string;
-  icon: React.ReactNode;
-  tone?: "good" | "warn";
-}) {
-  const cls =
-    tone === "good"
-      ? "border-status-paid/20 bg-status-paid/5"
-      : tone === "warn"
-        ? "border-status-pending/20 bg-status-pending/5"
-        : "border-primary/20 bg-primary/5";
-
-  return (
-    <div className={`rounded-xl border p-4 ${cls}`}>
-      <div className="flex items-center justify-between">
-        <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
-        <div className="text-muted-foreground">{icon}</div>
-      </div>
-      <div className="mt-2 text-2xl font-semibold tracking-tight">{value}</div>
-    </div>
   );
 }

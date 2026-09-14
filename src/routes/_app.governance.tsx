@@ -1,239 +1,252 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo } from "react";
+import { ShieldCheck, GitBranch, CheckCircle2, LockKeyhole, Scale, Users } from "lucide-react";
+import { PageHeader, PageBody, EmptyState, MetricCard } from "@/components/platform-ui";
+import { LoadingState } from "@/components/system/LoadingState";
+import { ErrorState } from "@/components/system/ErrorState";
 import {
-  ShieldCheck,
-  GitBranch,
-  CheckCircle2,
-  AlertTriangle,
-  LockKeyhole,
-  Scale,
-  ClipboardCheck,
-} from "lucide-react";
-import { PageHeader, PageBody, EmptyState } from "@/components/platform-ui";
+  useMyOrganizations,
+  useOrgMembers,
+  canManageOrg,
+  canManageProjects,
+  canOperate,
+  canManageSecrets,
+  canReadSecretsMetadata,
+  canManageConnectors,
+  canReadConnectors,
+  isReadOnly,
+  type AppRole,
+} from "@/lib/queries";
 import { useOrgStore } from "@/lib/org-store";
+import { Th, Td } from "./_app.organizations";
 
 export const Route = createFileRoute("/_app/governance")({
   component: GovernancePage,
 });
 
-const POLICIES = [
-  {
-    name: "High-Risk Decision Approval",
-    module: "Guardian",
-    status: "planned",
-    version: "v1",
-    scope: "organization",
-    trigger: "decision.risk_score >= threshold",
-    control: "human approval required",
-  },
-  {
-    name: "Production Workflow Gate",
-    module: "Glue",
-    status: "planned",
-    version: "v1",
-    scope: "environment",
-    trigger: "workflow.deploy.production",
-    control: "owner/admin approval",
-  },
-  {
-    name: "Connector Rate Limit",
-    module: "Weaver",
-    status: "planned",
-    version: "v1",
-    scope: "connector",
-    trigger: "api.calls > quota",
-    control: "throttle or block",
-  },
-  {
-    name: "Evidence Verification Required",
-    module: "Claim Clarity",
-    status: "planned",
-    version: "v1",
-    scope: "appeal_packet",
-    trigger: "appeal.submit",
-    control: "verified manifest required",
-  },
-  {
-    name: "Secret Rotation Policy",
-    module: "Core",
-    status: "planned",
-    version: "v1",
-    scope: "credential",
-    trigger: "secret.age > rotation_window",
-    control: "rotation required",
-  },
+const ROLES: AppRole[] = ["owner", "admin", "manager", "operator", "viewer"];
+
+// Not planned -- this mirrors the real, enforced permission matrix in
+// src/nucleus/api/nucleusApi.ts (SUBSYSTEM_PERMISSIONS). emit() throws
+// if a subsystem tries to emit a contract it doesn't own; that's the
+// actual governance boundary the constitutional runtime enforces on
+// every claim, not a policy someone still needs to write.
+const SUBSYSTEM_PERMISSIONS: Record<string, string[]> = {
+  weaver: ["opportunity", "recommendation"],
+  guardian: ["authorization"],
+  glue: ["execution"],
+  dualpay: ["payment"],
+};
+
+// Same idea for platform-level RBAC: these are the actual permission
+// functions src/lib/queries.ts exports and every real page (Secrets,
+// Connectors, Workflows) calls to gate its own UI. Running them here
+// against each role turns "what can a role do" from documentation
+// that can drift into a table that's always accurate to the code.
+const CAPABILITIES: { label: string; check: (role: AppRole) => boolean }[] = [
+  { label: "Manage organization", check: canManageOrg },
+  { label: "Manage projects", check: canManageProjects },
+  { label: "Operate (execute workflows, runs)", check: canOperate },
+  { label: "Manage secrets", check: canManageSecrets },
+  { label: "Read secret metadata", check: canReadSecretsMetadata },
+  { label: "Manage connectors", check: canManageConnectors },
+  { label: "Read connectors", check: canReadConnectors },
 ];
 
 function GovernancePage() {
   const { currentOrgId } = useOrgStore();
+  const orgs = useMyOrganizations();
+  const members = useOrgMembers(currentOrgId);
+  const current = orgs.data?.find((org) => org.id === currentOrgId);
 
-  const stats = useMemo(() => {
-    return {
-      policies: POLICIES.length,
-      modules: new Set(POLICIES.map((policy) => policy.module)).size,
-      active: POLICIES.filter((policy) => policy.status === "active").length,
-    };
-  }, []);
+  const roleDistribution = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const m of members.data ?? []) {
+      counts.set(m.role, (counts.get(m.role) ?? 0) + 1);
+    }
+    return counts;
+  }, [members.data]);
 
   return (
     <>
       <PageHeader
         eyebrow="GOVERN"
         title="Governance"
-        description="Tenant-level policies, approval gates, execution controls, risk rules, and versioned platform restrictions."
+        description="The real access-control matrix (who can do what) and the real constitutional permission boundary (which subsystem may emit which contract)."
       />
 
       <PageBody>
         {!currentOrgId ? (
           <EmptyState
             title="Select an organization"
-            description="Governance policies are scoped to organizations and later applied to projects, environments, workflows, connectors, and decisions."
+            description="Governance is scoped to organizations: role membership on one side, the constitutional runtime's fixed rules on the other."
             icon={<ShieldCheck className="h-5 w-5" />}
           />
+        ) : members.isLoading ? (
+          <LoadingState label="Loading governance…" />
+        ) : members.isError ? (
+          <ErrorState error={members.error} onRetry={() => members.refetch()} />
         ) : (
           <div className="space-y-6">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              <Metric
-                label="Policy Templates"
-                value={String(stats.policies)}
-                icon={<ShieldCheck className="h-4 w-4" />}
+              <MetricCard
+                label="Members"
+                value={String(members.data?.length ?? 0)}
+                icon={<Users className="h-4 w-4" />}
               />
-              <Metric
-                label="Covered Modules"
-                value={String(stats.modules)}
+
+              <MetricCard
+                label="Distinct Roles"
+                value={String(roleDistribution.size)}
                 icon={<Scale className="h-4 w-4" />}
                 tone="good"
               />
-              <Metric
-                label="Active Policies"
-                value={String(stats.active)}
-                icon={<ClipboardCheck className="h-4 w-4" />}
+
+              <MetricCard
+                label="Constitutional Subsystems"
+                value={String(Object.keys(SUBSYSTEM_PERMISSIONS).length)}
+                icon={<GitBranch className="h-4 w-4" />}
                 tone="warn"
               />
             </div>
 
             <div className="rounded-xl border border-border bg-surface-1">
-              <div className="flex items-center justify-between border-b border-border px-5 py-4">
-                <div>
-                  <h2 className="text-sm font-semibold">Governance Policy Registry</h2>
-                  <p className="text-xs text-muted-foreground">
-                    Shared controls for Guardian, Glue, Weaver, Claim Clarity, and Core.
-                  </p>
-                </div>
+              <div className="border-b border-border px-5 py-4">
+                <h2 className="text-sm font-semibold">Role Capability Matrix</h2>
+                <p className="text-xs text-muted-foreground">
+                  {current ? `${current.name} — ` : ""}
+                  Computed live from the same permission functions every real page in this app calls
+                  to gate its own UI.
+                </p>
+              </div>
 
-                <span className="rounded border border-status-pending/30 bg-status-pending/10 px-2 py-1 text-mono-xs text-status-pending">
-                  Phase 6
-                </span>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-surface-1 text-mono-xs text-muted-foreground">
+                    <tr>
+                      <Th>Capability</Th>
+                      {ROLES.map((role) => (
+                        <Th key={role}>{role}</Th>
+                      ))}
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-border bg-surface-1/40">
+                    {CAPABILITIES.map((cap) => (
+                      <tr key={cap.label} className="hover:bg-surface-2/60">
+                        <Td>
+                          <span className="text-xs">{cap.label}</span>
+                        </Td>
+                        {ROLES.map((role) => (
+                          <Td key={role}>
+                            {cap.check(role) ? (
+                              <CheckCircle2 className="h-4 w-4 text-status-paid" />
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </Td>
+                        ))}
+                      </tr>
+                    ))}
+
+                    <tr className="hover:bg-surface-2/60">
+                      <Td>
+                        <span className="text-xs">Read-only</span>
+                      </Td>
+                      {ROLES.map((role) => (
+                        <Td key={role}>
+                          {isReadOnly(role) ? (
+                            <CheckCircle2 className="h-4 w-4 text-status-pending" />
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </Td>
+                      ))}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border bg-surface-1">
+              <div className="border-b border-border px-5 py-4">
+                <h2 className="text-sm font-semibold">Constitutional Permission Matrix</h2>
+                <p className="text-xs text-muted-foreground">
+                  Enforced by NucleusApi.emit() on every claim -- a subsystem that tries to emit a
+                  contract it doesn't own throws before anything is recorded.
+                </p>
               </div>
 
               <div className="divide-y divide-border">
-                {POLICIES.map((policy) => (
+                {Object.entries(SUBSYSTEM_PERMISSIONS).map(([subsystem, contracts]) => (
                   <div
-                    key={policy.name}
-                    className="grid grid-cols-[220px_120px_90px_140px_1fr_180px] gap-3 px-5 py-4 text-sm"
+                    key={subsystem}
+                    className="flex items-center justify-between px-5 py-3 text-sm"
                   >
-                    <div>
-                      <div className="font-medium text-foreground">{policy.name}</div>
-                      <div className="mt-1 text-xs text-muted-foreground">Policy template</div>
-                    </div>
+                    <span className="rounded border border-primary/20 bg-primary/10 px-2 py-0.5 text-mono-xs text-primary">
+                      {subsystem.toUpperCase()}
+                    </span>
 
-                    <div>
-                      <span className="rounded border border-primary/20 bg-primary/10 px-2 py-0.5 text-mono-xs text-primary">
-                        {policy.module}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <GitBranch className="h-3 w-3" />
-                      {policy.version}
-                    </div>
-
-                    <div className="font-mono text-xs text-muted-foreground">{policy.scope}</div>
-
-                    <div className="font-mono text-xs text-muted-foreground">{policy.trigger}</div>
-
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <LockKeyhole className="h-3.5 w-3.5 text-status-pending" />
-                      {policy.control}
+                    <div className="flex flex-wrap gap-1.5">
+                      {contracts.map((contract) => (
+                        <span
+                          key={contract}
+                          className="flex items-center gap-1 rounded border border-border bg-surface-2 px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                        >
+                          <LockKeyhole className="h-2.5 w-2.5" />
+                          {contract}
+                        </span>
+                      ))}
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-              <PrincipleCard
-                icon={<CheckCircle2 className="h-4 w-4" />}
-                title="Policy before execution"
-                description="High-impact workflows, connector calls, and decisions should check policy before action."
-              />
+            {members.data?.length ? (
+              <div className="overflow-hidden rounded-lg border border-border">
+                <table className="w-full text-sm">
+                  <thead className="bg-surface-1 text-mono-xs text-muted-foreground">
+                    <tr>
+                      <Th>Member</Th>
+                      <Th>Role</Th>
+                      <Th>Joined</Th>
+                    </tr>
+                  </thead>
 
-              <PrincipleCard
-                icon={<GitBranch className="h-4 w-4" />}
-                title="Version every rule"
-                description="Policies must be versioned so execution and decisions can be replayed against the exact rule set used."
-              />
+                  <tbody className="divide-y divide-border bg-surface-1/40">
+                    {members.data.map((member) => {
+                      const profile = Array.isArray(member.profiles)
+                        ? member.profiles[0]
+                        : member.profiles;
 
-              <PrincipleCard
-                icon={<AlertTriangle className="h-4 w-4" />}
-                title="Exceptions must be explicit"
-                description="Overrides should require reason, approver, timestamp, and audit trace. No silent bypasses."
-              />
-            </div>
+                      return (
+                        <tr key={member.id} className="hover:bg-surface-2/60">
+                          <Td>
+                            <div className="font-medium">
+                              {profile?.full_name || profile?.email || "Unknown user"}
+                            </div>
+                          </Td>
+                          <Td>
+                            <span className="rounded border border-border bg-surface-2 px-2 py-0.5 text-mono-xs">
+                              {member.role.toUpperCase()}
+                            </span>
+                          </Td>
+                          <Td>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(member.created_at).toLocaleDateString()}
+                            </span>
+                          </Td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
           </div>
         )}
       </PageBody>
     </>
-  );
-}
-
-function Metric({
-  label,
-  value,
-  icon,
-  tone,
-}: {
-  label: string;
-  value: string;
-  icon: React.ReactNode;
-  tone?: "good" | "warn";
-}) {
-  const cls =
-    tone === "good"
-      ? "border-status-paid/20 bg-status-paid/5"
-      : tone === "warn"
-        ? "border-status-pending/20 bg-status-pending/5"
-        : "border-primary/20 bg-primary/5";
-
-  return (
-    <div className={`rounded-xl border p-4 ${cls}`}>
-      <div className="flex items-center justify-between">
-        <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
-        <div className="text-muted-foreground">{icon}</div>
-      </div>
-
-      <div className="mt-2 text-2xl font-semibold tracking-tight">{value}</div>
-    </div>
-  );
-}
-
-function PrincipleCard({
-  icon,
-  title,
-  description,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-surface-1 p-4">
-      <div className="flex items-center gap-2">
-        <div className="text-primary">{icon}</div>
-        <h3 className="text-sm font-semibold">{title}</h3>
-      </div>
-
-      <p className="mt-2 text-sm text-muted-foreground">{description}</p>
-    </div>
   );
 }

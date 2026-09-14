@@ -67,6 +67,22 @@ export interface AuditEventRow {
   created_at: string;
 }
 
+export interface DisputeRow {
+  dispute_id: string;
+  claim_id: string;
+  organization_id: string | null;
+  payer_name: string;
+  procedure_code: string | null;
+  contract_id: string | null;
+  allowed_cents: number;
+  paid_cents: number;
+  shortfall_cents: number;
+  basis: string;
+  confidence: number;
+  status: string;
+  created_at: string;
+}
+
 export type CredentialStatus = "active" | "rotating" | "deactivated";
 export type ConnectorCategory =
   "ai" | "payments" | "messaging" | "social" | "database" | "universal" | "other";
@@ -384,6 +400,32 @@ export function useRecentAuditEvents(limit = 100) {
 
       if (error) throw error;
       return (data ?? []) as AuditEventRow[];
+    },
+    staleTime: 15_000,
+  });
+}
+
+/**
+ * Real underpayment-dispute records -- each one is the evidence packet
+ * for an appeal: claim, payer, procedure, what the contract allows vs.
+ * what was actually paid, the shortfall, and the confidence/basis for
+ * disputing it. Backed by the `disputes` table (see
+ * supabase/migrations/20260914_claims_core.sql).
+ */
+export function useDisputes(orgId: string | null, limit = 200) {
+  return useQuery({
+    enabled: !!orgId,
+    queryKey: ["disputes", orgId, limit],
+    queryFn: async (): Promise<DisputeRow[]> => {
+      const { data, error } = await supabase
+        .from("disputes")
+        .select("*")
+        .eq("organization_id", orgId!)
+        .order("created_at", { ascending: false })
+        .limit(limit);
+
+      if (error) throw error;
+      return (data ?? []) as DisputeRow[];
     },
     staleTime: 15_000,
   });
