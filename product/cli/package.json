@@ -1,9 +1,0 @@
-{
-  "name": "valtaris-cli",
-  "version": "1.0.0",
-  "bin": {
-    "valtaris": "index.js"
-  },
-  "type": "module",
-  "dependencies": {}
-}
