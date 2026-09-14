@@ -81,11 +81,22 @@ export function normalize835(parsed: ParsedX12): CanonicalRemittance[] {
     let primaryCarc: string | undefined;
     let primaryGroup: string | undefined;
     for (const cas of casSegments) {
-      // CAS: group,reason,amount repeating in triples from element 1.
-      for (let i = 1; i + 1 < cas.elements.length; i += 3) {
-        const group = el(cas, i);
-        const reason = el(cas, i + 1);
-        const amount = toCents(el(cas, i + 2));
+      // FIXED: this treated the whole segment as repeating (group, reason,
+      // amount) triples starting at element 1. Per the real X12 835 CAS
+      // segment layout, the group code (CAS01) appears exactly ONCE per
+      // segment; what repeats after it is (reason, amount, quantity)
+      // triples (CAS02-04, CAS05-07, ... up to CAS17-19), where the
+      // quantity is often present but unused. Reading every 3rd element
+      // as a fresh "group" meant any CAS segment with more than one
+      // adjustment reason (extremely common -- e.g. a contractual
+      // write-off and a bundling denial reported together) misread the
+      // quantity field of the first adjustment as the group code of the
+      // second, silently dropping later CO adjustments from
+      // contractualAdjustmentCents and understating allowedCents.
+      const group = el(cas, 1);
+      for (let i = 2; i < cas.elements.length; i += 3) {
+        const reason = el(cas, i);
+        const amount = toCents(el(cas, i + 1));
         if (!group || !reason) continue;
         if (group === "CO") contractualAdjustmentCents += amount;
         if (!primaryCarc) {

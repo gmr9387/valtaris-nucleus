@@ -66,9 +66,18 @@ function checkEnvelopePair(
 export function validateX12(parsed: ParsedX12): ValidationResult {
   const issues: ValidationIssue[] = [];
 
-  checkEnvelopePair(parsed, "ISA", "IEA", 13, 1, issues);
-  checkEnvelopePair(parsed, "GS", "GE", 6, 1, issues);
-  checkEnvelopePair(parsed, "ST", "SE", 2, 1, issues);
+  // FIXED: the trailer segments' second data element (index 2), not the
+  // first (index 1), is the control number that must match the header.
+  // Element 1 on every one of these trailers is a segment/group COUNT
+  // (IEA01 = number of functional groups, GE01 = number of transaction
+  // sets, SE01 = number of segments) -- comparing that against ISA13/
+  // GS06/ST02 meant this check compared a count against a control
+  // number and would spuriously fire CONTROL_MISMATCH on essentially
+  // every real, correctly-formed X12 file, since a count like "1" will
+  // almost never equal a real control number like "000000001".
+  checkEnvelopePair(parsed, "ISA", "IEA", 13, 2, issues);
+  checkEnvelopePair(parsed, "GS", "GE", 6, 2, issues);
+  checkEnvelopePair(parsed, "ST", "SE", 2, 2, issues);
 
   const st = segmentsOfType(parsed, "ST")[0];
   const se = segmentsOfType(parsed, "SE")[0];
