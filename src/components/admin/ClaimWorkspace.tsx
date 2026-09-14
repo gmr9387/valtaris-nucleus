@@ -14,6 +14,10 @@ import {
   READINESS_CLS,
   READINESS_LABEL,
 } from "@/engine/evidence-readiness";
+import {
+  resolveClaimPrimacy,
+  type ClaimPrimacyStatus,
+} from "@/nucleus/subsystems/guardian/adjudication/cobRules";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -46,6 +50,12 @@ function hasIntel(c: Claim): c is Claim & { intel: ClaimIntel } {
   return Boolean(c.intel);
 }
 
+const PRIMACY_CLS: Record<ClaimPrimacyStatus["status"], string> = {
+  primary: "bg-status-paid/10 text-status-paid border-status-paid/30",
+  secondary: "bg-status-pending/10 text-status-pending border-status-pending/30",
+  unknown: "bg-status-denied/10 text-status-denied border-status-denied/30",
+};
+
 export function ClaimWorkspace({
   claim,
   result,
@@ -57,6 +67,13 @@ export function ClaimWorkspace({
   const claimsWithIntel = claims.filter(hasIntel);
   const readiness =
     intel && hasIntel(claim) ? scoreEvidenceReadiness(claim, claimsWithIntel) : null;
+  const primacy = resolveClaimPrimacy(claim.ohi_indicators);
+  const primacyLabel =
+    primacy.status === "secondary"
+      ? `Secondary to ${primacy.primary_payer_name ?? primacy.primary_payer_id}`
+      : primacy.status === "unknown"
+        ? "COB: needs manual review"
+        : "Primary payer";
 
   return (
     <ScrollArea className="h-full">
@@ -67,6 +84,14 @@ export function ClaimWorkspace({
             {claim.provider_name} · {intel?.payer_name ?? "Unknown payer"} · DOS{" "}
             {claim.service_date_from}
           </p>
+          {claim.ohi_indicators.length > 0 && (
+            <div className="mt-1.5 flex items-center gap-1.5">
+              <Badge variant="outline" className={PRIMACY_CLS[primacy.status]}>
+                {primacyLabel}
+              </Badge>
+              <span className="text-[10.5px] text-muted-foreground">{primacy.rationale}</span>
+            </div>
+          )}
         </div>
 
         {intel && (

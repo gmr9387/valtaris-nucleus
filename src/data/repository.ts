@@ -260,6 +260,27 @@ export async function seedIfEmpty(): Promise<void> {
   for (let i = 0; i < SEED_ROWS.length; i++) {
     const row = buildSeedRow(SEED_ROWS[i], i);
     const { claim } = rowToClaim(row, SEED_ROWS[i].source, "seed-batch-001");
+
+    // Demo COB scenario: give CLM-DEMO-1002 a declared-primary OHI
+    // indicator (UnitedHealthcare, primacy_order 1) so it's a real
+    // example of a secondary-payer claim -- matched by
+    // @/data/demo-scenarios.ts's demoPriorOutcomes entry for this
+    // claim's line. OHI indicators aren't part of the import pipeline
+    // today (real ones come from eligibility verification, not an 835/
+    // CSV row), so this is attached directly to seed data rather than
+    // routed through rowToClaim/CanonicalField.
+    if (claim.claim_id === "CLM-DEMO-1002") {
+      claim.ohi_indicators = [
+        {
+          payer_id: "UHC-PRIMARY",
+          payer_name: "UnitedHealthcare",
+          coverage_type: "medical",
+          primacy_order: 1,
+          subscriber_id: "UHC-SUB-DEMO-1",
+        },
+      ];
+    }
+
     claimIds.push(claim.claim_id);
     await saveClaim(claim);
   }

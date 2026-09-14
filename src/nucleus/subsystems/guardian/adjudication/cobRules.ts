@@ -129,10 +129,60 @@ export const lengthOfCoverageRule: COBPrimacyRule = {
   },
 };
 
+/**
+ * The identifier this kernel uses, by convention, for "the plan
+ * currently adjudicating the claim" wherever a primacy result needs to
+ * refer to it (mirrors the birthday rule's pre-existing "member_plan"/
+ * "spouse_plan" synthetic ids -- this is the same convention, just named
+ * as a shared constant instead of a magic string).
+ */
+export const MEMBER_PLAN_ID = "member_plan";
+
+/**
+ * Declared-order rule: an OHIIndicator can already carry a real
+ * primacy_order (from an eligibility response or COB questionnaire on
+ * file) -- that is an actual fact, not an inference, so it outranks the
+ * birthday/length-of-coverage heuristics whenever it's present.
+ * primacy_order 1 means that OHI payer is primary; this plan is then
+ * secondary to it. No indicator claiming order 1 means this plan is
+ * primary by elimination.
+ */
+export const declaredOrderRule: COBPrimacyRule = {
+  rule_id: "COB_DECLARED_001",
+  name: "Declared Primacy Order",
+  priority: 0,
+  evaluate: (indicators) => {
+    const ordered = indicators.filter(
+      (indicator): indicator is OHIIndicator & { primacy_order: number } =>
+        typeof indicator.primacy_order === "number",
+    );
+    if (ordered.length === 0) return null;
+
+    const sorted = [...ordered].sort((a, b) => a.primacy_order - b.primacy_order);
+    const declaredPrimary = sorted[0];
+
+    if (declaredPrimary.primacy_order === 1) {
+      return {
+        primary_payer_id: declaredPrimary.payer_id,
+        secondary_payer_id: MEMBER_PLAN_ID,
+        rationale: `${declaredPrimary.payer_name} is declared primary (primacy_order 1).`,
+        rule_id: "COB_DECLARED_001",
+      };
+    }
+
+    return {
+      primary_payer_id: MEMBER_PLAN_ID,
+      secondary_payer_id: declaredPrimary.payer_id,
+      rationale: "No OHI indicator declares primacy_order 1 -- this plan adjudicates as primary.",
+      rule_id: "COB_DECLARED_001",
+    };
+  },
+};
+
 export function determineCOBPrimacy(
   indicators: OHIIndicator[],
   context: PrimacyContext,
-  rulePacks: COBPrimacyRule[] = [birthdayRule, lengthOfCoverageRule],
+  rulePacks: COBPrimacyRule[] = [declaredOrderRule, birthdayRule, lengthOfCoverageRule],
   ruleFirings: RuleFiring[] = [],
 ): PrimacyResult | null {
   const sorted = [...rulePacks].sort((a, b) => a.priority - b.priority);
@@ -297,5 +347,63 @@ export function calculateCOBAllocation(
     total_prior_paid: totalPriorPaid,
     adjustment: cappedAdjustment,
     allocations: buildAllocations(priorOutcomes, cobPolicy, cappedAdjustment),
+  };
+}
+
+export type ClaimPrimacyStatus =
+  | { status: "primary"; rationale: string }
+  | {
+      status: "secondary";
+      primary_payer_id: string;
+      primary_payer_name?: string;
+      rationale: string;
+      rule_id: string;
+    }
+  | { status: "unknown"; rationale: string };
+
+/**
+ * Determines whether *this* plan (the one about to adjudicate the claim)
+ * is primary or secondary relative to the member's other health
+ * insurance -- the routing decision that has to happen before
+ * calculateCOBAllocation() can run, not the payment split itself.
+ *
+ * Zero OHI indicators on file means there is no known other coverage,
+ * so this plan adjudicates as primary (today's default behavior for
+ * every claim, unchanged). One or more indicators triggers real primacy
+ * determination; when no rule pack can resolve it (no declared order,
+ * no DOB, no coverage-start data), the honest answer is "unknown" --
+ * callers must not guess and adjudicate as primary anyway.
+ */
+export function resolveClaimPrimacy(
+  indicators: OHIIndicator[],
+  context: PrimacyContext = {},
+  ruleFirings: RuleFiring[] = [],
+): ClaimPrimacyStatus {
+  if (indicators.length === 0) {
+    return { status: "primary", rationale: "No other health insurance on file for this member." };
+  }
+
+  const result = determineCOBPrimacy(indicators, context, undefined, ruleFirings);
+
+  if (!result) {
+    return {
+      status: "unknown",
+      rationale:
+        "Other health insurance is on file but primacy could not be determined (no declared order, date of birth, or coverage-start data available) -- route for manual COB review.",
+    };
+  }
+
+  if (result.primary_payer_id === MEMBER_PLAN_ID) {
+    return { status: "primary", rationale: result.rationale };
+  }
+
+  const primaryIndicator = indicators.find((i) => i.payer_id === result.primary_payer_id);
+
+  return {
+    status: "secondary",
+    primary_payer_id: result.primary_payer_id,
+    primary_payer_name: primaryIndicator?.payer_name,
+    rationale: result.rationale,
+    rule_id: result.rule_id,
   };
 }

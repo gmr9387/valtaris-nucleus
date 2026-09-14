@@ -12,8 +12,24 @@ export {
 
 import type { PriorPayerOutcome } from "@/types/claim";
 
-// No demo COB scenario yet — an empty array is a legitimate "not configured"
-// state, not a bug (see demoPlan.covered_services, which is empty for the
-// same reason). Add entries here once a demo secondary-payer scenario is
-// designed, keyed to a real line_id from a seeded demo claim.
-export const demoPriorOutcomes: PriorPayerOutcome[] = [];
+// Demo COB scenario: CLM-DEMO-1002 (seeded in @/data/repository.ts) is
+// given an OHI indicator declaring UnitedHealthcare primary
+// (primacy_order 1), so this plan adjudicates it as secondary. This is
+// the matching primary-payer outcome for that claim's one line --
+// without it, ClaimsWorkbench would correctly leave the claim pended
+// ("awaiting primary EOB") rather than guess. Keyed to the real line_id
+// rowToClaim() assigns (`L1-${claim_id}`), not a placeholder.
+export const demoPriorOutcomes: PriorPayerOutcome[] = [
+  {
+    payer_id: "UHC-PRIMARY",
+    payer_name: "UnitedHealthcare",
+    claim_line_id: "L1-CLM-DEMO-1002",
+    billed: 12_000,
+    allowed: 9_600,
+    paid: 6_000,
+    patient_responsibility: 0,
+    adjustments: [{ carc_code: "45", amount: 2_400, group_code: "CO" }],
+    source: "edi_835",
+    confidence: 0.95,
+  },
+];

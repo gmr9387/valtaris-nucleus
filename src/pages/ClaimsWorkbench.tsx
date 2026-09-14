@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { resetIdCounter, updateMemberAccumulators } from "@/engine/calculation-engine";
+import { resolveClaimPrimacy } from "@/nucleus/subsystems/guardian/adjudication/cobRules";
 import { executeAdjudicationWithReplay } from "@/engine/adjudication-orchestrator";
 import { demoContract, demoPlan, demoPriorOutcomes } from "@/data/demo-scenarios";
 import { isDemoModeEnabled } from "@/lib/demo-flag";
@@ -114,6 +115,25 @@ export default function ClaimsWorkbench() {
           // today.
           plan = LIVE_PLAN;
           priorOutcomes = [];
+        }
+
+        // COB routing: a claim with other health insurance on file can't
+        // be safely adjudicated as if this plan were the only payer.
+        // resolveClaimPrimacy() decides whether this plan is primary
+        // (proceed as normal), secondary (proceed only once we actually
+        // have the primary payer's outcome for every line -- otherwise
+        // we'd be paying full allowed amount for a share that isn't
+        // ours), or unknown (no declared order/DOB/coverage-start data
+        // to determine primacy at all -- also not safe to guess).
+        // Claims with zero OHI indicators (the overwhelming majority
+        // today) are unaffected: resolveClaimPrimacy always returns
+        // "primary" for those, same as current behavior.
+        const primacy = resolveClaimPrimacy(claim.ohi_indicators);
+        if (primacy.status !== "primary") {
+          const missingPriorOutcome = claim.lines.some(
+            (line) => !priorOutcomes.some((po) => po.claim_line_id === line.line_id),
+          );
+          if (missingPriorOutcome) continue; // awaiting primary payer's EOB (or manual COB review) -- don't guess
         }
 
         const { run, trace } = await executeAdjudicationWithReplay({
