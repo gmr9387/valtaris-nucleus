@@ -15,6 +15,11 @@ export class NucleusDBBridge {
     );
   }
 
+  /** Raw client access for read/query operations the insert* methods below don't cover. */
+  getClient() {
+    return this.client;
+  }
+
   async insertContract(
     table: string,
     organizationId: string,

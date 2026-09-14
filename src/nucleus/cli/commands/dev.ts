@@ -12,6 +12,6 @@ import { startNucleus } from "../../index";
 export class DevCommand {
   static async run() {
     console.log("Starting Nucleus in development mode...");
-    await startNucleus();
+    await startNucleus(process.env.ORGANIZATION_ID || "dev-org");
   }
 }

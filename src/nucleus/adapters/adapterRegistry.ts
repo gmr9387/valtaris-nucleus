@@ -1,9 +1,9 @@
 // Phase 43 — Adapter Registry
 
-import { weaverEngine } from "../subsystems/weaver/weaverEngine";
-import { guardianEngine } from "../subsystems/guardian/guardianEngine";
-import { glueEngine } from "../workflows/glueEngine";
-import { dualpayEngine } from "../subsystems/dualpay/dualpayEngine";
+import { WeaverRuntime as weaverEngine } from "../subsystems/weaver/weaverRuntime";
+import { GuardianRuntime as guardianEngine } from "../subsystems/guardian/guardianRuntime";
+import { GlueRuntime as glueEngine } from "../subsystems/glue/glueRuntime";
+import { DualPayRuntime as dualpayEngine } from "../subsystems/dualpay/dualPayRuntime";
 
 import { resourceGraph } from "../resources/resourceGraph";
 import { lineageEngine } from "../lineage/lineageEngine";

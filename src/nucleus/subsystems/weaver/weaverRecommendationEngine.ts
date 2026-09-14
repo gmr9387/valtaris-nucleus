@@ -10,7 +10,7 @@ export class WeaverRecommendationEngine {
       claimId: payload.claimId,
       organizationId: payload.organizationId,
       recommendationType: "basic-recommendation",
-      actions: [],
+      actions: [] as string[],
     };
 
     // Example deterministic recommendation

@@ -1,12 +1,9 @@
 // Phase 20 — Resource Guards
 
 import { ResourceState } from "./resourceState";
-import { NucleusIdentity } from "../identity/nucleusIdentity";
+import { ResourceIdentity } from "./resourceIdentity";
 
-export function enforceResourceGuards(
-  resource: ResourceState,
-  identity: NucleusIdentity
-) {
+export function enforceResourceGuards(resource: ResourceState, identity: ResourceIdentity) {
   if (resource.identity.tenantId !== identity.tenantId) {
     throw new Error("Tenant boundary violation");
   }

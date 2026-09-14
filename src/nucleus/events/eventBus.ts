@@ -2,6 +2,7 @@
 // Unified constitutional event bus for the entire Valtaris ecosystem.
 
 import { randomUUID } from "crypto";
+import type { NucleusEvent } from "./nucleusEvent";
 
 export type EventPayload = any;
 
@@ -16,8 +17,11 @@ export type EventRecord = {
 
 export type EventHandler = (event: EventRecord) => void;
 
+export type PayloadHandler = (payload: any) => void;
+
 export class EventBus {
   private handlers: Map<string, EventHandler[]> = new Map();
+  private typeHandlers: Map<string, PayloadHandler[]> = new Map();
   private events: EventRecord[] = [];
 
   publish(org: string, subsystem: string, type: string, payload: EventPayload) {
@@ -37,6 +41,14 @@ export class EventBus {
 
     const prefix = `[EVENT][${subsystem.toUpperCase()}]`;
     console.log(prefix, `Published: ${type}`, payload ?? "");
+
+    for (const handler of this.typeHandlers.get(type) ?? []) {
+      try {
+        handler(event.payload);
+      } catch (err) {
+        console.error(prefix, `on("${type}") handler error:`, err);
+      }
+    }
 
     for (const handler of handlers) {
       try {
@@ -65,7 +77,7 @@ export class EventBus {
    * (type, payload). This now detects which shape it was called with
    * rather than assuming one.
    */
-  emit(typeOrEvent: string | EventRecord, maybePayload?: EventPayload) {
+  emit(typeOrEvent: string | EventRecord | NucleusEvent, maybePayload?: EventPayload) {
     if (typeof typeOrEvent === "string") {
       const type = typeOrEvent;
       const payload = maybePayload;
@@ -80,6 +92,19 @@ export class EventBus {
     const subsystem = event.source ?? event.subsystem ?? "unknown";
     const org = event.context?.tenantId ?? event.organizationId ?? "unknown";
     return this.publish(org, subsystem, event.type, event.payload);
+  }
+
+  /**
+   * Subscribe by event type alone (not subsystem+type like subscribe()
+   * below) -- the handler receives the raw payload passed to emit(),
+   * matching how callers already destructure it (e.g.
+   * `eventBus.on("contract.emit", ({ name, version, payload }) => ...)`).
+   */
+  on(eventType: string, handler: PayloadHandler): void {
+    if (!this.typeHandlers.has(eventType)) {
+      this.typeHandlers.set(eventType, []);
+    }
+    this.typeHandlers.get(eventType)!.push(handler);
   }
 
   subscribe(subsystem: string, type: string, handler: EventHandler) {
@@ -137,3 +162,18 @@ export const nucleusEventBus = new EventBus();
  * mismatch was consistent everywhere it was used.
  */
 export const eventBus = nucleusEventBus;
+
+/**
+ * Standalone wildcard-subscribe function: 3 callers (integrations/
+ * nucleusMetrics.ts, integrations/nucleusTelemetry.ts,
+ * state/nucleusBoot.ts) import a bare `subscribe("*", handler)` rather
+ * than calling a method on eventBus/nucleusEventBus. All three only
+ * ever pass "*" (they want every event), matching subscribeAll()'s
+ * semantics exactly.
+ */
+export function subscribe(pattern: "*", handler: EventHandler): void {
+  if (pattern !== "*") {
+    throw new Error(`subscribe() only supports the wildcard pattern "*", got "${pattern}".`);
+  }
+  nucleusEventBus.subscribeAll(handler);
+}

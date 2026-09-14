@@ -11,7 +11,7 @@ export class WeaverOpportunityEngine {
       claimId: payload.claimId,
       organizationId: payload.organizationId,
       opportunityType: "basic-opportunity",
-      signals: [],
+      signals: [] as string[],
     };
 
     // Example deterministic signal

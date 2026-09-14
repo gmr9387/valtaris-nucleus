@@ -12,6 +12,10 @@ export type TelemetryEvent = {
   type: string;
   payload: any;
   timestamp: number;
+  // Not populated by recordEvent()/emit() today -- federation/constitution
+  // callers that filter by tenant/environment degrade to an empty result
+  // until telemetry recording is extended to carry identity.
+  identity?: import("../identity/nucleusIdentity").NucleusIdentity;
 };
 
 export type TelemetrySpan = {

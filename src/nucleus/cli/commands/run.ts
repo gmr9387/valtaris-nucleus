@@ -15,7 +15,11 @@ export class RunCommand {
     const raw = fs.readFileSync(file, "utf-8");
     const workflow = JSON.parse(raw);
 
-    const result = await startWorkflow(workflow, workflow.organizationId);
+    const result = await startWorkflow({
+      organization_id: workflow.organizationId,
+      workflow_id: workflow.workflowId,
+      version_id: workflow.versionId,
+    });
     console.log(JSON.stringify(result, null, 2));
   }
 }

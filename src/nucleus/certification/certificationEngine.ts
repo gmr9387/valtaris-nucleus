@@ -103,6 +103,19 @@ export class CertificationEngine {
     return result;
   }
 
+  /**
+   * Run every registered check with no check-specific payload, for
+   * whole-ecosystem certification sweeps (certifyNucleus()) rather than
+   * validating one specific check's outcome.
+   */
+  certify(payload: any = {}) {
+    const results = this.getChecks().map((check) => this.run(check.id, payload)!);
+    return {
+      ok: results.every((r) => r.passed),
+      results,
+    };
+  }
+
   getChecks() {
     return [...this.checks.values()];
   }

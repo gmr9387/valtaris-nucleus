@@ -5,13 +5,13 @@ import { telemetryEngine } from "../telemetry/telemetryEngine";
 export class FederatedTelemetryEngine {
   listByTenant(tenantId: string) {
     return telemetryEngine.list().filter(
-      (entry) => entry.identity.tenantId === tenantId
+      (entry) => entry.identity?.tenantId === tenantId
     );
   }
 
   listByEnvironment(environmentId: string) {
     return telemetryEngine.list().filter(
-      (entry) => entry.identity.environmentId === environmentId
+      (entry) => entry.identity?.environmentId === environmentId
     );
   }
 }

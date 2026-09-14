@@ -43,7 +43,7 @@ export class ResourceGraph {
     resource.data = newData;
     resource.updatedAt = new Date().toISOString();
 
-    return resource;
+    return resource as ResourceState<T>;
   }
 
   getResource(id: string): ResourceState | undefined {

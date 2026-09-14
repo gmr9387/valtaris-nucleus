@@ -19,8 +19,7 @@
  * No domain logic.
  */
 
-import { subscribe } from "../events/eventBus";
-import { NucleusEvent } from "../contracts/NucleusEvent";
+import { subscribe, type EventRecord } from "../events/eventBus";
 
 const metrics = {
   eventCount: 0,
@@ -38,7 +37,7 @@ let lastEventTimestamp: number | null = null;
 
 export function startNucleusMetrics() {
   // Track all events
-  subscribe("*", (event: NucleusEvent) => {
+  subscribe("*", (event: EventRecord) => {
     metrics.eventCount++;
 
     // Throughput tracking
