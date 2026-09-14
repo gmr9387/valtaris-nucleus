@@ -3,27 +3,36 @@
  * Provides the deep adjudication / trace / state machine / case view
  * for individual claims as a secondary surface to Claim Clarity.
  */
-import { useEffect, useMemo, useState } from 'react';
-import { resetIdCounter } from '@/engine/calculation-engine';
-import { executeAdjudicationWithReplay } from '@/engine/adjudication-orchestrator';
-import { demoContract, demoPlan, demoPriorOutcomes } from '@/data/demo-scenarios';
-import { isDemoModeEnabled } from '@/lib/demo-flag';
-import { LIVE_CONTRACT, LIVE_PLAN } from '@/lib/live-stubs';
-import { findActiveContractIdForPayer, fetchContractTerms } from '@/engine/contract-to-terms';
+import { useEffect, useMemo, useState } from "react";
+import { resetIdCounter } from "@/engine/calculation-engine";
+import { executeAdjudicationWithReplay } from "@/engine/adjudication-orchestrator";
+import { demoContract, demoPlan, demoPriorOutcomes } from "@/data/demo-scenarios";
+import { isDemoModeEnabled } from "@/lib/demo-flag";
+import { LIVE_CONTRACT, LIVE_PLAN } from "@/lib/live-stubs";
+import { findActiveContractIdForPayer, fetchContractTerms } from "@/engine/contract-to-terms";
 import {
-  loadClaims, loadCases, loadCaseEvents, loadAccumulators, loadLatestRuns,
-  saveAdjudication, seedIfEmpty,
-} from '@/data/repository';
-import type { Claim, AdjudicationRun, MemberAccumulators } from '@/types/claim';
-import type { TraceObject } from '@/types/trace';
-import type { Case, CaseEvent } from '@/types/case';
-import { ClaimList } from '@/components/admin/ClaimList';
-import { ClaimOperationsKpis } from '@/components/admin/ClaimOperationsKpis';
-import { ClaimWorkspace } from '@/components/admin/ClaimWorkspace';
-import { PageHeader, EmptyState } from '@/components/clarity/primitives';
-import { Inbox, Loader2 } from 'lucide-react';
+  loadClaims,
+  loadCases,
+  loadCaseEvents,
+  loadAccumulators,
+  loadLatestRuns,
+  saveAdjudication,
+  seedIfEmpty,
+} from "@/data/repository";
+import type { Claim, AdjudicationRun, MemberAccumulators } from "@/types/claim";
+import type { TraceObject } from "@/types/trace";
+import type { Case, CaseEvent } from "@/types/case";
+import { ClaimList } from "@/components/admin/ClaimList";
+import { ClaimOperationsKpis } from "@/components/admin/ClaimOperationsKpis";
+import { ClaimWorkspace } from "@/components/admin/ClaimWorkspace";
+import { PageHeader, EmptyState } from "@/components/clarity/primitives";
+import { Inbox, Loader2 } from "lucide-react";
 
-interface AdjResult { claimId: string; run: AdjudicationRun; trace: TraceObject; }
+interface AdjResult {
+  claimId: string;
+  run: AdjudicationRun;
+  trace: TraceObject;
+}
 
 export default function ClaimsWorkbench() {
   const [selectedClaimId, setSelectedClaimId] = useState<string | null>(null);
@@ -41,12 +50,19 @@ export default function ClaimsWorkbench() {
       try {
         await seedIfEmpty();
         const [c, k, e, a, runs] = await Promise.all([
-          loadClaims(), loadCases(), loadCaseEvents(), loadAccumulators(), loadLatestRuns(),
+          loadClaims(),
+          loadCases(),
+          loadCaseEvents(),
+          loadAccumulators(),
+          loadLatestRuns(),
         ]);
         if (cancelled) return;
-        setClaims(c); setCases(k); setCaseEvents(e); setAccumulators(a);
+        setClaims(c);
+        setCases(k);
+        setCaseEvents(e);
+        setAccumulators(a);
         resetIdCounter();
-        const haveRun = new Set(runs.map(r => r.claimId));
+        const haveRun = new Set(runs.map((r) => r.claimId));
         const fresh: AdjResult[] = [];
         for (const claim of c) {
           if (haveRun.has(claim.claim_id)) continue;
@@ -67,7 +83,11 @@ export default function ClaimsWorkbench() {
           let priorOutcomes = demoPriorOutcomes;
 
           if (!isDemoModeEnabled()) {
-            const contractId = await findActiveContractIdForPayer(claim.payer_name, claim.service_date_from);
+            if (!claim.intel) continue; // no payer/intel envelope -- nothing to look up a contract by
+            const contractId = await findActiveContractIdForPayer(
+              claim.intel.payer_name,
+              claim.service_date_from,
+            );
             if (!contractId) continue; // no real contract uploaded yet for this payer -- skip, don't guess
             const real = await fetchContractTerms(contractId);
             if (!real) continue;
@@ -90,7 +110,7 @@ export default function ClaimsWorkbench() {
             contract,
             plan,
             priorOutcomes,
-            actor: 'ClaimsWorkbench',
+            actor: "ClaimsWorkbench",
           });
           fresh.push({ claimId: claim.claim_id, run, trace });
           await saveAdjudication(claim.claim_id, run, trace, false);
@@ -102,17 +122,22 @@ export default function ClaimsWorkbench() {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const selectedResult = adjResults.find(r => r.claimId === selectedClaimId);
-  const selectedClaim = claims.find(c => c.claim_id === selectedClaimId);
+  const selectedResult = adjResults.find((r) => r.claimId === selectedClaimId);
+  const selectedClaim = claims.find((c) => c.claim_id === selectedClaimId);
   const selectedCase = useMemo(() => {
     if (!selectedClaim) return null;
-    if (selectedClaim.case_id) return cases.find(c => c.case_id === selectedClaim.case_id) ?? null;
-    return cases.find(c => c.claim_ids.includes(selectedClaim.claim_id)) ?? null;
+    if (selectedClaim.case_id)
+      return cases.find((c) => c.case_id === selectedClaim.case_id) ?? null;
+    return cases.find((c) => c.claim_ids.includes(selectedClaim.claim_id)) ?? null;
   }, [selectedClaim, cases]);
-  const selectedCaseEvents = selectedCase ? caseEvents.filter(e => e.case_id === selectedCase.case_id) : [];
+  const selectedCaseEvents = selectedCase
+    ? caseEvents.filter((e) => e.case_id === selectedCase.case_id)
+    : [];
 
   return (
     <div className="flex flex-col h-full">
@@ -120,7 +145,11 @@ export default function ClaimsWorkbench() {
         title="Claims Workbench"
         subtitle="Deterministic adjudication · auditable decision path · COB transparency · payment waterfall · replayable trace."
       />
-      {error && <div className="px-5 py-1.5 text-[11.5px] font-mono border-b text-destructive">Error: {error}</div>}
+      {error && (
+        <div className="px-5 py-1.5 text-[11.5px] font-mono border-b text-destructive">
+          Error: {error}
+        </div>
+      )}
       <ClaimOperationsKpis claims={claims} adjResults={adjResults} cases={cases} />
       {loading ? (
         <div className="flex-1 flex items-center justify-center text-muted-foreground">
@@ -129,14 +158,23 @@ export default function ClaimsWorkbench() {
       ) : (
         <div className="flex-1 flex min-h-0 overflow-hidden">
           <div className="w-[340px] shrink-0 border-r overflow-hidden">
-            <ClaimList claims={claims} adjResults={adjResults} selectedClaimId={selectedClaimId} onSelect={setSelectedClaimId} />
+            <ClaimList
+              claims={claims}
+              adjResults={adjResults}
+              selectedClaimId={selectedClaimId}
+              onSelect={setSelectedClaimId}
+            />
           </div>
           <div className="flex-1 min-w-0 overflow-hidden">
             {selectedResult && selectedClaim ? (
               <ClaimWorkspace
-                claim={selectedClaim} result={selectedResult}
-                caseData={selectedCase} caseEvents={selectedCaseEvents}
-                claims={claims} adjResults={adjResults} accumulators={accumulators}
+                claim={selectedClaim}
+                result={selectedResult}
+                caseData={selectedCase}
+                caseEvents={selectedCaseEvents}
+                claims={claims}
+                adjResults={adjResults}
+                accumulators={accumulators}
                 contract={isDemoModeEnabled() ? demoContract : LIVE_CONTRACT}
                 plan={isDemoModeEnabled() ? demoPlan : LIVE_PLAN}
                 priorOutcomes={isDemoModeEnabled() ? demoPriorOutcomes : []}

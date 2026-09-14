@@ -14,6 +14,418 @@ export type Database = {
   }
   public: {
     Tables: {
+      member_accumulators: {
+        Row: {
+          member_id: string
+          plan_year: number
+          organization_id: string | null
+          payload: Json
+          updated_at: string
+        }
+        Insert: {
+          member_id: string
+          plan_year: number
+          organization_id?: string | null
+          payload: Json
+          updated_at?: string
+        }
+        Update: {
+          member_id?: string
+          plan_year?: number
+          organization_id?: string | null
+          payload?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      payer_contracts: {
+        Row: {
+          contract_id: string
+          organization_id: string | null
+          payer_name: string
+          version: string
+          effective_date: string
+          termination_date: string | null
+          reimbursement_method: string
+          percent_of_billed: number | null
+          created_at: string
+        }
+        Insert: {
+          contract_id?: string
+          organization_id?: string | null
+          payer_name: string
+          version: string
+          effective_date: string
+          termination_date?: string | null
+          reimbursement_method: string
+          percent_of_billed?: number | null
+          created_at?: string
+        }
+        Update: {
+          contract_id?: string
+          organization_id?: string | null
+          payer_name?: string
+          version?: string
+          effective_date?: string
+          termination_date?: string | null
+          reimbursement_method?: string
+          percent_of_billed?: number | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      fee_schedules: {
+        Row: {
+          id: string
+          contract_id: string
+          procedure_code: string
+          contracted_amount_cents: number
+        }
+        Insert: {
+          id?: string
+          contract_id: string
+          procedure_code: string
+          contracted_amount_cents: number
+        }
+        Update: {
+          id?: string
+          contract_id?: string
+          procedure_code?: string
+          contracted_amount_cents?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fee_schedules_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "payer_contracts"
+            referencedColumns: ["contract_id"]
+          },
+        ]
+      }
+      edi_transactions: {
+        Row: {
+          transaction_id: string
+          org_id: string | null
+          transaction_type: string
+          file_name: string
+          sender_id: string | null
+          receiver_id: string | null
+          interchange_control_number: string | null
+          functional_group_number: string | null
+          transaction_set_number: string | null
+          status: string
+          validation_status: string
+          segment_count: number
+          error_count: number
+          raw_content: string
+          metadata: Json | null
+          received_at: string
+        }
+        Insert: {
+          transaction_id?: string
+          org_id?: string | null
+          transaction_type: string
+          file_name: string
+          sender_id?: string | null
+          receiver_id?: string | null
+          interchange_control_number?: string | null
+          functional_group_number?: string | null
+          transaction_set_number?: string | null
+          status?: string
+          validation_status?: string
+          segment_count?: number
+          error_count?: number
+          raw_content: string
+          metadata?: Json | null
+          received_at?: string
+        }
+        Update: {
+          transaction_id?: string
+          org_id?: string | null
+          transaction_type?: string
+          file_name?: string
+          sender_id?: string | null
+          receiver_id?: string | null
+          interchange_control_number?: string | null
+          functional_group_number?: string | null
+          transaction_set_number?: string | null
+          status?: string
+          validation_status?: string
+          segment_count?: number
+          error_count?: number
+          raw_content?: string
+          metadata?: Json | null
+          received_at?: string
+        }
+        Relationships: []
+      }
+      edi_segments: {
+        Row: {
+          id: string
+          transaction_id: string
+          segment_type: string
+          sequence_number: number
+          raw_segment: string
+          parsed_json: Json | null
+        }
+        Insert: {
+          id?: string
+          transaction_id: string
+          segment_type: string
+          sequence_number: number
+          raw_segment: string
+          parsed_json?: Json | null
+        }
+        Update: {
+          id?: string
+          transaction_id?: string
+          segment_type?: string
+          sequence_number?: number
+          raw_segment?: string
+          parsed_json?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edi_segments_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "edi_transactions"
+            referencedColumns: ["transaction_id"]
+          },
+        ]
+      }
+      edi_errors: {
+        Row: {
+          error_id: string
+          transaction_id: string
+          severity: string
+          error_code: string | null
+          message: string
+          created_at: string
+        }
+        Insert: {
+          error_id?: string
+          transaction_id: string
+          severity: string
+          error_code?: string | null
+          message: string
+          created_at?: string
+        }
+        Update: {
+          error_id?: string
+          transaction_id?: string
+          severity?: string
+          error_code?: string | null
+          message?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edi_errors_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "edi_transactions"
+            referencedColumns: ["transaction_id"]
+          },
+        ]
+      }
+      claims: {
+        Row: {
+          claim_id: string
+          organization_id: string | null
+          case_id: string | null
+          payload: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          claim_id: string
+          organization_id?: string | null
+          case_id?: string | null
+          payload: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          claim_id?: string
+          organization_id?: string | null
+          case_id?: string | null
+          payload?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cases: {
+        Row: {
+          case_id: string
+          organization_id: string | null
+          payload: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          case_id: string
+          organization_id?: string | null
+          payload: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          case_id?: string
+          organization_id?: string | null
+          payload?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      case_events: {
+        Row: {
+          event_id: string
+          case_id: string
+          organization_id: string | null
+          payload: Json
+          created_at: string
+        }
+        Insert: {
+          event_id: string
+          case_id: string
+          organization_id?: string | null
+          payload: Json
+          created_at?: string
+        }
+        Update: {
+          event_id?: string
+          case_id?: string
+          organization_id?: string | null
+          payload?: Json
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_events_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["case_id"]
+          },
+        ]
+      }
+      adjudication_runs: {
+        Row: {
+          run_id: string
+          claim_id: string
+          organization_id: string | null
+          run: Json
+          trace: Json
+          is_seed: boolean
+          created_at: string
+        }
+        Insert: {
+          run_id: string
+          claim_id: string
+          organization_id?: string | null
+          run: Json
+          trace: Json
+          is_seed?: boolean
+          created_at?: string
+        }
+        Update: {
+          run_id?: string
+          claim_id?: string
+          organization_id?: string | null
+          run?: Json
+          trace?: Json
+          is_seed?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
+      disputes: {
+        Row: {
+          dispute_id: string
+          claim_id: string
+          organization_id: string | null
+          payer_name: string
+          procedure_code: string | null
+          contract_id: string | null
+          allowed_cents: number
+          paid_cents: number
+          shortfall_cents: number
+          basis: string
+          confidence: number
+          status: string
+          created_at: string
+        }
+        Insert: {
+          dispute_id?: string
+          claim_id: string
+          organization_id?: string | null
+          payer_name: string
+          procedure_code?: string | null
+          contract_id?: string | null
+          allowed_cents: number
+          paid_cents: number
+          shortfall_cents: number
+          basis: string
+          confidence: number
+          status?: string
+          created_at?: string
+        }
+        Update: {
+          dispute_id?: string
+          claim_id?: string
+          organization_id?: string | null
+          payer_name?: string
+          procedure_code?: string | null
+          contract_id?: string | null
+          allowed_cents?: number
+          paid_cents?: number
+          shortfall_cents?: number
+          basis?: string
+          confidence?: number
+          status?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "disputes_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "payer_contracts"
+            referencedColumns: ["contract_id"]
+          },
+        ]
+      }
+      ops_events: {
+        Row: {
+          id: string
+          organization_id: string | null
+          kind: string
+          summary: string
+          payload: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id?: string | null
+          kind: string
+          summary: string
+          payload?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string | null
+          kind?: string
+          summary?: string
+          payload?: Json | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       audit_events: {
         Row: {
           action: string

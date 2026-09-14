@@ -20,7 +20,7 @@ import type { ContractTerms } from "@/types/claim";
  */
 export async function findActiveContractIdForPayer(
   payerName: string,
-  asOfDate: string
+  asOfDate: string,
 ): Promise<string | null> {
   const all = await listContracts();
   const matches = all.filter((c) => {
@@ -64,9 +64,9 @@ export async function fetchContractTerms(contract_id: string): Promise<ContractT
     contract_id: contract.contract_id,
     contract_version: contract.version,
     provider_npi: "", // KNOWN GAP: payer_contracts has no provider_npi column today --
-                       // contracts are stored per-payer, not per-provider-per-payer.
-                       // Real per-provider contract terms would need a schema change;
-                       // flagging rather than inventing a value.
+    // contracts are stored per-payer, not per-provider-per-payer.
+    // Real per-provider contract terms would need a schema change;
+    // flagging rather than inventing a value.
     effective_date: contract.effective_date,
     term_date: contract.termination_date ?? "",
     fee_schedule_id: `FS-${contract.contract_id}`,
