@@ -14,30 +14,28 @@ export class GlueRuntime {
   }
 
   private static handleExecution(payload: Dynamic) {
-    const { authorization } = payload;
+    const { authorization, recommendation } = payload;
 
     const decision = authorization?.decision ?? "deny";
 
-    // FIXED: previously also gated on recommendation.action !== "deny"
-    // and recommendation.confidence >= 0.3. Both values are hardcoded
-    // constants in weaverRuntime.ts ("approve" and 0.7, always) --
-    // neither can ever fail this check today, so it looked like a real
-    // secondary safety gate while providing zero actual signal.
-    //
-    // Guardian's authorization.decision is the only real signal in the
-    // pipeline right now (it reflects actual adjudication against real
-    // member accumulator data). Gating on it alone is honest about what
-    // this system currently verifies.
-    //
-    // TODO: once Weaver's opportunity/recommendation scoring is based on
-    // real claim risk signals instead of hardcoded values, reintroduce a
-    // real confidence-based gate here -- don't just restore the old
-    // condition, since the old thresholds (0.3) were never validated
-    // against anything real either.
+    // FIXED: previously gated on authorization.decision alone.
+    // Weaver's recommendation.action/confidence used to be hardcoded
+    // constants ("approve"/0.7) that could never fail a gate, so
+    // dropping the check was the honest call at the time (see the prior
+    // note this replaces). weaverRuntime.ts now derives action/confidence
+    // from real claim-data completeness instead -- "review" means Weaver
+    // didn't have a real procedure code, diagnosis codes, or a positive
+    // amount to work with. That's a real reason to hold execution even
+    // when Guardian separately authorized the claim, since Guardian's
+    // own adjudication (procedure-code-driven pricing) is only as good
+    // as the same input data Weaver is flagging as incomplete.
     let status = "skipped";
     let reason = "Authorization denied";
 
-    if (decision === "allow") {
+    if (decision === "allow" && recommendation?.action === "review") {
+      status = "skipped";
+      reason = `Held for review: recommendation confidence ${recommendation.confidence} is below the auto-execute threshold`;
+    } else if (decision === "allow") {
       status = "executed";
       reason = "Execution allowed";
     }

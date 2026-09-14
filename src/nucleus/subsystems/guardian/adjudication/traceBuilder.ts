@@ -94,6 +94,7 @@ export function buildTrace(
   ruleFirings: RuleFiring[],
   mathSteps: MathStep[],
   options: BuildTraceOptions = {},
+  sourceBadges: SourceBadge[] = [],
 ): TraceObject {
   const traceId = options.traceId ?? fallbackTraceId(runId, claimId);
 
@@ -116,6 +117,6 @@ export function buildTrace(
     snapshot_ref: snapshotRef,
     rule_firings: ruleFirings,
     math_steps: mathSteps,
-    source_badges: [],
+    source_badges: sourceBadges,
   };
 }

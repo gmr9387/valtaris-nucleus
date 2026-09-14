@@ -17,8 +17,8 @@ import type {
   COBAllocation,
   CoveredService,
 } from "@/types/claim";
-import type { TraceObject, MathStep, RuleFiring } from "@/types/trace";
-import { buildTrace, createRuleFiring, createMathStep } from "./traceBuilder";
+import type { TraceObject, MathStep, RuleFiring, SourceBadge } from "@/types/trace";
+import { buildTrace, createRuleFiring, createMathStep, createSourceBadge } from "./traceBuilder";
 import { calculateCOBAllocation } from "./cobRules";
 
 const CALC_POLICY_VERSION = "1.0.0";
@@ -661,6 +661,64 @@ export function adjudicateLine(
   };
 }
 
+function priorOutcomeSourceType(source: PriorPayerOutcome["source"]): SourceBadge["source_type"] {
+  switch (source) {
+    case "edi_835":
+      return "835";
+    case "ocr_pdf":
+      return "ocr";
+    case "manual_entry":
+      return "attestation";
+  }
+}
+
+/**
+ * Builds the trace's provenance record: what backed each input this run
+ * actually used, and how confident that source is. Previously
+ * createSourceBadge() (traceBuilder.ts) existed but had zero callers --
+ * buildTrace() hardcoded source_badges to [], so every trace always
+ * claimed zero provenance regardless of whether the contract/plan were
+ * real uploaded data or the intentionally-empty LIVE_CONTRACT/LIVE_PLAN
+ * stubs, and regardless of whether a COB allocation came from a real 835
+ * or a manual entry.
+ */
+function buildSourceBadges(
+  contract: ContractTerms,
+  plan: PlanBenefits,
+  lineResults: AdjudicationLineResult[],
+  priorOutcomes: PriorPayerOutcome[],
+): SourceBadge[] {
+  const badges: SourceBadge[] = [
+    createSourceBadge(
+      "contract",
+      "contract",
+      contract.contract_id ? 1 : 0,
+      contract.contract_id || undefined,
+    ),
+    createSourceBadge("plan", "plan", plan.plan_id ? 1 : 0, plan.plan_id || undefined),
+  ];
+
+  for (const result of lineResults) {
+    if (result.cob_allocations.length === 0) continue;
+    for (const allocation of result.cob_allocations) {
+      const priorOutcome = priorOutcomes.find(
+        (po) => po.claim_line_id === result.line_id && po.payer_id === allocation.payer_id,
+      );
+      if (!priorOutcome) continue;
+      badges.push(
+        createSourceBadge(
+          `cob_allocations.${result.line_id}.${allocation.payer_id}`,
+          priorOutcomeSourceType(priorOutcome.source),
+          priorOutcome.confidence,
+          priorOutcome.source_document_ref,
+        ),
+      );
+    }
+  }
+
+  return badges;
+}
+
 export function adjudicateClaim(
   lines: ClaimLine[],
   accumulators: MemberAccumulators,
@@ -704,12 +762,23 @@ export function adjudicateClaim(
     0,
   );
 
-  const trace = buildTrace(rid, claimId, plan, contract, ruleFirings, mathSteps, {
-    fingerprint: options.traceFingerprint,
-    timestamp,
-    snapshotRef: options.snapshotRef,
-    traceId: options.traceId,
-  });
+  const sourceBadges = buildSourceBadges(contract, plan, lineResults, priorOutcomes);
+
+  const trace = buildTrace(
+    rid,
+    claimId,
+    plan,
+    contract,
+    ruleFirings,
+    mathSteps,
+    {
+      fingerprint: options.traceFingerprint,
+      timestamp,
+      snapshotRef: options.snapshotRef,
+      traceId: options.traceId,
+    },
+    sourceBadges,
+  );
 
   const run: AdjudicationRun = {
     run_id: rid,

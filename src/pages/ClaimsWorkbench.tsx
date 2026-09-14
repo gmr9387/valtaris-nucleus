@@ -12,6 +12,8 @@ import { demoContract, demoPlan, demoPriorOutcomes } from "@/data/demo-scenarios
 import { isDemoModeEnabled } from "@/lib/demo-flag";
 import { LIVE_CONTRACT, LIVE_PLAN } from "@/lib/live-stubs";
 import { findActiveContractIdForPayer, fetchContractTerms } from "@/engine/contract-to-terms";
+import { findActivePlanIdForPayer, fetchPlanBenefitTerms } from "@/engine/plan-benefits-to-terms";
+import { listAllMemberOhi } from "@/lib/ohi";
 import { ingestEdiFile } from "@/lib/edi-gateway";
 import {
   loadClaims,
@@ -21,9 +23,10 @@ import {
   loadLatestRuns,
   saveAdjudication,
   saveAccumulators,
+  saveClaim,
   seedIfEmpty,
 } from "@/data/repository";
-import type { Claim, AdjudicationRun, MemberAccumulators } from "@/types/claim";
+import type { Claim, AdjudicationRun, MemberAccumulators, OHIIndicator } from "@/types/claim";
 import type { TraceObject } from "@/types/trace";
 import type { Case, CaseEvent } from "@/types/case";
 import { ClaimList } from "@/components/admin/ClaimList";
@@ -46,6 +49,7 @@ export default function ClaimsWorkbench() {
   const [cases, setCases] = useState<Case[]>([]);
   const [caseEvents, setCaseEvents] = useState<CaseEvent[]>([]);
   const [accumulators, setAccumulators] = useState<Record<string, MemberAccumulators>>({});
+  const [ohiByMember, setOhiByMember] = useState<Record<string, OHIIndicator[]>>({});
   const [adjResults, setAdjResults] = useState<AdjResult[]>([]);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -54,11 +58,12 @@ export default function ClaimsWorkbench() {
   const loadAndAdjudicate = useCallback(async () => {
     try {
       await seedIfEmpty();
-      const [c, k, e, a, runs] = await Promise.all([
+      const [c, k, e, a, ohi, runs] = await Promise.all([
         loadClaims(),
         loadCases(),
         loadCaseEvents(),
         loadAccumulators(),
+        listAllMemberOhi(),
         loadLatestRuns(),
       ]);
       if (cancelledRef.current) return;
@@ -66,6 +71,7 @@ export default function ClaimsWorkbench() {
       setCases(k);
       setCaseEvents(e);
       setAccumulators(a);
+      setOhiByMember(ohi);
       resetIdCounter();
       const haveRun = new Set(runs.map((r) => r.claimId));
       const fresh: AdjResult[] = [];
@@ -100,20 +106,30 @@ export default function ClaimsWorkbench() {
           const contractId = await findActiveContractIdForPayer(
             claim.intel.payer_name,
             claim.service_date_from,
+            claim.provider_npi,
           );
           if (!contractId) continue; // no real contract uploaded yet for this payer -- skip, don't guess
           const real = await fetchContractTerms(contractId);
           if (!real) continue;
           contract = real;
-          // KNOWN GAP (unchanged from before this fix): there is still
-          // no real plan-benefits persistence layer, so plan remains
-          // LIVE_PLAN in production. This means deductible/OOP/
-          // coinsurance math will be $0 across the board until a real
-          // plan upload feature exists -- fee-schedule-based allowed
-          // amounts (from the real contract) will be correct, but
-          // member-responsibility splits will not be, in production,
-          // today.
-          plan = LIVE_PLAN;
+
+          // FIXED: plan benefits previously had no real persistence
+          // layer at all, so this always fell back to LIVE_PLAN in
+          // production -- deductible/OOP/coinsurance math was $0 across
+          // the board regardless of whether a real plan existed.
+          // plan_benefits now mirrors payer_contracts exactly (see
+          // @/engine/plan-benefits-to-terms.ts); still falls back to
+          // LIVE_PLAN, but only when no real plan has actually been
+          // uploaded yet for this payer -- allowed-amount math (from the
+          // real contract) stays correct either way, and once a real
+          // plan is uploaded, member-responsibility splits become real
+          // too without any code change here.
+          const planId = await findActivePlanIdForPayer(
+            claim.intel.payer_name,
+            claim.service_date_from,
+          );
+          const realPlan = planId ? await fetchPlanBenefitTerms(planId) : null;
+          plan = realPlan ?? LIVE_PLAN;
           priorOutcomes = [];
         }
 
@@ -127,13 +143,35 @@ export default function ClaimsWorkbench() {
         // to determine primacy at all -- also not safe to guess).
         // Claims with zero OHI indicators (the overwhelming majority
         // today) are unaffected: resolveClaimPrimacy always returns
-        // "primary" for those, same as current behavior.
-        const primacy = resolveClaimPrimacy(claim.ohi_indicators);
+        // "primary" for those, same as current behavior. OHI is
+        // member-level real data (@/lib/ohi.ts), same as accumulators --
+        // a claim's own ohi_indicators (set at import/construction time)
+        // wins when present; otherwise fall back to whatever real OHI is
+        // on file for this member.
+        const ohiIndicators =
+          claim.ohi_indicators.length > 0 ? claim.ohi_indicators : (ohi[claim.member_id] ?? []);
+        const primacy = resolveClaimPrimacy(ohiIndicators);
         if (primacy.status !== "primary") {
           const missingPriorOutcome = claim.lines.some(
             (line) => !priorOutcomes.some((po) => po.claim_line_id === line.line_id),
           );
-          if (missingPriorOutcome) continue; // awaiting primary payer's EOB (or manual COB review) -- don't guess
+          if (missingPriorOutcome) {
+            // FIXED: previously left the claim silently un-adjudicated --
+            // ClaimStatus had an AWAITING_PRIMARY_EOB value that nothing
+            // about COB ever assigned, so a pended-for-COB claim looked
+            // identical in the list to one nobody had gotten to yet.
+            // Persist the real reason so it's visible, not silent. Used
+            // for both "secondary" (primacy resolved, genuinely waiting
+            // on the primary's EOB) and "unknown" (primacy itself
+            // couldn't be determined) -- not PENDED, which
+            // import-to-claim.ts already uses for a claim under appeal;
+            // reusing it here would let a successful COB adjudication
+            // silently clobber that unrelated appeal status below.
+            if (claim.status !== "AWAITING_PRIMARY_EOB") {
+              await saveClaim({ ...claim, status: "AWAITING_PRIMARY_EOB" });
+            }
+            continue; // awaiting primary payer's EOB (or manual COB review) -- don't guess
+          }
         }
 
         const { run, trace } = await executeAdjudicationWithReplay({
@@ -146,6 +184,16 @@ export default function ClaimsWorkbench() {
         });
         fresh.push({ claimId: claim.claim_id, run, trace });
         await saveAdjudication(claim.claim_id, run, trace, false);
+
+        // A claim previously pended AWAITING_PRIMARY_EOB just adjudicated
+        // successfully (a prior outcome arrived, or primacy resolved) --
+        // clear the pended status now that it's real again, rather than
+        // leaving it stuck. Deliberately does not touch PENDED --
+        // import-to-claim.ts uses that for a claim under appeal, an
+        // unrelated state this adjudication doesn't resolve.
+        if (claim.status === "AWAITING_PRIMARY_EOB") {
+          await saveClaim({ ...claim, status: "ADJUDICATED" });
+        }
 
         // FIXED: nothing persisted the post-claim deductible/OOP/
         // benefit-limit usage, so accumulators never advanced between
@@ -211,6 +259,11 @@ export default function ClaimsWorkbench() {
 
   const selectedResult = adjResults.find((r) => r.claimId === selectedClaimId);
   const selectedClaim = claims.find((c) => c.claim_id === selectedClaimId);
+  const selectedClaimOhi = selectedClaim
+    ? selectedClaim.ohi_indicators.length > 0
+      ? selectedClaim.ohi_indicators
+      : (ohiByMember[selectedClaim.member_id] ?? [])
+    : [];
   const selectedCase = useMemo(() => {
     if (!selectedClaim) return null;
     if (selectedClaim.case_id)
@@ -285,6 +338,7 @@ export default function ClaimsWorkbench() {
                 contract={isDemoModeEnabled() ? demoContract : LIVE_CONTRACT}
                 plan={isDemoModeEnabled() ? demoPlan : LIVE_PLAN}
                 priorOutcomes={isDemoModeEnabled() ? demoPriorOutcomes : []}
+                ohiIndicators={selectedClaimOhi}
                 onSelectClaim={setSelectedClaimId}
               />
             ) : (

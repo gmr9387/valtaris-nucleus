@@ -13,14 +13,21 @@ import { getContract, listFeeSchedules, listContracts } from "@/lib/contracts";
 import type { ContractTerms } from "@/types/claim";
 
 /**
- * Finds the active contract for a payer as of a given date (most recent
- * version whose effective/termination window covers asOfDate). Returns
- * null if no matching real contract has been uploaded yet -- callers
- * must decide what that means, same as fetchContractTerms below.
+ * Finds the active contract for a payer (optionally scoped to a specific
+ * provider) as of a given date. A provider-specific contract (a row
+ * whose provider_npi matches) is preferred over a payer-only contract
+ * (provider_npi null) covering the same payer/date -- a payer can
+ * contract differently with different providers, and a match to the
+ * providerNpi actually billing this claim is more specific than a
+ * blanket payer-level rate. Within either tier, the most recent version
+ * whose effective/termination window covers asOfDate wins. Returns null
+ * if no matching real contract has been uploaded yet -- callers must
+ * decide what that means, same as fetchContractTerms below.
  */
 export async function findActiveContractIdForPayer(
   payerName: string,
   asOfDate: string,
+  providerNpi?: string,
 ): Promise<string | null> {
   const all = await listContracts();
   const matches = all.filter((c) => {
@@ -32,8 +39,23 @@ export async function findActiveContractIdForPayer(
   if (matches.length === 0) return null;
 
   // Already ordered payer_name asc, effective_date desc by listContracts();
-  // the first match is the most recent applicable version.
-  return matches[0].contract_id;
+  // the first match within a tier is the most recent applicable version.
+  if (!providerNpi) {
+    // No provider given (existing callers) -- same behavior as before
+    // provider-level contracts existed: any matching row.
+    return matches[0].contract_id;
+  }
+
+  const providerMatch = matches.find((c) => c.provider_npi === providerNpi);
+  if (providerMatch) return providerMatch.contract_id;
+
+  const payerLevelMatch = matches.find((c) => !c.provider_npi);
+  if (payerLevelMatch) return payerLevelMatch.contract_id;
+
+  // Matches exist, but only for other providers -- applying someone
+  // else's provider-specific rate would be actively wrong, not a
+  // reasonable fallback. Correctly report "no applicable contract".
+  return null;
 }
 
 /**
@@ -63,10 +85,12 @@ export async function fetchContractTerms(contract_id: string): Promise<ContractT
   return {
     contract_id: contract.contract_id,
     contract_version: contract.version,
-    provider_npi: "", // KNOWN GAP: payer_contracts has no provider_npi column today --
-    // contracts are stored per-payer, not per-provider-per-payer.
-    // Real per-provider contract terms would need a schema change;
-    // flagging rather than inventing a value.
+    // FIXED: payer_contracts previously had no provider_npi column at
+    // all, so this was always hardcoded empty. A payer-level contract
+    // (provider_npi null on the row) legitimately has no single
+    // provider to report here; a provider-specific contract reports its
+    // real NPI.
+    provider_npi: contract.provider_npi ?? "",
     effective_date: contract.effective_date,
     term_date: contract.termination_date ?? "",
     fee_schedule_id: `FS-${contract.contract_id}`,

@@ -5,6 +5,7 @@ import type {
   ContractTerms,
   PlanBenefits,
   PriorPayerOutcome,
+  OHIIndicator,
 } from "@/types/claim";
 import type { TraceObject } from "@/types/trace";
 import type { Case, CaseEvent } from "@/types/case";
@@ -39,6 +40,10 @@ interface ClaimWorkspaceProps {
   contract: ContractTerms;
   plan: PlanBenefits;
   priorOutcomes: PriorPayerOutcome[];
+  /** claim.ohi_indicators when set, else the member's real on-file OHI
+   *  (@/lib/ohi.ts) -- resolved by the caller since it also needs the
+   *  member->OHI map for every claim in the list, not just this one. */
+  ohiIndicators: OHIIndicator[];
   onSelectClaim: (claimId: string) => void;
 }
 
@@ -62,12 +67,13 @@ export function ClaimWorkspace({
   caseData,
   caseEvents,
   claims,
+  ohiIndicators,
 }: ClaimWorkspaceProps) {
   const intel = claim.intel;
   const claimsWithIntel = claims.filter(hasIntel);
   const readiness =
     intel && hasIntel(claim) ? scoreEvidenceReadiness(claim, claimsWithIntel) : null;
-  const primacy = resolveClaimPrimacy(claim.ohi_indicators);
+  const primacy = resolveClaimPrimacy(ohiIndicators);
   const primacyLabel =
     primacy.status === "secondary"
       ? `Secondary to ${primacy.primary_payer_name ?? primacy.primary_payer_id}`
@@ -84,7 +90,7 @@ export function ClaimWorkspace({
             {claim.provider_name} · {intel?.payer_name ?? "Unknown payer"} · DOS{" "}
             {claim.service_date_from}
           </p>
-          {claim.ohi_indicators.length > 0 && (
+          {ohiIndicators.length > 0 && (
             <div className="mt-1.5 flex items-center gap-1.5">
               <Badge variant="outline" className={PRIMACY_CLS[primacy.status]}>
                 {primacyLabel}

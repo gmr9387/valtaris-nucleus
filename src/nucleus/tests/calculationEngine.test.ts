@@ -18,6 +18,7 @@ import type {
   PlanBenefits,
   MemberAccumulators,
   CoveredService,
+  PriorPayerOutcome,
 } from "@/types/claim";
 
 function makeLine(overrides: Partial<ClaimLine> = {}): ClaimLine {
@@ -257,6 +258,72 @@ describe("adjudicateClaim — totals and determinism", () => {
     // fields that are allowed to vary).
     expect(run1.total_plan_paid).toBe(run2.total_plan_paid);
     expect(run1.total_member_responsibility).toBe(run2.total_member_responsibility);
+  });
+});
+
+describe("adjudicateClaim — trace source badges", () => {
+  // Regression coverage for buildSourceBadges(): createSourceBadge()
+  // existed in traceBuilder.ts with zero callers -- buildTrace() always
+  // hardcoded source_badges to [], so a trace could never say whether
+  // its contract/plan were real uploaded data or the empty LIVE_CONTRACT/
+  // LIVE_PLAN stubs, or whether a COB allocation came from a real 835.
+
+  it("badges a real contract/plan with confidence 1 and their real ids", () => {
+    const lines = [makeLine()];
+    const contract = makeContract();
+    const plan = makePlan();
+    const { trace } = adjudicateClaim(lines, makeAccumulators(), contract, plan);
+
+    const contractBadge = trace.source_badges.find((b) => b.field_path === "contract");
+    const planBadge = trace.source_badges.find((b) => b.field_path === "plan");
+
+    expect(contractBadge).toMatchObject({
+      source_type: "contract",
+      confidence: 1,
+      document_ref: "CT1",
+    });
+    expect(planBadge).toMatchObject({ source_type: "plan", confidence: 1, document_ref: "P1" });
+  });
+
+  it("badges an empty stub contract/plan with confidence 0 and no document ref", () => {
+    const lines = [makeLine()];
+    const stubContract = makeContract({ contract_id: "", fee_schedule: new Map() });
+    const stubPlan = makePlan({ plan_id: "" });
+    const { trace } = adjudicateClaim(lines, makeAccumulators(), stubContract, stubPlan);
+
+    const contractBadge = trace.source_badges.find((b) => b.field_path === "contract");
+    const planBadge = trace.source_badges.find((b) => b.field_path === "plan");
+
+    expect(contractBadge).toMatchObject({ confidence: 0, document_ref: undefined });
+    expect(planBadge).toMatchObject({ confidence: 0, document_ref: undefined });
+  });
+
+  it("badges a COB allocation with the real prior payer outcome's own source and confidence", () => {
+    const lines = [makeLine({ line_id: "L1" })];
+    const contract = makeContract();
+    const plan = makePlan();
+    const priorOutcome: PriorPayerOutcome = {
+      payer_id: "PAYER-X",
+      payer_name: "Payer X",
+      claim_line_id: "L1",
+      billed: 8_000,
+      allowed: 8_000,
+      paid: 3_000,
+      patient_responsibility: 0,
+      adjustments: [],
+      source: "edi_835",
+      confidence: 0.95,
+      source_document_ref: "EDI-TX-123",
+    };
+
+    const { trace } = adjudicateClaim(lines, makeAccumulators(), contract, plan, [priorOutcome]);
+
+    const cobBadge = trace.source_badges.find((b) => b.field_path === "cob_allocations.L1.PAYER-X");
+    expect(cobBadge).toMatchObject({
+      source_type: "835",
+      confidence: 0.95,
+      document_ref: "EDI-TX-123",
+    });
   });
 });
 

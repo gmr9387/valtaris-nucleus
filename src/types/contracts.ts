@@ -5,6 +5,10 @@
 export interface PayerContract {
   contract_id: string;
   payer_name: string;
+  /** null = applies to any provider billing this payer. A row with a
+   *  real NPI is a provider-specific contract and is preferred over a
+   *  payer-only match for the same payer/date. */
+  provider_npi: string | null;
   version: string;
   effective_date: string;
   termination_date: string | null;
