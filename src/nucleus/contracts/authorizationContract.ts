@@ -3,111 +3,89 @@
 /**
  * Authorization Contract (v1)
  *
- * Purpose:
- *   Define the canonical shape, invariants, validation rules,
- *   and compatibility rules for authorizations emitted by Guardian.
+ * FIXED: see opportunityContract.ts's header -- same issue. Rewritten
+ * to validate the real output of guardianRuntime.ts's handleAuthorization(),
+ * which has two shapes: the fail-closed early return (accumulator fetch
+ * threw -- decision/reason/timestamp only) and the normal path (adds a
+ * real adjudication result plus data-provenance flags). adjudication is
+ * therefore optional at the shape level, but see validate() below for
+ * the real constitutional check.
  *
- * This is the THIRD contract in the Valtara Loop.
- * It is the constitutional enforcement point.
+ * This is the constitutional enforcement point: Guardian is the only
+ * subsystem that decides allow/deny.
  */
 
 import { registerContract, ContractDefinition, ContractValidationResult } from "./contractRegistry";
 import type { Dynamic } from "../types/dynamic";
 
 export interface AuthorizationV1 {
-  id: string; // authorization id
-  recommendationId: string; // must reference a valid recommendation
-  opportunityId: string; // must reference a valid opportunity
-  source: string; // must be "guardian"
+  claimId: string;
+  organizationId: string;
+  claimPayload: Record<string, Dynamic>;
+  opportunity: Dynamic;
+  recommendation: Dynamic;
+  decision: "allow" | "deny";
+  reason: string;
   timestamp: number;
-
-  decision: "approved" | "rejected";
-  reason?: string;
-
-  // Guardian-specific scoring + risk metadata
-  riskScore: number; // 0–1
-  confidence: number; // 0–1
-
-  payload: Record<string, Dynamic>;
+  adjudication?: {
+    status: string;
+    allowed: number;
+    plan_paid: number;
+    member_responsibility: number;
+    deductible_applied: number;
+    coinsurance: number;
+  };
 }
 
-/**
- * Invariant:
- *   - id must exist
- *   - recommendationId must exist
- *   - opportunityId must exist
- *   - timestamp must be a valid number
- *   - source must be "guardian"
- *   - decision must be approved/rejected
- *   - riskScore must be between 0 and 1
- *   - confidence must be between 0 and 1
- *   - payload must be an object
- */
 function invariant(payload: AuthorizationV1): boolean {
   if (!payload) return false;
-  if (!payload.id) return false;
-  if (!payload.recommendationId) return false;
-  if (!payload.opportunityId) return false;
+  if (!payload.claimId || typeof payload.claimId !== "string") return false;
+  if (!payload.organizationId || typeof payload.organizationId !== "string") return false;
+  if (payload.decision !== "allow" && payload.decision !== "deny") return false;
+  if (!payload.reason || typeof payload.reason !== "string") return false;
   if (typeof payload.timestamp !== "number") return false;
-  if (payload.source !== "guardian") return false;
-  if (!["approved", "rejected"].includes(payload.decision)) return false;
-  if (typeof payload.riskScore !== "number") return false;
-  if (payload.riskScore < 0 || payload.riskScore > 1) return false;
-  if (typeof payload.confidence !== "number") return false;
-  if (payload.confidence < 0 || payload.confidence > 1) return false;
-  if (typeof payload.payload !== "object") return false;
   return true;
 }
 
 /**
- * Validation:
- *   - approved requires execution metadata
- *   - rejected requires a reason
+ * Business rule, not just shape: guardianRuntime.ts's only path that
+ * returns decision "allow" always attaches a real adjudication result;
+ * the only path that omits adjudication is the fail-closed catch
+ * branch, which always denies. dualPayEngine.ts independently relies on
+ * this same assumption -- an "allow" with no adjudication data falls
+ * back to a "hold" rather than a real charge. This check catches a
+ * future Guardian change that breaks that assumption before it ever
+ * reaches DualPay.
  */
 function validate(payload: AuthorizationV1): ContractValidationResult {
   const errors: string[] = [];
 
-  if (payload.decision === "approved") {
-    if (!payload.payload.executionType) {
-      errors.push("approved requires payload.executionType");
-    }
-    if (!payload.payload.executionPayload) {
-      errors.push("approved requires payload.executionPayload");
-    }
-  }
-
-  if (payload.decision === "rejected") {
-    if (!payload.reason) {
-      errors.push("rejected requires reason");
+  if (payload.decision === "allow") {
+    const a = payload.adjudication;
+    if (!a || typeof a !== "object") {
+      errors.push('decision "allow" requires an adjudication result.');
+    } else {
+      if (typeof a.allowed !== "number") errors.push("adjudication.allowed must be a number.");
+      if (typeof a.plan_paid !== "number") errors.push("adjudication.plan_paid must be a number.");
+      if (typeof a.member_responsibility !== "number") {
+        errors.push("adjudication.member_responsibility must be a number.");
+      }
     }
   }
 
-  return {
-    ok: errors.length === 0,
-    errors: errors.length ? errors : undefined,
-  };
+  return { ok: errors.length === 0, errors: errors.length ? errors : undefined };
 }
 
-/**
- * Compatibility:
- *   v1 is only compatible with itself for now.
- */
 const compatibleWith = ["v1"];
 
-/**
- * Contract Definition
- */
 const AuthorizationContractV1: ContractDefinition = {
   name: "authorization",
   version: "v1",
-  validate,
   invariant,
+  validate,
   compatibleWith,
 };
 
-/**
- * Register the contract with Nucleus.
- */
 registerContract(AuthorizationContractV1);
 
 export { AuthorizationContractV1 };

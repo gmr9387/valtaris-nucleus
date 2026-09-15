@@ -3,7 +3,15 @@
 import { getSubsystem, type SubsystemId } from "../subsystems/subsystemRegistry";
 import { registerAllSubsystems } from "../subsystems/registerSubsystems";
 import { TelemetryAdapter } from "../subsystems/telemetry/telemetryAdapter";
+import { validateContract } from "../contracts/contractRegistry";
+// Side-effect import: registers the five per-stage contract definitions
+// (opportunity/recommendation/authorization/execution/payment @ v1)
+// against contractRegistry.ts. Without this, validateContract() below
+// would find nothing registered and every stage would fail validation.
+import "../contracts";
 import type { Dynamic } from "../types/dynamic";
+
+const CONTRACT_VERSION = "v1";
 
 /**
  * FIXED: this previously imported WeaverRuntime/GuardianRuntime/
@@ -26,7 +34,19 @@ import type { Dynamic } from "../types/dynamic";
  */
 registerAllSubsystems();
 
-function dispatch(id: SubsystemId, contractName: string, payload: Dynamic): Dynamic {
+/**
+ * FIXED: dispatch() called subsystem.runtime.handle() and returned its
+ * result untouched -- the real constitutional contracts (see
+ * contracts/index.ts) validated a shape that had never matched what
+ * these runtimes actually produce, and were never even imported, so
+ * validateContract() had nothing registered to check against. Every
+ * stage's output now goes through the same validateContract() the
+ * constitution's contract layer was built for, so a subsystem that
+ * starts returning a malformed result (missing a required field, an
+ * "allow" with no adjudication, a "deny" that still moves money) stops
+ * the claim here instead of silently propagating into the next stage.
+ */
+async function dispatch(id: SubsystemId, contractName: string, payload: Dynamic): Promise<Dynamic> {
   const subsystem = getSubsystem(id);
   if (!subsystem) {
     throw new Error(`OSPipeline: subsystem "${id}" is not registered.`);
@@ -34,7 +54,17 @@ function dispatch(id: SubsystemId, contractName: string, payload: Dynamic): Dyna
   if (!subsystem.enabled) {
     throw new Error(`OSPipeline: subsystem "${id}" is disabled.`);
   }
-  return subsystem.runtime.handle(contractName, payload);
+
+  const result = await subsystem.runtime.handle(contractName, payload);
+
+  const validation = validateContract(contractName, CONTRACT_VERSION, result);
+  if (!validation.ok) {
+    throw new Error(
+      `OSPipeline: "${contractName}@${CONTRACT_VERSION}" output failed contract validation: ${(validation.errors ?? []).join("; ")}`,
+    );
+  }
+
+  return result;
 }
 
 export class OSPipeline {
