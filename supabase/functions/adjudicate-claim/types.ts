@@ -84,7 +84,8 @@ export interface CoveredService {
   benefit_limit?: BenefitLimit;
 }
 
-export type COBPolicyType = "standard" | "non_duplication" | "carve_out" | "maintenance_of_benefits";
+export type COBPolicyType =
+  "standard" | "non_duplication" | "carve_out" | "maintenance_of_benefits";
 
 export interface PriorPayerOutcome {
   payer_id: string;

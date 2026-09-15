@@ -77,7 +77,12 @@ function jsonResponse(body: Record<string, unknown>, status = 200): Response {
 function emptyAccumulators(
   memberId: string,
   planYear: number,
-  planCeiling: { deductible_individual: number; deductible_family: number; oop_max_individual: number; oop_max_family: number },
+  planCeiling: {
+    deductible_individual: number;
+    deductible_family: number;
+    oop_max_individual: number;
+    oop_max_family: number;
+  },
 ): MemberAccumulators {
   return {
     member_id: memberId,

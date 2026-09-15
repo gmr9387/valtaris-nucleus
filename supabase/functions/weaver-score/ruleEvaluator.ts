@@ -8,7 +8,8 @@ function getPath(facts: Record<string, unknown>, path: string): unknown {
   return path
     .split(".")
     .reduce<unknown>(
-      (acc, key) => (acc && typeof acc === "object" ? (acc as Record<string, unknown>)[key] : undefined),
+      (acc, key) =>
+        acc && typeof acc === "object" ? (acc as Record<string, unknown>)[key] : undefined,
       facts,
     );
 }
@@ -51,7 +52,10 @@ export interface WeaverEvaluation {
   totalWeight: number;
 }
 
-export function evaluateRules(rules: WeaverRule[], facts: Record<string, unknown>): WeaverEvaluation {
+export function evaluateRules(
+  rules: WeaverRule[],
+  facts: Record<string, unknown>,
+): WeaverEvaluation {
   const firedRules: string[] = [];
   let totalWeight = 0;
 

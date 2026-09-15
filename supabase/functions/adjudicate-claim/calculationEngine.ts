@@ -393,7 +393,11 @@ export function adjudicateLine(
   const benefitLimitAdj = Math.max(0, rawAllowed - allowed);
 
   if (contractualAdj > 0) {
-    adjustments.push({ reason_code: "CONTRACTUAL", amount: contractualAdj, category: "contractual" });
+    adjustments.push({
+      reason_code: "CONTRACTUAL",
+      amount: contractualAdj,
+      category: "contractual",
+    });
   }
 
   if (benefitLimitAdj > 0 && !adjustments.some((a) => a.category === "benefit_limit")) {
@@ -436,7 +440,11 @@ export function adjudicateLine(
   const afterDeductible = amountForCostSharing - deductibleApplicable;
 
   if (deductibleApplicable > 0) {
-    adjustments.push({ reason_code: "DEDUCTIBLE", amount: deductibleApplicable, category: "deductible" });
+    adjustments.push({
+      reason_code: "DEDUCTIBLE",
+      amount: deductibleApplicable,
+      category: "deductible",
+    });
     ruleFirings.push(
       createRuleFiring(
         ruleFirings.length,
@@ -450,7 +458,9 @@ export function adjudicateLine(
   }
 
   const requestedCopay =
-    plan.copay_amount && plan.copay_applies_to?.includes(line.procedure_code) ? plan.copay_amount : 0;
+    plan.copay_amount && plan.copay_applies_to?.includes(line.procedure_code)
+      ? plan.copay_amount
+      : 0;
   const copay = Math.min(requestedCopay, afterDeductible);
 
   if (copay > 0) {
@@ -582,7 +592,12 @@ function buildSourceBadges(
   priorOutcomes: PriorPayerOutcome[],
 ): SourceBadge[] {
   const badges: SourceBadge[] = [
-    createSourceBadge("contract", "contract", contract.contract_id ? 1 : 0, contract.contract_id || undefined),
+    createSourceBadge(
+      "contract",
+      "contract",
+      contract.contract_id ? 1 : 0,
+      contract.contract_id || undefined,
+    ),
     createSourceBadge("plan", "plan", plan.plan_id ? 1 : 0, plan.plan_id || undefined),
   ];
 
@@ -643,7 +658,10 @@ export function adjudicateClaim(
   }
 
   const totalPlanPaid = lineResults.reduce((sum, result) => sum + result.plan_paid, 0);
-  const totalMemberResp = lineResults.reduce((sum, result) => sum + result.member_responsibility, 0);
+  const totalMemberResp = lineResults.reduce(
+    (sum, result) => sum + result.member_responsibility,
+    0,
+  );
 
   const sourceBadges = buildSourceBadges(contract, plan, lineResults, priorOutcomes);
 

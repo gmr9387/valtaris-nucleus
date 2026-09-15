@@ -83,7 +83,10 @@ export async function resolveContract(
  * src/engine/plan-benefits-to-terms.ts's findActivePlanIdForPayer()+
  * fetchPlanBenefitTerms() logic, merged into one round trip.
  */
-export async function resolvePlan(payerName: string, asOfDate: string): Promise<PlanBenefits | null> {
+export async function resolvePlan(
+  payerName: string,
+  asOfDate: string,
+): Promise<PlanBenefits | null> {
   const { data: plans, error } = await supabase
     .from("plan_benefits")
     .select("*")
@@ -127,7 +130,8 @@ export async function fetchMemberAccumulators(
     .eq("member_id", memberId)
     .eq("plan_year", planYear)
     .maybeSingle();
-  if (error) throw new Error(`Failed to fetch accumulators for member ${memberId}: ${error.message}`);
+  if (error)
+    throw new Error(`Failed to fetch accumulators for member ${memberId}: ${error.message}`);
   if (!data?.payload) return null;
   return data.payload as MemberAccumulators;
 }
@@ -135,7 +139,11 @@ export async function fetchMemberAccumulators(
 /** Mirrors accumulatorRepository.ts's saveMemberAccumulators(). */
 export async function saveMemberAccumulators(accumulators: MemberAccumulators): Promise<void> {
   const { error } = await supabase.from("member_accumulators").upsert(
-    { member_id: accumulators.member_id, plan_year: accumulators.plan_year, payload: accumulators },
+    {
+      member_id: accumulators.member_id,
+      plan_year: accumulators.plan_year,
+      payload: accumulators,
+    },
     { onConflict: "member_id,plan_year" },
   );
   if (error) {
