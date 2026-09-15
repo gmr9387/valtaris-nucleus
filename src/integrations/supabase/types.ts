@@ -1491,6 +1491,45 @@ export type Database = {
           },
         ];
       };
+      weaver_rules: {
+        Row: {
+          created_at: string;
+          enabled: boolean;
+          field_path: string;
+          name: string;
+          operator: string;
+          organization_id: string | null;
+          rule_id: string;
+          stage: string;
+          value: Json | null;
+          weight: number;
+        };
+        Insert: {
+          created_at?: string;
+          enabled?: boolean;
+          field_path: string;
+          name: string;
+          operator: string;
+          organization_id?: string | null;
+          rule_id?: string;
+          stage: string;
+          value?: Json | null;
+          weight: number;
+        };
+        Update: {
+          created_at?: string;
+          enabled?: boolean;
+          field_path?: string;
+          name?: string;
+          operator?: string;
+          organization_id?: string | null;
+          rule_id?: string;
+          stage?: string;
+          value?: Json | null;
+          weight?: number;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;

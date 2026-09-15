@@ -1,17 +1,67 @@
 // Regression coverage for weaverRuntime.ts's recommendation
-// confidence/action and glueRuntime.ts's execution gate. Both used to be
-// hardcoded ("approve"/0.7 in Weaver; no check at all in Glue beyond
-// authorization.decision), so the gate could never actually fail. Now
-// confidence reflects real claim-data completeness and Glue holds
-// execution when Weaver flags the input as too incomplete to act on.
+// confidence/action and glueRuntime.ts's execution gate. Confidence used
+// to be a hardcoded constant (0.7), then a fixed if-chain of weights
+// baked into this file; it's now a persisted, configurable rule set
+// (weaver_rules -- see supabase/migrations/20260915_weaver_rules.sql)
+// evaluated at runtime. These tests mock @/lib/weaver-rules so the
+// exact default rules the migration seeds (reproducing the prior
+// if-chain's weights) are exercised without a live Supabase call --
+// this is unit coverage of the evaluator wiring, not an integration
+// test of Supabase itself.
 
-import { describe, it, expect } from "vitest";
-import { WeaverRuntime } from "../subsystems/weaver/weaverRuntime";
-import { GlueRuntime } from "../subsystems/glue/glueRuntime";
+import { describe, it, expect, vi } from "vitest";
+import type { WeaverRule } from "../../types/weaver-rules";
+
+const DEFAULT_RECOMMENDATION_RULES: WeaverRule[] = [
+  {
+    rule_id: "r1",
+    organization_id: null,
+    stage: "recommendation",
+    name: "Has procedure code",
+    field_path: "claimPayload.procedure_code",
+    operator: "nonempty_string",
+    value: null,
+    weight: 0.3,
+    enabled: true,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    rule_id: "r2",
+    organization_id: null,
+    stage: "recommendation",
+    name: "Has diagnosis codes",
+    field_path: "claimPayload.diagnosis_codes",
+    operator: "nonempty_array",
+    value: null,
+    weight: 0.15,
+    enabled: true,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    rule_id: "r3",
+    organization_id: null,
+    stage: "recommendation",
+    name: "Positive claim amount",
+    field_path: "claimPayload.amount",
+    operator: "gt",
+    value: "0",
+    weight: 0.15,
+    enabled: true,
+    created_at: "2026-01-01T00:00:00.000Z",
+  },
+];
+
+vi.mock("@/lib/weaver-rules", () => ({
+  listWeaverRules: (stage: string) =>
+    Promise.resolve(stage === "recommendation" ? DEFAULT_RECOMMENDATION_RULES : []),
+}));
+
+const { WeaverRuntime } = await import("../subsystems/weaver/weaverRuntime");
+const { GlueRuntime } = await import("../subsystems/glue/glueRuntime");
 
 describe("WeaverRuntime.handleRecommendation — confidence from real data completeness", () => {
-  it("scores full claim data (procedure, diagnosis, positive amount) as high-confidence approve", () => {
-    const result = WeaverRuntime.handle("recommendation", {
+  it("scores full claim data (procedure, diagnosis, positive amount) as high-confidence approve", async () => {
+    const result = await WeaverRuntime.handle("recommendation", {
       claimId: "c1",
       organizationId: "org-1",
       claimPayload: { amount: 500, procedure_code: "99213", diagnosis_codes: ["Z00.00"] },
@@ -21,8 +71,8 @@ describe("WeaverRuntime.handleRecommendation — confidence from real data compl
     expect(result.action).toBe("approve");
   });
 
-  it("scores a bare amount-only claim right at the approve threshold", () => {
-    const result = WeaverRuntime.handle("recommendation", {
+  it("scores a bare amount-only claim right at the approve threshold", async () => {
+    const result = await WeaverRuntime.handle("recommendation", {
       claimId: "c2",
       organizationId: "org-1",
       claimPayload: { amount: 800 },
@@ -32,8 +82,8 @@ describe("WeaverRuntime.handleRecommendation — confidence from real data compl
     expect(result.action).toBe("approve");
   });
 
-  it("flags a claim with no usable data at all for review, not approve", () => {
-    const result = WeaverRuntime.handle("recommendation", {
+  it("flags a claim with no usable data at all for review, not approve", async () => {
+    const result = await WeaverRuntime.handle("recommendation", {
       claimId: "c3",
       organizationId: "org-1",
       claimPayload: {},
@@ -43,8 +93,8 @@ describe("WeaverRuntime.handleRecommendation — confidence from real data compl
     expect(result.action).toBe("review");
   });
 
-  it("does not count a non-numeric or zero amount as a positive amount", () => {
-    const result = WeaverRuntime.handle("recommendation", {
+  it("does not count a non-numeric or zero amount as a positive amount", async () => {
+    const result = await WeaverRuntime.handle("recommendation", {
       claimId: "c4",
       organizationId: "org-1",
       claimPayload: { amount: 0, procedure_code: "99213" },
