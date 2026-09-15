@@ -31,6 +31,14 @@ import {
 } from "@/lib/weaver-rules";
 import type { WeaverRule, WeaverRuleOperator, WeaverRuleStage } from "@/types/weaver-rules";
 import { fetchKillSwitch, setKillSwitch } from "@/lib/guardian-kill-switch";
+import {
+  listApiClients,
+  createApiClient,
+  rotateApiClientKey,
+  setApiClientEnabled,
+} from "@/lib/api-clients";
+import type { ApiClient } from "@/types/api-clients";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 export const Route = createFileRoute("/_app/contracts")({
   component: ContractsPage,
@@ -42,7 +50,7 @@ function ContractsPage() {
       <PageHeader
         eyebrow="ADJUDICATION DATA"
         title="Contracts & Plans"
-        description="Real payer contracts, fee schedules, plan benefits, member OHI, Weaver's decisioning rules, and Guardian's kill switch — the data and controls the adjudication engine runs on."
+        description="Real payer contracts, fee schedules, plan benefits, member OHI, Weaver's decisioning rules, Guardian's kill switch, and the API clients that authenticate external callers — the data and controls the adjudication engine runs on."
       />
 
       <PageBody>
@@ -53,6 +61,7 @@ function ContractsPage() {
             <TabsTrigger value="ohi">Member OHI</TabsTrigger>
             <TabsTrigger value="weaver">Weaver Rules</TabsTrigger>
             <TabsTrigger value="guardian">Guardian Kill Switch</TabsTrigger>
+            <TabsTrigger value="api-clients">API Clients</TabsTrigger>
           </TabsList>
 
           <TabsContent value="contracts">
@@ -73,6 +82,10 @@ function ContractsPage() {
 
           <TabsContent value="guardian">
             <GuardianKillSwitchTab />
+          </TabsContent>
+
+          <TabsContent value="api-clients">
+            <ApiClientsTab />
           </TabsContent>
         </Tabs>
 
@@ -1575,6 +1588,278 @@ function GuardianKillSwitchTab() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ============================================================
+// API Clients
+// ============================================================
+
+const apiClientSchema = z.object({
+  client_id: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(
+      /^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$/,
+      "3-64 lowercase letters/digits/hyphens, not starting or ending with a hyphen",
+    ),
+  label: z.string().trim().min(1).max(120),
+});
+
+function ApiClientsTab() {
+  const { currentOrgId } = useOrgStore();
+  const { user } = useAuth();
+  const membership = useMyOrgMembership(currentOrgId);
+  // Gated the same as the kill switch, not the more permissive
+  // owner/admin/manager bar the other tabs use: api_clients isn't
+  // scoped to this org at all -- its keys gate every external caller
+  // of nucleus's entire external API surface.
+  const canOperate = canManageOrg(membership.data?.role);
+  const qc = useQueryClient();
+
+  const clients = useQuery({
+    queryKey: ["api-clients"],
+    queryFn: listApiClients,
+    staleTime: 15_000,
+  });
+
+  const [open, setOpen] = useState(false);
+  const [clientId, setClientId] = useState("");
+  const [label, setLabel] = useState("");
+  const [revealed, setRevealed] = useState<{ clientId: string; rawKey: string } | null>(null);
+
+  const create = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("You must be signed in.");
+      if (!canOperate) throw new Error("You do not have permission to create API clients.");
+
+      const parsed = apiClientSchema.parse({ client_id: clientId, label });
+      const correlationId = createCorrelationId();
+
+      const { client, rawKey } = await createApiClient(parsed);
+
+      await logAudit({
+        organization_id: currentOrgId,
+        module: "claims",
+        entity_type: "api_client",
+        entity_id: client.client_id,
+        action: "create",
+        after: { client_id: client.client_id, label: client.label },
+        correlation_id: correlationId,
+      });
+
+      return { client, rawKey };
+    },
+    onSuccess: ({ client, rawKey }) => {
+      toast.success(`API client "${client.client_id}" created`);
+      setRevealed({ clientId: client.client_id, rawKey });
+      setClientId("");
+      setLabel("");
+      setOpen(false);
+      qc.invalidateQueries({ queryKey: ["api-clients"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const rotate = useMutation({
+    mutationFn: async (client: ApiClient) => {
+      if (!canOperate) throw new Error("You do not have permission to rotate keys.");
+      const rawKey = await rotateApiClientKey(client.client_id);
+      await logAudit({
+        organization_id: currentOrgId,
+        module: "claims",
+        entity_type: "api_client",
+        entity_id: client.client_id,
+        action: "update",
+        after: { rotated: true },
+      });
+      return { clientId: client.client_id, rawKey };
+    },
+    onSuccess: ({ clientId, rawKey }) => {
+      toast.success(`Key rotated for "${clientId}" — the old key stopped working immediately`);
+      setRevealed({ clientId, rawKey });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const toggleEnabled = useMutation({
+    mutationFn: async (client: ApiClient) => {
+      if (!canOperate) throw new Error("You do not have permission to change API clients.");
+      await setApiClientEnabled(client.client_id, !client.enabled);
+      await logAudit({
+        organization_id: currentOrgId,
+        module: "claims",
+        entity_type: "api_client",
+        entity_id: client.client_id,
+        action: "update",
+        after: { enabled: !client.enabled },
+      });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["api-clients"] }),
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  return (
+    <div className="space-y-6">
+      <p className="text-sm text-muted-foreground">
+        Credentials for external services calling nucleus's own APIs (adjudicate-claim,
+        weaver-score, guardian-status) via the <code>x-api-key</code> header. One key per caller —
+        DualPay Core Ledger, valtaris-glue, and any future arm each get their own, so any one can be
+        revoked without affecting the others.
+      </p>
+
+      {revealed && (
+        <Alert>
+          <AlertTitle>Copy this key now — it won't be shown again</AlertTitle>
+          <AlertDescription>
+            <p className="mb-2">
+              New key for <span className="font-mono font-medium">{revealed.clientId}</span>. Only
+              its SHA-256 hash is stored — this is the only time the raw value is ever displayed.
+            </p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 select-all break-all rounded bg-surface-2 px-2 py-1.5 text-xs">
+                {revealed.rawKey}
+              </code>
+              <button
+                onClick={() => {
+                  navigator.clipboard?.writeText(revealed.rawKey);
+                  toast.success("Copied");
+                }}
+                className="h-8 shrink-0 rounded-md border border-border bg-surface-1 px-2.5 text-xs hover:bg-surface-3"
+              >
+                Copy
+              </button>
+              <button
+                onClick={() => setRevealed(null)}
+                className="h-8 shrink-0 rounded-md border border-border bg-surface-1 px-2.5 text-xs hover:bg-surface-3"
+              >
+                Dismiss
+              </button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <div className="flex items-center justify-between">
+        <span />
+        <button
+          onClick={() => setOpen((v) => !v)}
+          disabled={!canOperate}
+          className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          title={!canOperate ? "Owner or admin role required" : undefined}
+        >
+          <Plus className="h-3.5 w-3.5" />
+          New client
+        </button>
+      </div>
+
+      {open && (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            create.mutate();
+          }}
+          className="rounded-lg border border-border bg-surface-1 p-4"
+        >
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <Field label="Client ID">
+              <input
+                className="input font-mono"
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+                required
+                placeholder="valtaris-glue"
+              />
+            </Field>
+
+            <Field label="Label">
+              <input
+                className="input"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                required
+                placeholder="Valtaris Glue Operator Console"
+              />
+            </Field>
+          </div>
+
+          <div className="mt-3 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="h-9 rounded-md border border-border bg-surface-2 px-3 text-sm hover:bg-surface-3"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              disabled={create.isPending || !canOperate}
+              className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              {create.isPending ? "Creating…" : "Create"}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {clients.data?.length ? (
+        <div className="overflow-hidden rounded-lg border border-border">
+          <table className="w-full text-sm">
+            <thead className="bg-surface-1 text-mono-xs text-muted-foreground">
+              <tr>
+                <Th>Client ID</Th>
+                <Th>Label</Th>
+                <Th>Created</Th>
+                <Th>Enabled</Th>
+                <Th> </Th>
+              </tr>
+            </thead>
+
+            <tbody className="divide-y divide-border bg-surface-1/40">
+              {clients.data.map((client) => (
+                <tr key={client.client_id} className="hover:bg-surface-2/60">
+                  <Td>
+                    <span className="font-mono text-xs font-medium">{client.client_id}</span>
+                  </Td>
+                  <Td>{client.label}</Td>
+                  <Td>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(client.created_at).toLocaleDateString()}
+                    </span>
+                  </Td>
+                  <Td>
+                    <button
+                      onClick={() => toggleEnabled.mutate(client)}
+                      disabled={!canOperate || toggleEnabled.isPending}
+                      className="text-xs disabled:opacity-50"
+                    >
+                      {client.enabled ? "✓ enabled" : "disabled"}
+                    </button>
+                  </Td>
+                  <Td>
+                    <button
+                      onClick={() => rotate.mutate(client)}
+                      disabled={!canOperate || rotate.isPending}
+                      className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+                      title="Generate a new key — the old one stops working immediately"
+                    >
+                      Rotate key
+                    </button>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <EmptyState
+          title="No API clients yet"
+          description={canOperate ? "Create one above." : "No API clients are available yet."}
+        />
+      )}
     </div>
   );
 }
