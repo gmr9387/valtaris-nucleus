@@ -18,6 +18,9 @@
 import { registerContract, ContractDefinition, ContractValidationResult } from "./contractRegistry";
 import type { Dynamic } from "../types/dynamic";
 
+const RISK_TIERS = ["low", "medium", "high", "critical"] as const;
+export type GuardianRiskTier = (typeof RISK_TIERS)[number];
+
 export interface AuthorizationV1 {
   claimId: string;
   organizationId: string;
@@ -35,6 +38,10 @@ export interface AuthorizationV1 {
     deductible_applied: number;
     coinsurance: number;
   };
+  // Additive risk classification (borrowed from rre-os-guardian's
+  // risk-tier pattern) -- visibility only for now, does not change what
+  // "decision" means or how Glue/DualPay gate on it.
+  risk_tier?: GuardianRiskTier;
 }
 
 function invariant(payload: AuthorizationV1): boolean {
@@ -44,6 +51,7 @@ function invariant(payload: AuthorizationV1): boolean {
   if (payload.decision !== "allow" && payload.decision !== "deny") return false;
   if (!payload.reason || typeof payload.reason !== "string") return false;
   if (typeof payload.timestamp !== "number") return false;
+  if (payload.risk_tier !== undefined && !RISK_TIERS.includes(payload.risk_tier)) return false;
   return true;
 }
 

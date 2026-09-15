@@ -6,9 +6,9 @@ import { toast } from "sonner";
 import { Plus } from "lucide-react";
 
 import { useAuth } from "@/lib/auth-context";
-import { canManageProjects, useMyOrgMembership } from "@/lib/queries";
+import { canManageOrg, canManageProjects, useMyOrgMembership } from "@/lib/queries";
 import { useOrgStore } from "@/lib/org-store";
-import { PageHeader, PageBody, EmptyState } from "@/components/platform-ui";
+import { PageHeader, PageBody, EmptyState, StatusPill } from "@/components/platform-ui";
 import { Field, Th, Td, FieldStyles } from "./_app.organizations";
 import { createCorrelationId, logAudit } from "@/lib/audit";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,6 +23,14 @@ import type { PayerContract } from "@/types/contracts";
 import { listPlanBenefits, createPlanBenefit } from "@/lib/plan-benefits";
 import type { PlanBenefitRow } from "@/types/plan-benefits";
 import { listAllMemberOhi, upsertMemberOhi, deleteMemberOhi } from "@/lib/ohi";
+import {
+  listAllWeaverRules,
+  createWeaverRule,
+  setWeaverRuleEnabled,
+  deleteWeaverRule,
+} from "@/lib/weaver-rules";
+import type { WeaverRule, WeaverRuleOperator, WeaverRuleStage } from "@/types/weaver-rules";
+import { fetchKillSwitch, setKillSwitch } from "@/lib/guardian-kill-switch";
 
 export const Route = createFileRoute("/_app/contracts")({
   component: ContractsPage,
@@ -34,7 +42,7 @@ function ContractsPage() {
       <PageHeader
         eyebrow="ADJUDICATION DATA"
         title="Contracts & Plans"
-        description="Real payer contracts, fee schedules, plan benefits, and member OHI — the data the adjudication engine adjudicates against."
+        description="Real payer contracts, fee schedules, plan benefits, member OHI, Weaver's decisioning rules, and Guardian's kill switch — the data and controls the adjudication engine runs on."
       />
 
       <PageBody>
@@ -43,6 +51,8 @@ function ContractsPage() {
             <TabsTrigger value="contracts">Payer Contracts</TabsTrigger>
             <TabsTrigger value="plans">Plan Benefits</TabsTrigger>
             <TabsTrigger value="ohi">Member OHI</TabsTrigger>
+            <TabsTrigger value="weaver">Weaver Rules</TabsTrigger>
+            <TabsTrigger value="guardian">Guardian Kill Switch</TabsTrigger>
           </TabsList>
 
           <TabsContent value="contracts">
@@ -55,6 +65,14 @@ function ContractsPage() {
 
           <TabsContent value="ohi">
             <MemberOhiTab />
+          </TabsContent>
+
+          <TabsContent value="weaver">
+            <WeaverRulesTab />
+          </TabsContent>
+
+          <TabsContent value="guardian">
+            <GuardianKillSwitchTab />
           </TabsContent>
         </Tabs>
 
@@ -1104,6 +1122,459 @@ function MemberOhiTab() {
           description={canCreate ? "Record one above." : "No OHI records are available yet."}
         />
       )}
+    </div>
+  );
+}
+
+// ============================================================
+// Weaver Rules
+// ============================================================
+
+const WEAVER_OPERATORS: WeaverRuleOperator[] = [
+  "exists",
+  "not_exists",
+  "eq",
+  "ne",
+  "gt",
+  "gte",
+  "lt",
+  "lte",
+  "nonempty_string",
+  "nonempty_array",
+  "contains",
+  "in",
+];
+
+const weaverRuleSchema = z.object({
+  stage: z.enum(["opportunity", "recommendation"]),
+  name: z.string().trim().min(1).max(120),
+  field_path: z.string().trim().min(1).max(200),
+  operator: z.enum(WEAVER_OPERATORS as [WeaverRuleOperator, ...WeaverRuleOperator[]]),
+  value: z.string().optional(),
+  weight: z.coerce.number(),
+});
+
+function parseWeaverRuleValue(raw: string | undefined): unknown {
+  if (!raw || raw.trim() === "") return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return raw;
+  }
+}
+
+function WeaverRulesTab() {
+  const { currentOrgId } = useOrgStore();
+  const { user } = useAuth();
+  const membership = useMyOrgMembership(currentOrgId);
+  const canCreate = canManageProjects(membership.data?.role);
+  const qc = useQueryClient();
+
+  const rules = useQuery({
+    queryKey: ["weaver-rules"],
+    queryFn: listAllWeaverRules,
+    staleTime: 15_000,
+  });
+
+  const [open, setOpen] = useState(false);
+  const [stage, setStage] = useState<WeaverRuleStage>("recommendation");
+  const [name, setName] = useState("");
+  const [fieldPath, setFieldPath] = useState("");
+  const [operator, setOperator] = useState<WeaverRuleOperator>("nonempty_string");
+  const [value, setValue] = useState("");
+  const [weight, setWeight] = useState("0.1");
+
+  const create = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("You must be signed in.");
+      if (!canCreate) throw new Error("You do not have permission to create rules.");
+
+      const parsed = weaverRuleSchema.parse({
+        stage,
+        name,
+        field_path: fieldPath,
+        operator,
+        value,
+        weight,
+      });
+
+      const correlationId = createCorrelationId();
+
+      const data = await createWeaverRule({
+        organization_id: currentOrgId,
+        stage: parsed.stage,
+        name: parsed.name,
+        field_path: parsed.field_path,
+        operator: parsed.operator,
+        value: parseWeaverRuleValue(parsed.value),
+        weight: parsed.weight,
+      });
+
+      await logAudit({
+        organization_id: currentOrgId,
+        module: "claims",
+        entity_type: "weaver_rule",
+        entity_id: data.rule_id,
+        action: "create",
+        after: data,
+        correlation_id: correlationId,
+      });
+
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Rule created");
+      setName("");
+      setFieldPath("");
+      setValue("");
+      setWeight("0.1");
+      setOpen(false);
+      qc.invalidateQueries({ queryKey: ["weaver-rules"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const toggleEnabled = useMutation({
+    mutationFn: async (rule: WeaverRule) => {
+      if (!canCreate) throw new Error("You do not have permission to edit rules.");
+      await setWeaverRuleEnabled(rule.rule_id, !rule.enabled);
+      await logAudit({
+        organization_id: currentOrgId,
+        module: "claims",
+        entity_type: "weaver_rule",
+        entity_id: rule.rule_id,
+        action: "update",
+        after: { enabled: !rule.enabled },
+      });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["weaver-rules"] }),
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const remove = useMutation({
+    mutationFn: async (rule: WeaverRule) => {
+      if (!canCreate) throw new Error("You do not have permission to delete rules.");
+      await deleteWeaverRule(rule.rule_id);
+      await logAudit({
+        organization_id: currentOrgId,
+        module: "claims",
+        entity_type: "weaver_rule",
+        entity_id: rule.rule_id,
+        action: "delete",
+      });
+    },
+    onSuccess: () => {
+      toast.success("Rule removed");
+      qc.invalidateQueries({ queryKey: ["weaver-rules"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          Configurable scoring factors for the opportunity and recommendation stages, added on top
+          of the intrinsic amount-based score and 0.4 baseline confidence.
+        </p>
+
+        <button
+          onClick={() => setOpen((v) => !v)}
+          disabled={!canCreate}
+          className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          title={!canCreate ? "Owner, admin, or manager role required" : undefined}
+        >
+          <Plus className="h-3.5 w-3.5" />
+          New rule
+        </button>
+      </div>
+
+      {open && (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            create.mutate();
+          }}
+          className="rounded-lg border border-border bg-surface-1 p-4"
+        >
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <Field label="Stage">
+              <select
+                className="input"
+                value={stage}
+                onChange={(e) => setStage(e.target.value as WeaverRuleStage)}
+              >
+                <option value="opportunity">opportunity</option>
+                <option value="recommendation">recommendation</option>
+              </select>
+            </Field>
+
+            <Field label="Name">
+              <input
+                className="input"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                placeholder="High-cost procedure bonus"
+              />
+            </Field>
+
+            <Field label="Field path">
+              <input
+                className="input"
+                value={fieldPath}
+                onChange={(e) => setFieldPath(e.target.value)}
+                required
+                placeholder="claimPayload.amount"
+              />
+            </Field>
+
+            <Field label="Operator">
+              <select
+                className="input"
+                value={operator}
+                onChange={(e) => setOperator(e.target.value as WeaverRuleOperator)}
+              >
+                {WEAVER_OPERATORS.map((op) => (
+                  <option key={op} value={op}>
+                    {op}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Value (JSON, optional)">
+              <input
+                className="input"
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                placeholder='0, "text", ["a","b"]'
+              />
+            </Field>
+
+            <Field label="Weight">
+              <input
+                type="number"
+                step="0.01"
+                className="input"
+                value={weight}
+                onChange={(e) => setWeight(e.target.value)}
+                required
+              />
+            </Field>
+          </div>
+
+          <div className="mt-3 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="h-9 rounded-md border border-border bg-surface-2 px-3 text-sm hover:bg-surface-3"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              disabled={create.isPending || !canCreate}
+              className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              {create.isPending ? "Creating…" : "Create"}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {rules.data?.length ? (
+        <div className="overflow-hidden rounded-lg border border-border">
+          <table className="w-full text-sm">
+            <thead className="bg-surface-1 text-mono-xs text-muted-foreground">
+              <tr>
+                <Th>Stage</Th>
+                <Th>Name</Th>
+                <Th>Field path</Th>
+                <Th>Operator</Th>
+                <Th>Value</Th>
+                <Th>Weight</Th>
+                <Th>Enabled</Th>
+                <Th> </Th>
+              </tr>
+            </thead>
+
+            <tbody className="divide-y divide-border bg-surface-1/40">
+              {rules.data.map((rule: WeaverRule) => (
+                <tr key={rule.rule_id} className="hover:bg-surface-2/60">
+                  <Td>
+                    <span className="text-xs text-muted-foreground">{rule.stage}</span>
+                  </Td>
+                  <Td>
+                    <span className="font-medium">{rule.name}</span>
+                  </Td>
+                  <Td>
+                    <span className="font-mono text-xs">{rule.field_path}</span>
+                  </Td>
+                  <Td>
+                    <span className="font-mono text-xs">{rule.operator}</span>
+                  </Td>
+                  <Td>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {rule.value === null || rule.value === undefined
+                        ? "—"
+                        : JSON.stringify(rule.value)}
+                    </span>
+                  </Td>
+                  <Td>{rule.weight}</Td>
+                  <Td>
+                    <button
+                      onClick={() => toggleEnabled.mutate(rule)}
+                      disabled={!canCreate || toggleEnabled.isPending}
+                      className="text-xs disabled:opacity-50"
+                    >
+                      {rule.enabled ? "✓ enabled" : "disabled"}
+                    </button>
+                  </Td>
+                  <Td>
+                    <button
+                      onClick={() => remove.mutate(rule)}
+                      disabled={!canCreate || remove.isPending}
+                      className="text-xs text-muted-foreground hover:text-destructive disabled:opacity-50"
+                    >
+                      Remove
+                    </button>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <EmptyState
+          title="No Weaver rules yet"
+          description={canCreate ? "Create one above." : "No rules are available yet."}
+        />
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// Guardian Kill Switch
+// ============================================================
+
+function GuardianKillSwitchTab() {
+  const { currentOrgId } = useOrgStore();
+  const { user } = useAuth();
+  const membership = useMyOrgMembership(currentOrgId);
+  // A kill switch halts all claims processing -- a stricter gate than
+  // the other tabs (owner/admin only, not manager).
+  const canOperate = canManageOrg(membership.data?.role);
+  const qc = useQueryClient();
+
+  const killSwitch = useQuery({
+    queryKey: ["guardian-kill-switch"],
+    queryFn: fetchKillSwitch,
+    staleTime: 5_000,
+  });
+
+  const [reason, setReason] = useState("");
+
+  const toggle = useMutation({
+    mutationFn: async (nextActive: boolean) => {
+      if (!user) throw new Error("You must be signed in.");
+      if (!canOperate) throw new Error("You do not have permission to change the kill switch.");
+      if (nextActive && !reason.trim()) {
+        throw new Error("A reason is required to activate the kill switch.");
+      }
+
+      const correlationId = createCorrelationId();
+
+      const data = await setKillSwitch(
+        nextActive,
+        nextActive ? reason.trim() : null,
+        user.email ?? user.id,
+      );
+
+      await logAudit({
+        organization_id: currentOrgId,
+        module: "claims",
+        entity_type: "guardian_kill_switch",
+        entity_id: "global",
+        action: "update",
+        after: data,
+        correlation_id: correlationId,
+      });
+
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success(
+        data.active
+          ? "Kill switch ACTIVATED — claims processing is halted"
+          : "Kill switch deactivated",
+      );
+      setReason("");
+      qc.invalidateQueries({ queryKey: ["guardian-kill-switch"] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const isActive = killSwitch.data?.active ?? false;
+
+  return (
+    <div className="space-y-6">
+      <p className="text-sm text-muted-foreground">
+        A global circuit breaker: when active, Guardian denies every claim before any adjudication
+        work runs. Checked first on every authorization, and fails closed (denies) if its state
+        can't be verified.
+      </p>
+
+      <div className="rounded-lg border border-border bg-surface-1 p-4">
+        <StatusPill status={isActive ? "failed" : "active"}>
+          {isActive ? "ACTIVE — CLAIMS HALTED" : "OFF"}
+        </StatusPill>
+
+        {killSwitch.data?.reason && (
+          <p className="mt-2 text-sm text-muted-foreground">Reason: {killSwitch.data.reason}</p>
+        )}
+
+        {isActive && killSwitch.data?.activated_by && (
+          <p className="text-xs text-muted-foreground">
+            Activated by {killSwitch.data.activated_by}
+          </p>
+        )}
+
+        {!isActive ? (
+          <div className="mt-4 flex flex-wrap items-end gap-2">
+            <Field label="Reason for activating">
+              <input
+                className="input w-80"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="e.g. suspected bad contract data feeding adjudication"
+              />
+            </Field>
+
+            <button
+              onClick={() => toggle.mutate(true)}
+              disabled={!canOperate || toggle.isPending}
+              className="h-9 rounded-md bg-destructive px-3 text-sm font-medium text-destructive-foreground hover:opacity-90 disabled:opacity-50"
+              title={!canOperate ? "Owner or admin role required" : undefined}
+            >
+              {toggle.isPending ? "Activating…" : "Activate kill switch"}
+            </button>
+          </div>
+        ) : (
+          <div className="mt-4">
+            <button
+              onClick={() => toggle.mutate(false)}
+              disabled={!canOperate || toggle.isPending}
+              className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              title={!canOperate ? "Owner or admin role required" : undefined}
+            >
+              {toggle.isPending ? "Deactivating…" : "Deactivate kill switch"}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

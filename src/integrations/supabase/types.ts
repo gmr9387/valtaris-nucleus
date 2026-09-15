@@ -1491,6 +1491,30 @@ export type Database = {
           },
         ];
       };
+      guardian_kill_switch: {
+        Row: {
+          active: boolean;
+          activated_by: string | null;
+          id: string;
+          reason: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          activated_by?: string | null;
+          id?: string;
+          reason?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          activated_by?: string | null;
+          id?: string;
+          reason?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       weaver_rules: {
         Row: {
           created_at: string;
