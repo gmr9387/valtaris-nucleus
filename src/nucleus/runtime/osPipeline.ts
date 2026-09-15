@@ -1,12 +1,41 @@
 // src/nucleus/runtime/osPipeline.ts
 
-import { WeaverRuntime } from "../subsystems/weaver/weaverRuntime";
-import { GuardianRuntime } from "../subsystems/guardian/guardianRuntime";
-import { GlueRuntime } from "../subsystems/glue/glueRuntime";
-import { DualPayRuntime } from "../subsystems/dualpay/dualPayRuntime";
-
+import { getSubsystem, type SubsystemId } from "../subsystems/subsystemRegistry";
+import { registerAllSubsystems } from "../subsystems/registerSubsystems";
 import { TelemetryAdapter } from "../subsystems/telemetry/telemetryAdapter";
 import type { Dynamic } from "../types/dynamic";
+
+/**
+ * FIXED: this previously imported WeaverRuntime/GuardianRuntime/
+ * GlueRuntime/DualPayRuntime directly and called them by static
+ * reference, completely bypassing subsystemRegistry.ts -- the registry
+ * that registerAllSubsystems() populates on every real boot
+ * (DeploymentBootstrap -> nucleusBoot()) had no reader anywhere in the
+ * codebase (confirmed by grepping every call site of getSubsystem()).
+ * That made each registration's `enabled` flag a no-op: disabling a
+ * subsystem in the registry changed nothing about what actually ran.
+ *
+ * Dispatching through the registry here makes it load-bearing: a
+ * disabled subsystem now genuinely stops claim processing, and adding a
+ * new subsystem only requires registering it, not editing this file.
+ *
+ * registerAllSubsystems() is called here (idempotent -- it just
+ * re-populates a Map) so the registry is guaranteed populated wherever
+ * OSPipeline runs, including tests and CI that construct it directly
+ * without going through DeploymentBootstrap first.
+ */
+registerAllSubsystems();
+
+function dispatch(id: SubsystemId, contractName: string, payload: Dynamic): Dynamic {
+  const subsystem = getSubsystem(id);
+  if (!subsystem) {
+    throw new Error(`OSPipeline: subsystem "${id}" is not registered.`);
+  }
+  if (!subsystem.enabled) {
+    throw new Error(`OSPipeline: subsystem "${id}" is disabled.`);
+  }
+  return subsystem.runtime.handle(contractName, payload);
+}
 
 export class OSPipeline {
   /**
@@ -24,18 +53,18 @@ export class OSPipeline {
     const base = { claimId, organizationId, claimPayload };
 
     // Weaver — Opportunity
-    const opportunity = await WeaverRuntime.handle("opportunity", base);
+    const opportunity = await dispatch("weaver", "opportunity", base);
     TelemetryAdapter.send("weaver.opportunity", opportunity);
 
     // Weaver — Recommendation
-    const recommendation = await WeaverRuntime.handle("recommendation", {
+    const recommendation = await dispatch("weaver", "recommendation", {
       ...base,
       opportunity,
     });
     TelemetryAdapter.send("weaver.recommendation", recommendation);
 
     // Guardian — Authorization
-    const authorization = await GuardianRuntime.handle("authorization", {
+    const authorization = await dispatch("guardian", "authorization", {
       ...base,
       opportunity,
       recommendation,
@@ -43,7 +72,7 @@ export class OSPipeline {
     TelemetryAdapter.send("guardian.authorization", authorization);
 
     // Glue — Execution
-    const execution = await GlueRuntime.handle("execution", {
+    const execution = await dispatch("glue", "execution", {
       ...base,
       authorization,
       opportunity,
@@ -52,7 +81,7 @@ export class OSPipeline {
     TelemetryAdapter.send("glue.execution", execution);
 
     // DualPay — Payment
-    const payment = await DualPayRuntime.handle("payment", {
+    const payment = await dispatch("dualpay", "payment", {
       ...base,
       execution,
       authorization,

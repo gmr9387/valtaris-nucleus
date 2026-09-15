@@ -1,6 +1,18 @@
 // Phase 46 — CLI Commands
 
-import { startNucleus } from "../startup/startNucleus";
+// FIXED: this imported the lightweight startup/startNucleus.ts, which
+// only booted sovereigntyRuntime + generateActivationProof() -- no
+// subsystem registration, no API server. That's a different, weaker
+// boot than what actually runs in production (bun nucleus-server.ts ->
+// this same-named top-level startNucleus(), which runs the real
+// DeploymentBootstrap -> nucleusBoot() + APIServer.start() sequence).
+// Anyone running the CLI's "start" command got a system that silently
+// couldn't process claims. Now points at the real one, matching
+// nucleus-server.ts's own ORGANIZATION_ID convention. The old
+// startup/startNucleus.ts + NucleusServer.ts had no other callers
+// anywhere in the codebase once this changed, so that folder is deleted
+// rather than left as dead code.
+import { startNucleus } from "../startNucleus";
 import { runPipeline } from "../pipeline/runPipeline";
 import { loadAdapters } from "../adapters/loadAdapters";
 import { runCI } from "../ci/runCI";
@@ -15,7 +27,7 @@ import { deployNucleus } from "../deployment/deployNucleus";
 import { certifyNucleus } from "../certification/certifyNucleus";
 
 export const cliCommands = {
-  start: async () => startNucleus(),
+  start: async () => startNucleus(process.env.ORGANIZATION_ID || "dev-org"),
   pipeline: async () => runPipeline(),
   adapters: async () => loadAdapters(),
   ci: async () => runCI(),
