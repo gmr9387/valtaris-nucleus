@@ -158,6 +158,7 @@ function pageTitleFromPath(pathname: string): string {
     connectors: "Connectors",
     workflows: "Workflows",
     claims: "Claims Workbench",
+    contracts: "Contracts & Plans",
     core: "Core",
     evidence: "Evidence",
     decisions: "Decisions",

@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppAuditRouteImport } from './routes/_app.audit'
 import { Route as AppClaimsRouteImport } from './routes/_app.claims'
 import { Route as AppConnectorsRouteImport } from './routes/_app.connectors'
+import { Route as AppContractsRouteImport } from './routes/_app.contracts'
 import { Route as AppCoreRouteImport } from './routes/_app.core'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppDecisionsRouteImport } from './routes/_app.decisions'
@@ -58,6 +59,11 @@ const AppClaimsRoute = AppClaimsRouteImport.update({
 const AppConnectorsRoute = AppConnectorsRouteImport.update({
   id: '/connectors',
   path: '/connectors',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppContractsRoute = AppContractsRouteImport.update({
+  id: '/contracts',
+  path: '/contracts',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCoreRoute = AppCoreRouteImport.update({
@@ -143,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/audit': typeof AppAuditRoute
   '/claims': typeof AppClaimsRoute
   '/connectors': typeof AppConnectorsRoute
+  '/contracts': typeof AppContractsRoute
   '/core': typeof AppCoreRoute
   '/dashboard': typeof AppDashboardRoute
   '/decisions': typeof AppDecisionsRoute
@@ -165,6 +172,7 @@ export interface FileRoutesByTo {
   '/audit': typeof AppAuditRoute
   '/claims': typeof AppClaimsRoute
   '/connectors': typeof AppConnectorsRoute
+  '/contracts': typeof AppContractsRoute
   '/core': typeof AppCoreRoute
   '/dashboard': typeof AppDashboardRoute
   '/decisions': typeof AppDecisionsRoute
@@ -189,6 +197,7 @@ export interface FileRoutesById {
   '/_app/audit': typeof AppAuditRoute
   '/_app/claims': typeof AppClaimsRoute
   '/_app/connectors': typeof AppConnectorsRoute
+  '/_app/contracts': typeof AppContractsRoute
   '/_app/core': typeof AppCoreRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/decisions': typeof AppDecisionsRoute
@@ -213,6 +222,7 @@ export interface FileRouteTypes {
     | '/audit'
     | '/claims'
     | '/connectors'
+    | '/contracts'
     | '/core'
     | '/dashboard'
     | '/decisions'
@@ -235,6 +245,7 @@ export interface FileRouteTypes {
     | '/audit'
     | '/claims'
     | '/connectors'
+    | '/contracts'
     | '/core'
     | '/dashboard'
     | '/decisions'
@@ -258,6 +269,7 @@ export interface FileRouteTypes {
     | '/_app/audit'
     | '/_app/claims'
     | '/_app/connectors'
+    | '/_app/contracts'
     | '/_app/core'
     | '/_app/dashboard'
     | '/_app/decisions'
@@ -323,6 +335,13 @@ declare module '@tanstack/react-router' {
       path: '/connectors'
       fullPath: '/connectors'
       preLoaderRoute: typeof AppConnectorsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/contracts': {
+      id: '/_app/contracts'
+      path: '/contracts'
+      fullPath: '/contracts'
+      preLoaderRoute: typeof AppContractsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/core': {
@@ -465,6 +484,7 @@ interface AppRouteChildren {
   AppAuditRoute: typeof AppAuditRoute
   AppClaimsRoute: typeof AppClaimsRoute
   AppConnectorsRoute: typeof AppConnectorsRoute
+  AppContractsRoute: typeof AppContractsRoute
   AppCoreRoute: typeof AppCoreRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppDecisionsRoute: typeof AppDecisionsRoute
@@ -483,6 +503,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAuditRoute: AppAuditRoute,
   AppClaimsRoute: AppClaimsRoute,
   AppConnectorsRoute: AppConnectorsRoute,
+  AppContractsRoute: AppContractsRoute,
   AppCoreRoute: AppCoreRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppDecisionsRoute: AppDecisionsRoute,

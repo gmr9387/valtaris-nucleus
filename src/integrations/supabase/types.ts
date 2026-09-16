@@ -1491,6 +1491,69 @@ export type Database = {
           },
         ];
       };
+      guardian_kill_switch: {
+        Row: {
+          active: boolean;
+          activated_by: string | null;
+          id: string;
+          reason: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          activated_by?: string | null;
+          id?: string;
+          reason?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          activated_by?: string | null;
+          id?: string;
+          reason?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      weaver_rules: {
+        Row: {
+          created_at: string;
+          enabled: boolean;
+          field_path: string;
+          name: string;
+          operator: string;
+          organization_id: string | null;
+          rule_id: string;
+          stage: string;
+          value: Json | null;
+          weight: number;
+        };
+        Insert: {
+          created_at?: string;
+          enabled?: boolean;
+          field_path: string;
+          name: string;
+          operator: string;
+          organization_id?: string | null;
+          rule_id?: string;
+          stage: string;
+          value?: Json | null;
+          weight: number;
+        };
+        Update: {
+          created_at?: string;
+          enabled?: boolean;
+          field_path?: string;
+          name?: string;
+          operator?: string;
+          organization_id?: string | null;
+          rule_id?: string;
+          stage?: string;
+          value?: Json | null;
+          weight?: number;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;

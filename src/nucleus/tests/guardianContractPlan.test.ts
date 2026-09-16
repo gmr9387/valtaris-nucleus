@@ -28,6 +28,13 @@ vi.mock("@/engine/plan-benefits-to-terms", () => ({
   fetchPlanBenefitTerms: () => fetchPlanBenefitTerms(),
 }));
 
+// Guardian checks the kill switch before any of the above -- keep it
+// off so these tests exercise resolveContractAndPlan() as before.
+vi.mock("@/lib/guardian-kill-switch", () => ({
+  fetchKillSwitch: () =>
+    Promise.resolve({ active: false, reason: null, activated_by: null, updated_at: "" }),
+}));
+
 const { GuardianRuntime } = await import("../subsystems/guardian/guardianRuntime");
 
 function accumulators(): MemberAccumulators {

@@ -8,8 +8,34 @@ import {
 } from "./adjudication/accumulatorRepository";
 import { findActiveContractIdForPayer, fetchContractTerms } from "@/engine/contract-to-terms";
 import { findActivePlanIdForPayer, fetchPlanBenefitTerms } from "@/engine/plan-benefits-to-terms";
+import { fetchKillSwitch } from "@/lib/guardian-kill-switch";
+import type { GuardianRiskTier } from "@/nucleus/contracts/authorizationContract";
 import type { ClaimLine, ContractTerms, MemberAccumulators, PlanBenefits } from "@/types/claim";
 import type { Dynamic } from "../../types/dynamic";
+
+/**
+ * Borrowed from rre-os-guardian's risk-tier -> decision pattern, scoped
+ * down to additive metadata rather than a new decision vocabulary:
+ * changing what "decision" itself means would ripple into Glue's
+ * execution gate, DualPayEngine's financial gate, and the
+ * AuthorizationV1 contract's invariant all at once, which deserves its
+ * own deliberate pass, not a drive-by. This gives real, grounded
+ * visibility today -- derived entirely from provenance flags Guardian
+ * already computes -- without changing how anything downstream gates.
+ */
+function computeRiskTier(args: {
+  decision: "allow" | "deny";
+  failClosed: boolean;
+  usedDemoContract: boolean;
+  usedDemoPlan: boolean;
+  usedEmptyAccumulators: boolean;
+}): GuardianRiskTier {
+  if (args.failClosed) return "critical"; // couldn't verify member state at all
+  if (args.decision === "deny") return "high"; // a real denial (benefit exhausted, etc.)
+  if (args.usedDemoContract || args.usedDemoPlan) return "medium"; // allowed, but on fallback data
+  if (args.usedEmptyAccumulators) return "medium"; // allowed, but no accumulator history to check against
+  return "low"; // allowed on fully real, verified data
+}
 
 // A default accumulator used only when no real record exists yet for
 // this member/year (e.g. brand-new member, no claims history). This is
@@ -119,6 +145,37 @@ export class GuardianRuntime {
   }
 
   private static async handleAuthorization(payload: Dynamic) {
+    // Kill switch first, before any adjudication work. Fail closed the
+    // same way accumulator-fetch failures already do below: if Guardian
+    // can't confirm the switch is off, it does not guess "probably
+    // fine" and proceed.
+    try {
+      const killSwitch = await fetchKillSwitch();
+      if (killSwitch.active) {
+        const result = {
+          ...payload,
+          decision: "deny",
+          reason: `Guardian kill switch is active: ${killSwitch.reason ?? "no reason given"}`,
+          risk_tier: "critical" as GuardianRiskTier,
+          timestamp: Date.now(),
+        };
+        eventBus.emit("guardian.authorization.processed", result);
+        recordTelemetry("guardian", "authorization", result.claimId, result.organizationId, result);
+        return result;
+      }
+    } catch (err) {
+      const result = {
+        ...payload,
+        decision: "deny",
+        reason: `Unable to verify Guardian kill switch state: ${(err as Error).message}`,
+        risk_tier: "critical" as GuardianRiskTier,
+        timestamp: Date.now(),
+      };
+      eventBus.emit("guardian.authorization.processed", result);
+      recordTelemetry("guardian", "authorization", result.claimId, result.organizationId, result);
+      return result;
+    }
+
     const memberId = payload.claimPayload?.memberId ?? payload.organizationId;
     const planYear = payload.claimPayload?.planYear ?? new Date().getFullYear();
 
@@ -140,6 +197,13 @@ export class GuardianRuntime {
         ...payload,
         decision: "deny",
         reason: `Unable to verify member accumulators: ${(err as Error).message}`,
+        risk_tier: computeRiskTier({
+          decision: "deny",
+          failClosed: true,
+          usedDemoContract: false,
+          usedDemoPlan: false,
+          usedEmptyAccumulators: false,
+        }),
         timestamp: Date.now(),
       };
       eventBus.emit("guardian.authorization.processed", result);
@@ -190,6 +254,13 @@ export class GuardianRuntime {
         deductible_applied: lineResult.deductible_applied,
         coinsurance: lineResult.coinsurance,
       },
+      risk_tier: computeRiskTier({
+        decision: denied ? "deny" : "allow",
+        failClosed: false,
+        usedDemoContract,
+        usedDemoPlan,
+        usedEmptyAccumulators,
+      }),
       usedEmptyAccumulators,
       usedPlaceholderProcedureCode: usedPlaceholder,
       usedDemoContract,

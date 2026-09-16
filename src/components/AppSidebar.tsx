@@ -5,6 +5,7 @@ import {
   Cpu,
   Building2,
   FileStack,
+  FileSignature,
   FolderKanban,
   GitBranch,
   KeyRound,
@@ -53,6 +54,7 @@ const groups: { label: string; items: Item[] }[] = [
     label: "KNOWLEDGE",
     items: [
       { to: "/claims", label: "Claims Workbench", icon: ClipboardCheck },
+      { to: "/contracts", label: "Contracts & Plans", icon: FileSignature },
       { to: "/evidence", label: "Evidence", icon: FileStack, phase: "P4" },
       { to: "/decisions", label: "Decisions", icon: GitBranch, phase: "P5" },
     ],
