@@ -1,0 +1,362 @@
+openapi: 3.0.3
+info:
+  title: Valtaris Nucleus External API
+  version: "1.0.0"
+  description: |
+    Nucleus's external-facing API surface -- the "octopus head" endpoints
+    that any arm in the Valtaris ecosystem (DualPay, etc.) or a
+    third-party integration calls to reach nucleus's adjudication
+    kernel, Weaver scoring engine, and Guardian safety state.
+
+    These three endpoints are deployed as Supabase Edge Functions with
+    `verify_jwt` disabled: callers authenticate with a nucleus-issued
+    API key instead of a Supabase user session, because callers are
+    other services, not signed-in end users.
+
+    This document describes only the deployed external surface. It is
+    not the schema for nucleus's internal admin UI or its Supabase
+    tables, which are not part of this contract and may change without
+    notice here.
+servers:
+  - url: https://bpqukcsaoporhvdtfyza.supabase.co/functions/v1
+    description: Production (nucleus's Supabase project)
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /adjudicate-claim:
+    post:
+      operationId: adjudicateClaim
+      summary: Adjudicate a single claim line
+      description: |
+        Runs one claim line through nucleus's real adjudication kernel
+        (the same calculation engine nucleus's own internal pipeline
+        uses) and returns plan-pay/member-owe amounts, or a denial.
+
+        Has no demo-data fallback: a payer/plan with no active contract
+        on file returns an explicit `no_contract_on_file` decision
+        rather than a guessed number. Checks Guardian's kill switch
+        first and fails closed (denies) if the kill switch's own state
+        can't be verified.
+      tags: [Adjudication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdjudicateRequest"
+      responses:
+        "200":
+          description: |
+            Adjudication completed. `decision` may be `allow`, `deny`,
+            or `no_contract_on_file` -- all three are 200s, since each
+            is a valid, well-formed answer to "what should this claim
+            have paid," not a request-processing failure.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdjudicateResponse"
+        "400":
+          description: Missing required fields, invalid JSON, or an invalid billed_amount_cents/units.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid `x-api-key`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "405":
+          description: Method not allowed (only POST and OPTIONS are supported).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded (120 requests/minute per API client).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /weaver-score:
+    post:
+      operationId: weaverScore
+      summary: Score an opportunity or a recommendation confidence
+      description: |
+        Runs the caller-supplied facts through nucleus's live,
+        operator-configured Weaver rules (the same `weaver_rules` table
+        and weights nucleus's own admin UI edits) and returns either an
+        opportunity score (0-100) or a recommendation confidence
+        (0-1) plus an approve/review action.
+
+        Advisory only: if rule evaluation fails, the response still
+        returns 200 with the base/baseline value alone (fails safe
+        toward caution, not toward an error).
+      tags: [Weaver]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WeaverScoreRequest"
+      responses:
+        "200":
+          description: Score computed.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/WeaverOpportunityResponse"
+                  - $ref: "#/components/schemas/WeaverRecommendationResponse"
+        "400":
+          description: Invalid JSON, or `stage` is not `opportunity`/`recommendation`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid `x-api-key`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "405":
+          description: Method not allowed (only POST and OPTIONS are supported).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded (120 requests/minute per API client).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /guardian-status:
+    get:
+      operationId: guardianStatus
+      summary: Check whether it is currently safe to process claims
+      description: |
+        Read-only safety signal: reports nucleus's Guardian kill-switch
+        state so any arm in the ecosystem can check it without
+        adopting nucleus's adjudication logic wholesale. Cannot
+        activate or deactivate the kill switch -- that stays an
+        operator action inside nucleus's own admin UI.
+
+        Meant to be polled cheaply and often; its rate limit (600/min)
+        is far more generous than adjudicate-claim/weaver-score's.
+      tags: [Guardian]
+      responses:
+        "200":
+          description: |
+            Always 200, including when the kill-switch state can't be
+            verified -- in that case `safe_to_process` is `false` and
+            `reason` explains why (fail-closed: report unsafe rather
+            than guessing "probably fine").
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuardianStatusResponse"
+        "401":
+          description: Missing or invalid `x-api-key`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "405":
+          description: Method not allowed (only GET and OPTIONS are supported).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded (600 requests/minute per API client).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: |
+        A nucleus-issued API key. Keys are provisioned by a nucleus
+        owner/admin via the `manage-api-clients` internal endpoint, not
+        self-service. Hashed (SHA-256) server-side and checked against
+        `api_clients.key_hash`; a disabled client is treated the same
+        as an invalid key.
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+
+    AdjudicateRequest:
+      type: object
+      required: [claim_id, member_id, payer_name, procedure_code, billed_amount_cents]
+      properties:
+        claim_id:
+          type: string
+        member_id:
+          type: string
+        plan_year:
+          type: integer
+          description: Defaults to the current UTC year if omitted.
+        payer_name:
+          type: string
+        provider_npi:
+          type: string
+        procedure_code:
+          type: string
+        diagnosis_codes:
+          type: array
+          items:
+            type: string
+        billed_amount_cents:
+          type: integer
+          minimum: 0
+        units:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+          description: Defaults to 1 if omitted. Must be greater than 0.
+        place_of_service:
+          type: string
+          description: Defaults to "11" (office) if omitted.
+        service_date:
+          type: string
+          format: date
+          description: Defaults to today (UTC) if omitted.
+
+    AdjudicateResponse:
+      type: object
+      properties:
+        decision:
+          type: string
+          enum: [allow, deny, no_contract_on_file]
+        reason:
+          type: string
+        adjudication:
+          type: object
+          nullable: true
+          properties:
+            status:
+              type: string
+            allowed:
+              type: integer
+            plan_paid:
+              type: integer
+            member_responsibility:
+              type: integer
+            deductible_applied:
+              type: integer
+            coinsurance:
+              type: integer
+        risk_tier:
+          type: string
+          enum: [low, medium, high, critical]
+        used_empty_accumulators:
+          type: boolean
+        contract_id:
+          type: string
+          nullable: true
+        plan_id:
+          type: string
+          nullable: true
+        timestamp:
+          type: string
+          format: date-time
+
+    WeaverScoreRequest:
+      type: object
+      required: [stage]
+      properties:
+        stage:
+          type: string
+          enum: [opportunity, recommendation]
+        claim_id:
+          type: string
+        facts:
+          type: object
+          description: Arbitrary fact payload evaluated against the live weaver_rules for this stage.
+          additionalProperties: true
+
+    WeaverOpportunityResponse:
+      type: object
+      required: [stage]
+      properties:
+        stage:
+          type: string
+          enum: [opportunity]
+        score:
+          type: number
+          minimum: 0
+          maximum: 100
+        fired_rules:
+          type: array
+          items:
+            type: string
+        claim_id:
+          type: string
+          nullable: true
+        timestamp:
+          type: string
+          format: date-time
+
+    WeaverRecommendationResponse:
+      type: object
+      required: [stage]
+      properties:
+        stage:
+          type: string
+          enum: [recommendation]
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        action:
+          type: string
+          enum: [approve, review]
+        fired_rules:
+          type: array
+          items:
+            type: string
+        claim_id:
+          type: string
+          nullable: true
+        timestamp:
+          type: string
+          format: date-time
+
+    GuardianStatusResponse:
+      type: object
+      properties:
+        safe_to_process:
+          type: boolean
+        kill_switch_active:
+          type: boolean
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+        activated_by:
+          type: string
+          nullable: true
+        kill_switch_updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        timestamp:
+          type: string
+          format: date-time
