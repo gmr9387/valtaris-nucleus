@@ -21,6 +21,29 @@ export async function listWeaverRules(stage: WeaverRuleStage): Promise<WeaverRul
 }
 
 /**
+ * Fixed-window rate limit, keyed by client_id -- identical to
+ * adjudicate-claim/repo.ts's checkRateLimit; see
+ * supabase/migrations/20260916_api_rate_limits.sql. Fails open on an
+ * infrastructure error, same rationale as that file's copy.
+ */
+export async function checkRateLimit(
+  clientId: string,
+  windowSeconds: number,
+  maxRequests: number,
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc("check_rate_limit", {
+    p_client_id: clientId,
+    p_window_seconds: windowSeconds,
+    p_max_requests: maxRequests,
+  });
+  if (error) {
+    console.error("[weaver-score] rate limit check failed, failing open:", error.message);
+    return true;
+  }
+  return data as boolean;
+}
+
+/**
  * Real API-key auth: identical to adjudicate-claim/repo.ts's
  * verifyApiKey -- same api_clients table gates every nucleus external
  * API, so one credential (e.g. DualPay's) authorizes both endpoints.

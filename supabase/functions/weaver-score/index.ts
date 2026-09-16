@@ -26,7 +26,7 @@
  * disabled since callers are other services, not Supabase-authenticated
  * end users.
  */
-import { listWeaverRules, verifyApiKey } from "./repo.ts";
+import { listWeaverRules, verifyApiKey, checkRateLimit } from "./repo.ts";
 import { evaluateRules } from "./ruleEvaluator.ts";
 import type { WeaverRuleStage } from "./types.ts";
 
@@ -63,6 +63,11 @@ Deno.serve(async (req: Request) => {
   const clientId = await verifyApiKey(req.headers.get("x-api-key"));
   if (!clientId) {
     return jsonResponse({ error: "Unauthorized: missing or invalid x-api-key" }, 401);
+  }
+
+  const withinLimit = await checkRateLimit(clientId, 60, 120);
+  if (!withinLimit) {
+    return jsonResponse({ error: "Rate limit exceeded: 120 requests/minute per client" }, 429);
   }
 
   let body: WeaverScoreRequest;

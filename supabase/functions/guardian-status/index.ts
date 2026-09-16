@@ -24,7 +24,7 @@
  * own admin UI, gated to owner/admin roles. An external arm can only
  * ask, never tell.
  */
-import { fetchKillSwitch, verifyApiKey } from "./repo.ts";
+import { fetchKillSwitch, verifyApiKey, checkRateLimit } from "./repo.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -51,6 +51,14 @@ Deno.serve(async (req: Request) => {
   const clientId = await verifyApiKey(req.headers.get("x-api-key"));
   if (!clientId) {
     return jsonResponse({ error: "Unauthorized: missing or invalid x-api-key" }, 401);
+  }
+
+  // Far more generous than adjudicate-claim/weaver-score's 120/min --
+  // this endpoint is meant to be polled cheaply and often (see this
+  // file's header and the DualPay proxy's own README).
+  const withinLimit = await checkRateLimit(clientId, 60, 600);
+  if (!withinLimit) {
+    return jsonResponse({ error: "Rate limit exceeded: 600 requests/minute per client" }, 429);
   }
 
   const timestamp = new Date().toISOString();

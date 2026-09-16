@@ -30,6 +30,7 @@ import {
   saveMemberAccumulators,
   fetchKillSwitch,
   verifyApiKey,
+  checkRateLimit,
 } from "./repo.ts";
 import { adjudicateClaim, updateMemberAccumulators } from "./calculationEngine.ts";
 import type { ClaimLine, MemberAccumulators } from "./types.ts";
@@ -111,6 +112,14 @@ Deno.serve(async (req: Request) => {
   const clientId = await verifyApiKey(req.headers.get("x-api-key"));
   if (!clientId) {
     return jsonResponse({ error: "Unauthorized: missing or invalid x-api-key" }, 401);
+  }
+
+  // 120 requests/minute per caller -- generous for real traffic, real
+  // enough to stop a runaway loop or leaked key from hammering the
+  // adjudication kernel indefinitely.
+  const withinLimit = await checkRateLimit(clientId, 60, 120);
+  if (!withinLimit) {
+    return jsonResponse({ error: "Rate limit exceeded: 120 requests/minute per client" }, 429);
   }
 
   let body: AdjudicateRequest;

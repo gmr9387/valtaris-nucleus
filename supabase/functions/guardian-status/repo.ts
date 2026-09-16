@@ -28,6 +28,32 @@ export async function fetchKillSwitch(): Promise<KillSwitchState> {
 }
 
 /**
+ * Fixed-window rate limit, keyed by client_id -- identical to
+ * adjudicate-claim/repo.ts's checkRateLimit; see
+ * supabase/migrations/20260916_api_rate_limits.sql. This endpoint's
+ * own README documents it as meant to be polled cheaply and often, so
+ * its limit (set in index.ts) is deliberately far more generous than
+ * adjudicate-claim/weaver-score's -- this still catches a genuine
+ * runaway loop without punishing the polling pattern it's designed for.
+ */
+export async function checkRateLimit(
+  clientId: string,
+  windowSeconds: number,
+  maxRequests: number,
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc("check_rate_limit", {
+    p_client_id: clientId,
+    p_window_seconds: windowSeconds,
+    p_max_requests: maxRequests,
+  });
+  if (error) {
+    console.error("[guardian-status] rate limit check failed, failing open:", error.message);
+    return true;
+  }
+  return data as boolean;
+}
+
+/**
  * Real API-key auth: identical to adjudicate-claim/repo.ts's and
  * weaver-score/repo.ts's verifyApiKey -- same api_clients table gates
  * every nucleus external API.

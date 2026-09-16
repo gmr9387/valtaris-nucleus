@@ -170,6 +170,33 @@ export async function fetchKillSwitch(): Promise<KillSwitchState> {
 }
 
 /**
+ * Fixed-window rate limit, keyed by client_id -- see
+ * supabase/migrations/20260916_api_rate_limits.sql for why this is a
+ * DB-backed atomic counter rather than an in-memory one (Edge
+ * Functions have no shared, persistent memory across invocations).
+ * Fails OPEN on an infrastructure error: a rate-limiter outage
+ * shouldn't itself take down claims adjudication, unlike the kill
+ * switch's fail-closed convention, which guards a deliberate safety
+ * decision rather than an abuse-prevention accounting mechanism.
+ */
+export async function checkRateLimit(
+  clientId: string,
+  windowSeconds: number,
+  maxRequests: number,
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc("check_rate_limit", {
+    p_client_id: clientId,
+    p_window_seconds: windowSeconds,
+    p_max_requests: maxRequests,
+  });
+  if (error) {
+    console.error("[adjudicate-claim] rate limit check failed, failing open:", error.message);
+    return true;
+  }
+  return data as boolean;
+}
+
+/**
  * Real API-key auth: compares the SHA-256 hash of the caller's key
  * against api_clients.key_hash. No plaintext key is ever stored.
  */
