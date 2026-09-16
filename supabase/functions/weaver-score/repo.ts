@@ -44,6 +44,24 @@ export async function checkRateLimit(
 }
 
 /**
+ * Durable, queryable record of this function's business-outcome
+ * events -- identical to adjudicate-claim/repo.ts's recordActivity;
+ * see supabase/migrations/20260916b_api_activity.sql for why.
+ */
+export async function recordActivity(
+  clientId: string,
+  outcome: string,
+  detail: Record<string, unknown>,
+): Promise<void> {
+  const { error } = await supabase
+    .from("api_activity")
+    .insert({ client_id: clientId, endpoint: "weaver_score", outcome, detail });
+  if (error) {
+    console.error("[weaver-score] failed to record activity:", error.message);
+  }
+}
+
+/**
  * Real API-key auth: identical to adjudicate-claim/repo.ts's
  * verifyApiKey -- same api_clients table gates every nucleus external
  * API, so one credential (e.g. DualPay's) authorizes both endpoints.

@@ -197,6 +197,28 @@ export async function checkRateLimit(
 }
 
 /**
+ * Durable, queryable record of this function's business-outcome
+ * events -- see supabase/migrations/20260916b_api_activity.sql for
+ * why this exists alongside (not instead of) console.log: it's what
+ * the admin UI's Command Center dashboard actually queries. Never
+ * blocks or fails the response -- an activity-logging outage
+ * shouldn't itself affect claims adjudication, same rationale as
+ * checkRateLimit's fail-open convention.
+ */
+export async function recordActivity(
+  clientId: string,
+  outcome: string,
+  detail: Record<string, unknown>,
+): Promise<void> {
+  const { error } = await supabase
+    .from("api_activity")
+    .insert({ client_id: clientId, endpoint: "adjudicate_claim", outcome, detail });
+  if (error) {
+    console.error("[adjudicate-claim] failed to record activity:", error.message);
+  }
+}
+
+/**
  * Real API-key auth: compares the SHA-256 hash of the caller's key
  * against api_clients.key_hash. No plaintext key is ever stored.
  */

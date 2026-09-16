@@ -26,7 +26,7 @@
  * disabled since callers are other services, not Supabase-authenticated
  * end users.
  */
-import { listWeaverRules, verifyApiKey, checkRateLimit } from "./repo.ts";
+import { listWeaverRules, verifyApiKey, checkRateLimit, recordActivity } from "./repo.ts";
 import { evaluateRules } from "./ruleEvaluator.ts";
 import type { WeaverRuleStage } from "./types.ts";
 
@@ -110,6 +110,26 @@ Deno.serve(async (req: Request) => {
     const baseScore = Number.isFinite(amount) && amount > 0 ? Math.min(amount / 20, 100) : 0;
     const score = Math.max(0, Math.min(baseScore + ruleAdjustment, 100));
 
+    // Structured business-outcome event -- see adjudicate-claim/index.ts's
+    // logOutcome comment for why this is both console.log and a durable
+    // recordActivity write.
+    console.log(
+      JSON.stringify({
+        event: "weaver_score",
+        client_id: clientId,
+        stage: "opportunity",
+        claim_id: claimId,
+        score,
+        fired_rules: firedRules,
+        timestamp,
+      }),
+    );
+    await recordActivity(clientId, "opportunity", {
+      claim_id: claimId,
+      score,
+      fired_rules: firedRules,
+    });
+
     return jsonResponse({
       stage: "opportunity",
       score,
@@ -122,6 +142,25 @@ Deno.serve(async (req: Request) => {
   const baseline = 0.4;
   const confidence = Math.round(Math.max(0, Math.min(baseline + ruleAdjustment, 1)) * 100) / 100;
   const action = confidence >= AUTO_APPROVE_THRESHOLD ? "approve" : "review";
+
+  console.log(
+    JSON.stringify({
+      event: "weaver_score",
+      client_id: clientId,
+      stage: "recommendation",
+      claim_id: claimId,
+      confidence,
+      action,
+      fired_rules: firedRules,
+      timestamp,
+    }),
+  );
+  await recordActivity(clientId, "recommendation", {
+    claim_id: claimId,
+    confidence,
+    action,
+    fired_rules: firedRules,
+  });
 
   return jsonResponse({
     stage: "recommendation",
