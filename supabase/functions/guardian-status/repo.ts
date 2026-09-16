@@ -73,12 +73,21 @@ export async function recordActivity(
   }
 }
 
+export interface VerifiedClient {
+  clientId: string;
+  organizationId: string | null;
+}
+
 /**
  * Real API-key auth: identical to adjudicate-claim/repo.ts's and
  * weaver-score/repo.ts's verifyApiKey -- same api_clients table gates
- * every nucleus external API.
+ * every nucleus external API. organizationId is resolved for shape
+ * consistency with the other two functions but unused here: the
+ * Guardian kill switch is a single global row by design (a platform
+ * safety control, not tenant data) -- see this file's fetchKillSwitch,
+ * unchanged by supabase/migrations/20260916c_tenant_isolation.sql.
  */
-export async function verifyApiKey(rawKey: string | null): Promise<string | null> {
+export async function verifyApiKey(rawKey: string | null): Promise<VerifiedClient | null> {
   if (!rawKey) return null;
 
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(rawKey));
@@ -88,9 +97,12 @@ export async function verifyApiKey(rawKey: string | null): Promise<string | null
 
   const { data, error } = await supabase
     .from("api_clients")
-    .select("client_id, enabled")
+    .select("client_id, enabled, organization_id")
     .eq("key_hash", hashHex)
     .maybeSingle();
   if (error || !data || !data.enabled) return null;
-  return data.client_id as string;
+  return {
+    clientId: data.client_id as string,
+    organizationId: data.organization_id as string | null,
+  };
 }

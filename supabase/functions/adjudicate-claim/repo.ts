@@ -23,17 +23,27 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
  * merged into one round trip. Returns null if no real contract has been
  * uploaded for this payer/date -- this endpoint does not fall back to
  * demo data (see index.ts's header comment for why).
+ *
+ * organizationId scopes the lookup to the calling API client's tenant
+ * (see supabase/migrations/20260916c_tenant_isolation.sql): a contract
+ * with organization_id set is only visible to that tenant's own
+ * callers; a contract with organization_id null is shared/global,
+ * visible to every caller (this is what every contract was before
+ * that migration, so nothing already in production loses access).
+ * null organizationId (a client not yet assigned to a tenant) only
+ * ever sees the shared/global set.
  */
 export async function resolveContract(
   payerName: string,
   asOfDate: string,
+  organizationId: string | null,
   providerNpi?: string,
 ): Promise<ContractTerms | null> {
-  const { data: contracts, error } = await supabase
-    .from("payer_contracts")
-    .select("*")
-    .ilike("payer_name", payerName.trim())
-    .order("effective_date", { ascending: false });
+  let query = supabase.from("payer_contracts").select("*").ilike("payer_name", payerName.trim());
+  query = organizationId
+    ? query.or(`organization_id.is.null,organization_id.eq.${organizationId}`)
+    : query.is("organization_id", null);
+  const { data: contracts, error } = await query.order("effective_date", { ascending: false });
 
   if (error) throw new Error(`Failed to list payer_contracts: ${error.message}`);
 
@@ -82,16 +92,20 @@ export async function resolveContract(
  * Resolves the active plan for a payer as of a date -- mirrors
  * src/engine/plan-benefits-to-terms.ts's findActivePlanIdForPayer()+
  * fetchPlanBenefitTerms() logic, merged into one round trip.
+ *
+ * organizationId scopes the lookup the same way resolveContract's
+ * does -- see that function's comment.
  */
 export async function resolvePlan(
   payerName: string,
   asOfDate: string,
+  organizationId: string | null,
 ): Promise<PlanBenefits | null> {
-  const { data: plans, error } = await supabase
-    .from("plan_benefits")
-    .select("*")
-    .ilike("payer_name", payerName.trim())
-    .order("effective_date", { ascending: false });
+  let query = supabase.from("plan_benefits").select("*").ilike("payer_name", payerName.trim());
+  query = organizationId
+    ? query.or(`organization_id.is.null,organization_id.eq.${organizationId}`)
+    : query.is("organization_id", null);
+  const { data: plans, error } = await query.order("effective_date", { ascending: false });
   if (error) throw new Error(`Failed to list plan_benefits: ${error.message}`);
 
   const matches = (plans ?? []).filter(
@@ -119,16 +133,29 @@ export async function resolvePlan(
   };
 }
 
-/** Mirrors accumulatorRepository.ts's fetchMemberAccumulators(). */
+/**
+ * Mirrors accumulatorRepository.ts's fetchMemberAccumulators().
+ *
+ * Unlike resolveContract/resolvePlan, there's no "shared/global"
+ * fallback here -- see 20260916e_member_accumulators_organization_required.sql
+ * for why a member's accumulator totals never make sense as shared
+ * data. An API client with no organization assigned yet (organizationId
+ * null) has nowhere to persist accumulators, so this always misses for
+ * them -- the caller falls back to emptyAccumulators(), same as a
+ * genuinely new member.
+ */
 export async function fetchMemberAccumulators(
   memberId: string,
   planYear: number,
+  organizationId: string | null,
 ): Promise<MemberAccumulators | null> {
+  if (!organizationId) return null;
   const { data, error } = await supabase
     .from("member_accumulators")
     .select("payload")
     .eq("member_id", memberId)
     .eq("plan_year", planYear)
+    .eq("organization_id", organizationId)
     .maybeSingle();
   if (error)
     throw new Error(`Failed to fetch accumulators for member ${memberId}: ${error.message}`);
@@ -136,15 +163,26 @@ export async function fetchMemberAccumulators(
   return data.payload as MemberAccumulators;
 }
 
-/** Mirrors accumulatorRepository.ts's saveMemberAccumulators(). */
-export async function saveMemberAccumulators(accumulators: MemberAccumulators): Promise<void> {
+/**
+ * Mirrors accumulatorRepository.ts's saveMemberAccumulators(). A null
+ * organizationId (see fetchMemberAccumulators's comment) means there's
+ * nowhere to persist to -- silently skips the write rather than
+ * throwing, since the caller already treats a failed persist as
+ * non-fatal (see index.ts's catch around this call).
+ */
+export async function saveMemberAccumulators(
+  accumulators: MemberAccumulators,
+  organizationId: string | null,
+): Promise<void> {
+  if (!organizationId) return;
   const { error } = await supabase.from("member_accumulators").upsert(
     {
       member_id: accumulators.member_id,
       plan_year: accumulators.plan_year,
+      organization_id: organizationId,
       payload: accumulators,
     },
-    { onConflict: "member_id,plan_year" },
+    { onConflict: "member_id,plan_year,organization_id" },
   );
   if (error) {
     throw new Error(
@@ -218,11 +256,22 @@ export async function recordActivity(
   }
 }
 
+export interface VerifiedClient {
+  clientId: string;
+  organizationId: string | null;
+}
+
 /**
  * Real API-key auth: compares the SHA-256 hash of the caller's key
  * against api_clients.key_hash. No plaintext key is ever stored.
+ *
+ * Also resolves the caller's tenant (organizationId) -- see
+ * supabase/migrations/20260916c_tenant_isolation.sql. A client not
+ * yet assigned to an organization gets organizationId: null, which
+ * every downstream lookup in this function treats as "shared/global
+ * data only" (or, for member_accumulators, "no persistence").
  */
-export async function verifyApiKey(rawKey: string | null): Promise<string | null> {
+export async function verifyApiKey(rawKey: string | null): Promise<VerifiedClient | null> {
   if (!rawKey) return null;
 
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(rawKey));
@@ -232,9 +281,12 @@ export async function verifyApiKey(rawKey: string | null): Promise<string | null
 
   const { data, error } = await supabase
     .from("api_clients")
-    .select("client_id, enabled")
+    .select("client_id, enabled, organization_id")
     .eq("key_hash", hashHex)
     .maybeSingle();
   if (error || !data || !data.enabled) return null;
-  return data.client_id as string;
+  return {
+    clientId: data.client_id as string,
+    organizationId: data.organization_id as string | null,
+  };
 }

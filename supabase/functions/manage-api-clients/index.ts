@@ -69,11 +69,12 @@ interface ApiClientRow {
   label: string | null;
   enabled: boolean;
   created_at: string;
+  organization_id: string | null;
 }
 
 type ManageRequest =
   | { action: "list" }
-  | { action: "create"; client_id: string; label: string }
+  | { action: "create"; client_id: string; label: string; organization_id: string | null }
   | { action: "rotate"; client_id: string }
   | { action: "set_enabled"; client_id: string; enabled: boolean };
 
@@ -127,7 +128,7 @@ Deno.serve(async (req: Request) => {
   if (body.action === "list") {
     const { data, error } = await supabase
       .from("api_clients")
-      .select("client_id, label, enabled, created_at")
+      .select("client_id, label, enabled, created_at, organization_id")
       .order("created_at", { ascending: false });
     if (error) return jsonResponse({ error: error.message }, 500);
     return jsonResponse({ clients: (data ?? []) as ApiClientRow[] });
@@ -156,11 +157,18 @@ Deno.serve(async (req: Request) => {
 
     const rawKey = generateRawKey(clientId);
     const key_hash = await sha256Hex(rawKey);
+    const organizationId = body.organization_id ?? null;
 
     const { data, error } = await supabase
       .from("api_clients")
-      .insert({ client_id: clientId, label, key_hash, enabled: true } as never)
-      .select("client_id, label, enabled, created_at")
+      .insert({
+        client_id: clientId,
+        label,
+        key_hash,
+        enabled: true,
+        organization_id: organizationId,
+      } as never)
+      .select("client_id, label, enabled, created_at, organization_id")
       .single();
     if (error) return jsonResponse({ error: error.message }, 500);
 
@@ -191,7 +199,7 @@ Deno.serve(async (req: Request) => {
       .from("api_clients")
       .update({ enabled: body.enabled } as never)
       .eq("client_id", clientId)
-      .select("client_id, label, enabled, created_at")
+      .select("client_id, label, enabled, created_at, organization_id")
       .single();
     if (error) return jsonResponse({ error: error.message }, 500);
 

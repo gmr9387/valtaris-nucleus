@@ -9,4 +9,5 @@ export interface ApiClient {
   label: string;
   enabled: boolean;
   created_at: string;
+  organization_id: string | null;
 }

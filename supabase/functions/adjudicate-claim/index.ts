@@ -118,10 +118,11 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: "Method not allowed" }, 405);
   }
 
-  const clientId = await verifyApiKey(req.headers.get("x-api-key"));
-  if (!clientId) {
+  const verified = await verifyApiKey(req.headers.get("x-api-key"));
+  if (!verified) {
     return jsonResponse({ error: "Unauthorized: missing or invalid x-api-key" }, 401);
   }
+  const { clientId, organizationId } = verified;
 
   // 120 requests/minute per caller -- generous for real traffic, real
   // enough to stop a runaway loop or leaked key from hammering the
@@ -224,8 +225,8 @@ Deno.serve(async (req: Request) => {
   let contract, plan;
   try {
     [contract, plan] = await Promise.all([
-      resolveContract(body.payer_name, serviceDate, body.provider_npi),
-      resolvePlan(body.payer_name, serviceDate),
+      resolveContract(body.payer_name, serviceDate, organizationId, body.provider_npi),
+      resolvePlan(body.payer_name, serviceDate, organizationId),
     ]);
   } catch (err) {
     await logOutcome({ decision: "deny", reason_category: "resolve_error", risk_tier: "critical" });
@@ -265,7 +266,7 @@ Deno.serve(async (req: Request) => {
   let accumulators: MemberAccumulators;
   let usedEmptyAccumulators = false;
   try {
-    const real = await fetchMemberAccumulators(body.member_id, planYear);
+    const real = await fetchMemberAccumulators(body.member_id, planYear, organizationId);
     if (real) {
       accumulators = real;
     } else {
@@ -305,7 +306,10 @@ Deno.serve(async (req: Request) => {
   const { run } = adjudicateClaim([line], accumulators, contract, plan);
 
   try {
-    await saveMemberAccumulators(updateMemberAccumulators(accumulators, run.final_accumulator));
+    await saveMemberAccumulators(
+      updateMemberAccumulators(accumulators, run.final_accumulator),
+      organizationId,
+    );
   } catch (err) {
     console.error(`Failed to persist updated accumulators for member ${body.member_id}:`, err);
   }

@@ -1638,7 +1638,10 @@ function ApiClientsTab() {
       const parsed = apiClientSchema.parse({ client_id: clientId, label });
       const correlationId = createCorrelationId();
 
-      const { client, rawKey } = await createApiClient(parsed);
+      const { client, rawKey } = await createApiClient({
+        ...parsed,
+        organization_id: currentOrgId,
+      });
 
       await logAudit({
         organization_id: currentOrgId,
@@ -1812,6 +1815,7 @@ function ApiClientsTab() {
               <tr>
                 <Th>Client ID</Th>
                 <Th>Label</Th>
+                <Th>Organization</Th>
                 <Th>Created</Th>
                 <Th>Enabled</Th>
                 <Th> </Th>
@@ -1825,6 +1829,15 @@ function ApiClientsTab() {
                     <span className="font-mono text-xs font-medium">{client.client_id}</span>
                   </Td>
                   <Td>{client.label}</Td>
+                  <Td>
+                    {client.organization_id ? (
+                      <span className="font-mono text-[11px] text-muted-foreground">
+                        {client.organization_id}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">— unscoped —</span>
+                    )}
+                  </Td>
                   <Td>
                     <span className="text-xs text-muted-foreground">
                       {new Date(client.created_at).toLocaleDateString()}
