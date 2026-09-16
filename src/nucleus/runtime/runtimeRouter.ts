@@ -22,6 +22,7 @@ import type { SubsystemId } from "../subsystems/subsystemRegistry";
 import { RuntimeGuards } from "./runtimeGuards";
 import { validateContract } from "../contracts/contractRegistry";
 import { nucleusState } from "../state/stateEngine";
+import { nucleusMetrics } from "../metrics/metricsEngine";
 // Side-effect import: registers the five per-stage contract
 // definitions (opportunity/recommendation/authorization/execution/
 // payment @ v1) against contractRegistry.ts. Without this,
@@ -54,7 +55,9 @@ export class RuntimeRouter {
   ): Promise<Dynamic> {
     const subsystem = RuntimeGuards.enforceSubsystemPermission(id);
 
+    const startedAt = Date.now();
     const result = await subsystem.runtime.handle(contractName, payload);
+    const durationMs = Date.now() - startedAt;
 
     const validation = validateContract(contractName, contractVersion, result);
     if (!validation.ok) {
@@ -75,6 +78,20 @@ export class RuntimeRouter {
     const organizationId = (payload as Dynamic)?.organizationId ?? "unknown";
     nucleusState.set(organizationId, id, contractName, result);
     nucleusState.snapshot(organizationId, id);
+
+    // metrics/metricsEngine.ts is the canonical metrics implementation
+    // in this codebase now -- confirmed by checking real importers,
+    // this repo actually has THREE parallel metrics modules
+    // (metrics/metricsEngine.ts, integrations/nucleusMetrics.ts,
+    // ops/nucleusMetrics.ts), all fully built, all with zero real
+    // callers anywhere. This one matches the audit+billing convention
+    // every other engine wired live this session already uses; the
+    // other two are flagged, not touched, in this PR's description.
+    // Dispatch latency per stage is a genuine metric this engine
+    // family didn't have anywhere else (telemetry carries the business
+    // event, state carries the current value, this carries how long
+    // the subsystem actually took).
+    nucleusMetrics.record(organizationId, id, `dispatch.${contractName}.duration_ms`, durationMs);
 
     return result;
   }
