@@ -17,6 +17,12 @@ info:
     not the schema for nucleus's internal admin UI or its Supabase
     tables, which are not part of this contract and may change without
     notice here.
+
+    **Versioning**: every response (success or error) carries an
+    `X-Api-Version: v1` header. This document describes v1 of each
+    endpoint's contract. A breaking change ships as a new sibling
+    endpoint (e.g. `/adjudicate-claim-v2`) rather than changing what's
+    described here -- see `docs/api/VERSIONING.md` for the full policy.
 servers:
   - url: https://bpqukcsaoporhvdtfyza.supabase.co/functions/v1
     description: Production (nucleus's Supabase project)
@@ -53,30 +59,45 @@ paths:
             or `no_contract_on_file` -- all three are 200s, since each
             is a valid, well-formed answer to "what should this claim
             have paid," not a request-processing failure.
+          headers:
+            X-Api-Version:
+              $ref: "#/components/headers/XApiVersion"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdjudicateResponse"
         "400":
           description: Missing required fields, invalid JSON, or an invalid billed_amount_cents/units.
+          headers:
+            X-Api-Version:
+              $ref: "#/components/headers/XApiVersion"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "401":
           description: Missing or invalid `x-api-key`.
+          headers:
+            X-Api-Version:
+              $ref: "#/components/headers/XApiVersion"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "405":
           description: Method not allowed (only POST and OPTIONS are supported).
+          headers:
+            X-Api-Version:
+              $ref: "#/components/headers/XApiVersion"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "429":
           description: Rate limit exceeded (120 requests/minute per API client).
+          headers:
+            X-Api-Version:
+              $ref: "#/components/headers/XApiVersion"
           content:
             application/json:
               schema:
@@ -106,6 +127,9 @@ paths:
       responses:
         "200":
           description: Score computed.
+          headers:
+            X-Api-Version:
+              $ref: "#/components/headers/XApiVersion"
           content:
             application/json:
               schema:
@@ -114,24 +138,36 @@ paths:
                   - $ref: "#/components/schemas/WeaverRecommendationResponse"
         "400":
           description: Invalid JSON, or `stage` is not `opportunity`/`recommendation`.
+          headers:
+            X-Api-Version:
+              $ref: "#/components/headers/XApiVersion"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "401":
           description: Missing or invalid `x-api-key`.
+          headers:
+            X-Api-Version:
+              $ref: "#/components/headers/XApiVersion"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "405":
           description: Method not allowed (only POST and OPTIONS are supported).
+          headers:
+            X-Api-Version:
+              $ref: "#/components/headers/XApiVersion"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "429":
           description: Rate limit exceeded (120 requests/minute per API client).
+          headers:
+            X-Api-Version:
+              $ref: "#/components/headers/XApiVersion"
           content:
             application/json:
               schema:
@@ -158,30 +194,52 @@ paths:
             verified -- in that case `safe_to_process` is `false` and
             `reason` explains why (fail-closed: report unsafe rather
             than guessing "probably fine").
+          headers:
+            X-Api-Version:
+              $ref: "#/components/headers/XApiVersion"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/GuardianStatusResponse"
         "401":
           description: Missing or invalid `x-api-key`.
+          headers:
+            X-Api-Version:
+              $ref: "#/components/headers/XApiVersion"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "405":
           description: Method not allowed (only GET and OPTIONS are supported).
+          headers:
+            X-Api-Version:
+              $ref: "#/components/headers/XApiVersion"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "429":
           description: Rate limit exceeded (600 requests/minute per API client).
+          headers:
+            X-Api-Version:
+              $ref: "#/components/headers/XApiVersion"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
 components:
+  headers:
+    XApiVersion:
+      description: |
+        The contract version this response was produced under. See
+        docs/api/VERSIONING.md -- a breaking change ships as a new
+        sibling endpoint rather than changing this value on an
+        existing one.
+      schema:
+        type: string
+        example: v1
   securitySchemes:
     ApiKeyAuth:
       type: apiKey

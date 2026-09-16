@@ -26,10 +26,15 @@
  */
 import { fetchKillSwitch, verifyApiKey, checkRateLimit } from "./repo.ts";
 
+// X-Api-Version identifies this response as coming from v1 of the
+// contract documented in docs/api/nucleus-external-api.yaml. See
+// adjudicate-claim/index.ts's header for the versioning policy this
+// implements (docs/api/VERSIONING.md).
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "X-Api-Version": "v1",
 };
 
 function jsonResponse(body: Record<string, unknown>, status = 200): Response {

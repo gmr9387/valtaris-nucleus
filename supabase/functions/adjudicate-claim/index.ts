@@ -35,10 +35,18 @@ import {
 import { adjudicateClaim, updateMemberAccumulators } from "./calculationEngine.ts";
 import type { ClaimLine, MemberAccumulators } from "./types.ts";
 
+// X-Api-Version identifies this response as coming from v1 of the
+// contract documented in docs/api/nucleus-external-api.yaml. This
+// path (/adjudicate-claim) is v1 for as long as it exists -- a
+// breaking change ships as a new sibling endpoint (e.g.
+// /adjudicate-claim-v2) instead of changing what this one returns,
+// so a caller pinned to this URL never has its contract change out
+// from under it. See docs/api/VERSIONING.md.
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "X-Api-Version": "v1",
 };
 
 interface AdjudicateRequest {

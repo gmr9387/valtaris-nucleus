@@ -30,10 +30,15 @@ import { listWeaverRules, verifyApiKey, checkRateLimit } from "./repo.ts";
 import { evaluateRules } from "./ruleEvaluator.ts";
 import type { WeaverRuleStage } from "./types.ts";
 
+// X-Api-Version identifies this response as coming from v1 of the
+// contract documented in docs/api/nucleus-external-api.yaml. See
+// adjudicate-claim/index.ts's header for the versioning policy this
+// implements (docs/api/VERSIONING.md).
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "X-Api-Version": "v1",
 };
 
 const AUTO_APPROVE_THRESHOLD = 0.55;
