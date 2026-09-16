@@ -55,6 +55,38 @@ export class AuditEngine {
     return this.records.filter((r) => r.action === action);
   }
 
+  /**
+   * The "reports" half of gapMap.md's "Unified Audit Engine (reports +
+   * proofs)" gap. log()/getAll()/getBy*() were the raw trail; nothing
+   * aggregated it into something a person or a CI suite could actually
+   * read as a summary. Real aggregation over whatever's actually in
+   * the log -- not a placeholder -- since every engine in this family
+   * (state, queue, retry, scheduler, certification, ...) already calls
+   * log() on real work.
+   */
+  report(org?: string) {
+    const records = org ? this.getByOrg(org) : this.getAll();
+
+    const byAction: Record<string, number> = {};
+    const bySubsystem: Record<string, number> = {};
+    const byActor: Record<string, number> = {};
+
+    for (const r of records) {
+      byAction[r.action] = (byAction[r.action] ?? 0) + 1;
+      bySubsystem[r.subsystem] = (bySubsystem[r.subsystem] ?? 0) + 1;
+      byActor[r.actor] = (byActor[r.actor] ?? 0) + 1;
+    }
+
+    return {
+      totalRecords: records.length,
+      byAction,
+      bySubsystem,
+      byActor,
+      firstTimestamp: records.length ? Math.min(...records.map((r) => r.timestamp)) : null,
+      lastTimestamp: records.length ? Math.max(...records.map((r) => r.timestamp)) : null,
+    };
+  }
+
   clear() {
     this.records = [];
   }
