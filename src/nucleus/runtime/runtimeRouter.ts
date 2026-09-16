@@ -21,6 +21,7 @@ import { registerAllSubsystems } from "../subsystems/registerSubsystems";
 import type { SubsystemId } from "../subsystems/subsystemRegistry";
 import { RuntimeGuards } from "./runtimeGuards";
 import { validateContract } from "../contracts/contractRegistry";
+import { nucleusState } from "../state/stateEngine";
 // Side-effect import: registers the five per-stage contract
 // definitions (opportunity/recommendation/authorization/execution/
 // payment @ v1) against contractRegistry.ts. Without this,
@@ -61,6 +62,19 @@ export class RuntimeRouter {
         `RuntimeRouter: "${contractName}@${contractVersion}" output failed contract validation: ${(validation.errors ?? []).join("; ")}`,
       );
     }
+
+    // StateEngine (src/nucleus/state/stateEngine.ts) fully implements
+    // three separate items gapMap.md still lists as missing -- a
+    // central state store, a diff engine (every set() auto-records a
+    // before/after StateDiff), and a snapshot engine -- with a single
+    // real caller anywhere in the codebase (one boot-time write in
+    // nucleusRuntime.ts). This is its second, and the first on the
+    // actual claim path: every validated stage result becomes that
+    // subsystem's current state for this org, with the diff and
+    // snapshot that produces as a side effect, not a separate ask.
+    const organizationId = (payload as Dynamic)?.organizationId ?? "unknown";
+    nucleusState.set(organizationId, id, contractName, result);
+    nucleusState.snapshot(organizationId, id);
 
     return result;
   }
