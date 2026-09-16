@@ -2,6 +2,7 @@
 
 import express from "express";
 import { APIController } from "./apiController";
+import { nucleusOpenApi } from "./openApiGenerator";
 
 const router = express.Router();
 
@@ -10,5 +11,48 @@ router.get("/health", (_req, res) => {
 });
 
 router.post("/claim", APIController.submitClaim);
+
+// api/openApiGenerator.ts (gapMap.md's "Unified OpenAPI documentation",
+// #12) was fully built -- register()/generate(), the works -- with zero
+// real callers anywhere. Its would-be sibling, api/openai/ (note the
+// typo in that folder's own name), was an even more dead duplicate: a
+// hand-written spec for a "/contract/{type}/{version}" route that has
+// never existed in this router, also with zero callers. Deleted that one
+// rather than wire a doc for a route nothing actually serves; this
+// registers the two routes this file genuinely mounts and exposes the
+// generated spec at /api/openapi.json, so the "docs" are the real routes
+// instead of an orphaned guess at them.
+nucleusOpenApi.register(
+  "GET",
+  "/health",
+  "api",
+  "Liveness check for the Nucleus API process.",
+  undefined,
+  { type: "object", properties: { status: { type: "string", enum: ["ok"] } } },
+);
+
+nucleusOpenApi.register(
+  "POST",
+  "/claim",
+  "api",
+  "Main entrypoint for external organizations: submits a claim for gateway normalization and full OSPipeline adjudication (opportunity, recommendation, authorization, execution, payment).",
+  {
+    type: "object",
+    required: ["organizationId", "claimPayload"],
+    properties: {
+      organizationId: { type: "string" },
+      claimPayload: { type: "object" },
+    },
+  },
+  {
+    type: "object",
+    description:
+      "The full adjudication pipeline result: opportunity, recommendation, authorization, execution, and payment stage outputs.",
+  },
+);
+
+router.get("/openapi.json", (_req, res) => {
+  res.status(200).json(nucleusOpenApi.generate());
+});
 
 export { router as APIRouter };
