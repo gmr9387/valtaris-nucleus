@@ -32,5 +32,14 @@ jobs:
       - name: Install
         run: bun install
 
+      - name: Typecheck
+        run: bun run build
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Test
+        run: bun run test
+
       - name: Run Sovereign CI
         run: bun run ci
