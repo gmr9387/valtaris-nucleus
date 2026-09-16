@@ -32,6 +32,7 @@ export async function listApiClients(): Promise<ApiClient[]> {
 export interface NewApiClient {
   client_id: string;
   label: string;
+  organization_id: string | null;
 }
 
 /**
@@ -40,6 +41,11 @@ export interface NewApiClient {
  * time it ever exists outside the account it authenticates. The
  * caller must display and let the operator copy it immediately;
  * nothing can retrieve it again afterward.
+ *
+ * organization_id assigns this client to a tenant -- see
+ * supabase/migrations/20260916c_tenant_isolation.sql. Every contract,
+ * plan, and Weaver rule that tenant's calls should see needs the same
+ * organization_id.
  */
 export async function createApiClient(
   input: NewApiClient,
@@ -48,6 +54,7 @@ export async function createApiClient(
     action: "create",
     client_id: input.client_id,
     label: input.label,
+    organization_id: input.organization_id,
   });
   return { client, rawKey: raw_key };
 }

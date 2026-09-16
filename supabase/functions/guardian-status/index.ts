@@ -53,10 +53,11 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: "Method not allowed" }, 405);
   }
 
-  const clientId = await verifyApiKey(req.headers.get("x-api-key"));
-  if (!clientId) {
+  const verified = await verifyApiKey(req.headers.get("x-api-key"));
+  if (!verified) {
     return jsonResponse({ error: "Unauthorized: missing or invalid x-api-key" }, 401);
   }
+  const { clientId } = verified;
 
   // Far more generous than adjudicate-claim/weaver-score's 120/min --
   // this endpoint is meant to be polled cheaply and often (see this

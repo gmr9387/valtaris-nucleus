@@ -65,10 +65,11 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: "Method not allowed" }, 405);
   }
 
-  const clientId = await verifyApiKey(req.headers.get("x-api-key"));
-  if (!clientId) {
+  const verified = await verifyApiKey(req.headers.get("x-api-key"));
+  if (!verified) {
     return jsonResponse({ error: "Unauthorized: missing or invalid x-api-key" }, 401);
   }
+  const { clientId, organizationId } = verified;
 
   const withinLimit = await checkRateLimit(clientId, 60, 120);
   if (!withinLimit) {
@@ -93,7 +94,7 @@ Deno.serve(async (req: Request) => {
   let ruleAdjustment = 0;
   let firedRules: string[] = [];
   try {
-    const rules = await listWeaverRules(body.stage);
+    const rules = await listWeaverRules(body.stage, organizationId);
     const evaluation = evaluateRules(rules, facts);
     ruleAdjustment = evaluation.totalWeight;
     firedRules = evaluation.firedRules;
