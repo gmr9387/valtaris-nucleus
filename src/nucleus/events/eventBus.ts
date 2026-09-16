@@ -1,5 +1,38 @@
 // src/nucleus/events/eventBus.ts
 // Unified constitutional event bus for the entire Valtaris ecosystem.
+//
+// RECONCILED: this used to expose five overlapping ways to listen for
+// an event (on, subscribe(subsystem, type, handler), subscribeAll,
+// plus a standalone module-level subscribe("*", handler) function) for
+// what is really one behavior -- "call this handler when a matching
+// event fires." Audited every real call site in the codebase (not just
+// grepped for the method name) before touching anything:
+//   - on(): zero real callers. Only ever appeared in this file's own
+//     doc comment as a hypothetical example. Deleted.
+//   - subscribe(subsystem, type, handler): 5 callers, all tests. The
+//     `subsystem` argument was always redundant -- every real event
+//     type string already carries its subsystem as the first segment
+//     ("weaver.opportunity.processed", "guardian.authorization.
+//     processed", ...), by the same convention emit() itself relies on
+//     to derive `subsystem` when it's only given a type string. Keying
+//     storage by subsystem+type separately from type alone bought
+//     nothing but a second string to keep in sync.
+//   - subscribeAll(handler): rebound `this.publish` to a wrapping
+//     closure on every call -- a real bug, not just noise. Two calls
+//     to subscribeAll() would nest the wrapping twice; anything that
+//     had captured a reference to the original publish() before a
+//     subscribeAll() call would silently bypass it.
+//   - standalone subscribe("*", handler): 1 real caller
+//     (integrations/nucleusMetrics.ts). Existed only because that
+//     caller imported a bare function instead of the eventBus object.
+//
+// One contract now: send with publish() (the low-level primitive) or
+// emit() (the convenience wrapper every subsystem runtime already
+// uses); listen with subscribe(pattern, handler), where pattern is
+// either an exact event type ("weaver.opportunity.processed") or "*"
+// for every event. Storage is one map keyed directly by event.type
+// plus one array for "*" -- no synthetic composite keys, no
+// self-patching.
 
 import type { NucleusEvent } from "./nucleusEvent";
 import type { Dynamic } from "../types/dynamic";
@@ -17,13 +50,16 @@ export type EventRecord = {
 
 export type EventHandler = (event: EventRecord) => void;
 
-export type PayloadHandler = (payload: Dynamic) => void;
-
 export class EventBus {
   private handlers: Map<string, EventHandler[]> = new Map();
-  private typeHandlers: Map<string, PayloadHandler[]> = new Map();
+  private globalHandlers: EventHandler[] = [];
   private events: EventRecord[] = [];
 
+  /**
+   * Low-level primitive: every send, however it arrives (publish or
+   * emit), ends up here. Records the event, then notifies exact-type
+   * subscribers and wildcard subscribers.
+   */
   publish(org: string, subsystem: string, type: string, payload: EventPayload) {
     const event: EventRecord = {
       id: crypto.randomUUID(),
@@ -36,25 +72,22 @@ export class EventBus {
 
     this.events.push(event);
 
-    const key = `${subsystem}.${type}`;
-    const handlers = this.handlers.get(key) || [];
-
     const prefix = `[EVENT][${subsystem.toUpperCase()}]`;
     console.log(prefix, `Published: ${type}`, payload ?? "");
 
-    for (const handler of this.typeHandlers.get(type) ?? []) {
-      try {
-        handler(event.payload);
-      } catch (err) {
-        console.error(prefix, `on("${type}") handler error:`, err);
-      }
-    }
-
-    for (const handler of handlers) {
+    for (const handler of this.handlers.get(type) ?? []) {
       try {
         handler(event);
       } catch (err) {
-        console.error(prefix, `Handler error for ${type}:`, err);
+        console.error(prefix, `subscribe("${type}") handler error:`, err);
+      }
+    }
+
+    for (const handler of this.globalHandlers) {
+      try {
+        handler(event);
+      } catch (err) {
+        console.error(prefix, `subscribe("*") handler error:`, err);
       }
     }
 
@@ -62,20 +95,11 @@ export class EventBus {
   }
 
   /**
-   * FIXED: added -- this method did not previously exist, but every
-   * live subsystem runtime (weaver, guardian, glue, dualpay,
-   * weaverTelemetry) calls eventBus.emit(type, payload), not
-   * publish(org, subsystem, type, payload). Real claims through
-   * /api/claim -> osPipeline.ts would throw
-   * "eventBus.emit is not a function" on the very first call
-   * without this.
-   *
-   * UPDATED: a second calling convention was found while tracing the
-   * boot chain further -- eventSimulation.ts calls
-   * eventBus.emit(event) with a single pre-built NucleusEvent object
-   * ({type, source, context: {tenantId, ...}, payload}), not
-   * (type, payload). This now detects which shape it was called with
-   * rather than assuming one.
+   * The convenience "send" API every subsystem runtime actually calls.
+   * Two real shapes in this codebase: emit(type, payload) -- subsystem
+   * is derived from the type string's first segment -- and
+   * emit(event) with a single pre-built NucleusEvent/EventRecord
+   * object (e.g. from eventSimulation.ts or the contract adapters).
    */
   emit(typeOrEvent: string | EventRecord | NucleusEvent, maybePayload?: EventPayload) {
     if (typeof typeOrEvent === "string") {
@@ -86,8 +110,7 @@ export class EventBus {
       return this.publish(org, subsystem, type, payload);
     }
 
-    // Single pre-built event object (e.g. a NucleusEvent from
-    // eventSimulation.ts): { type, source, context: { tenantId }, payload }
+    // Single pre-built event object: { type, source, context: { tenantId }, payload }
     const event = typeOrEvent as Dynamic;
     const subsystem = event.source ?? event.subsystem ?? "unknown";
     const org = event.context?.tenantId ?? event.organizationId ?? "unknown";
@@ -95,44 +118,22 @@ export class EventBus {
   }
 
   /**
-   * Subscribe by event type alone (not subsystem+type like subscribe()
-   * below) -- the handler receives the raw payload passed to emit(),
-   * matching how callers already destructure it (e.g.
-   * `eventBus.on("contract.emit", ({ name, version, payload }) => ...)`).
+   * The one "listen" API. pattern === "*" registers a global handler
+   * that sees every event; any other pattern is matched exactly
+   * against event.type.
    */
-  on(eventType: string, handler: PayloadHandler): void {
-    if (!this.typeHandlers.has(eventType)) {
-      this.typeHandlers.set(eventType, []);
+  subscribe(pattern: "*" | string, handler: EventHandler): void {
+    const prefix = "[EVENT]";
+    if (pattern === "*") {
+      this.globalHandlers.push(handler);
+      console.log(prefix, "Subscribed to: *");
+      return;
     }
-    this.typeHandlers.get(eventType)!.push(handler);
-  }
-
-  subscribe(subsystem: string, type: string, handler: EventHandler) {
-    const key = `${subsystem}.${type}`;
-
-    if (!this.handlers.has(key)) {
-      this.handlers.set(key, []);
+    if (!this.handlers.has(pattern)) {
+      this.handlers.set(pattern, []);
     }
-
-    this.handlers.get(key)!.push(handler);
-
-    const prefix = `[EVENT][${subsystem.toUpperCase()}]`;
-    console.log(prefix, `Subscribed to: ${type}`);
-  }
-
-  /**
-   * Subscribe to every event, regardless of subsystem/type.
-   * Added because NucleusRuntime needs a global listener
-   * ("wire eventBus -> stateEngine") and the key-scoped
-   * subscribe() above cannot express that on its own.
-   */
-  subscribeAll(handler: EventHandler) {
-    const originalPublish = this.publish.bind(this);
-    this.publish = (org, subsystem, type, payload) => {
-      const event = originalPublish(org, subsystem, type, payload);
-      handler(event);
-      return event;
-    };
+    this.handlers.get(pattern)!.push(handler);
+    console.log(prefix, `Subscribed to: ${pattern}`);
   }
 
   getEvents() {
@@ -155,25 +156,9 @@ export class EventBus {
 export const nucleusEventBus = new EventBus();
 
 /**
- * FIXED: every consumer in this codebase imports this module expecting
- * a named export called "eventBus" (import { eventBus } from
- * ".../eventBus"), but the only export was "nucleusEventBus". Exporting
- * both names here, rather than renaming every import site, since the
- * mismatch was consistent everywhere it was used.
+ * Every consumer in this codebase imports this module expecting a
+ * named export called "eventBus" (import { eventBus } from
+ * ".../eventBus"), but the underlying singleton is "nucleusEventBus".
+ * Exporting both names rather than renaming every import site.
  */
 export const eventBus = nucleusEventBus;
-
-/**
- * Standalone wildcard-subscribe function: 3 callers (integrations/
- * nucleusMetrics.ts, integrations/nucleusTelemetry.ts,
- * state/nucleusBoot.ts) import a bare `subscribe("*", handler)` rather
- * than calling a method on eventBus/nucleusEventBus. All three only
- * ever pass "*" (they want every event), matching subscribeAll()'s
- * semantics exactly.
- */
-export function subscribe(pattern: "*", handler: EventHandler): void {
-  if (pattern !== "*") {
-    throw new Error(`subscribe() only supports the wildcard pattern "*", got "${pattern}".`);
-  }
-  nucleusEventBus.subscribeAll(handler);
-}

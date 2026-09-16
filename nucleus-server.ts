@@ -9,20 +9,18 @@
 // process instead.
 
 import { startNucleus } from "./src/nucleus/startNucleus";
-import { APIServer } from "./src/nucleus/api/apiServer";
-
-// Boot Nucleus constitutionally
-const organizationId = process.env.ORGANIZATION_ID || "dev-org";
-startNucleus(organizationId);
 
 /**
- * FIXED: the previous version of this file built its own bare express()
- * app and called app.listen() directly, bypassing APIServer entirely.
- * That meant /api/claim and /api/health -- both fixed in earlier passes --
- * were never actually mounted on the server that runs in production.
- * APIServer.start() already wires up APIRouter (which includes both
- * routes) and calls app.listen() internally, so this replaces the
- * bare express app rather than running two servers side by side.
+ * FIXED: this used to call startNucleus() AND THEN APIServer.start()
+ * itself again -- but startNucleus() -> DeploymentBootstrap.start()
+ * already starts the API server internally. The second call tried to
+ * bind the same port twice and crashed with EADDRINUSE ("Failed to
+ * start server. Is port 3000 in use?") on every real run, confirmed by
+ * actually booting this file rather than trusting the earlier fix's
+ * own comment, which was wrong about this being resolved. The port is
+ * now threaded through startNucleus() -> DeploymentBootstrap.start()
+ * -> APIServer.start() instead of started here a second time.
  */
+const organizationId = process.env.ORGANIZATION_ID || "dev-org";
 const port = Number(process.env.PORT) || 3000;
-APIServer.start(port);
+startNucleus(organizationId, port);

@@ -36,7 +36,7 @@ import { nucleusBoot } from "../runtime/nucleusBoot";
  *   here rather than picking an answer for you.
  */
 export class DeploymentBootstrap {
-  static start(organizationId: string) {
+  static start(organizationId: string, port: number = 3000) {
     console.log("=== Valtaris Nucleus Boot Sequence ===");
 
     // 1. Load Constitution (kept for the startup log; nucleusBoot()
@@ -49,8 +49,13 @@ export class DeploymentBootstrap {
     //    known-issue comment above regarding per-subsystem dispatch.
     const runtime = nucleusBoot("nucleus", organizationId);
 
-    // 3. Start API server
-    APIServer.start(3000);
+    // 3. Start API server. This is the ONLY place APIServer.start() is
+    // called -- nucleus-server.ts used to call it a second time after
+    // calling startNucleus(), which reached here first and already
+    // bound the port; the second call crashed on EADDRINUSE every time
+    // ("Failed to start server. Is port 3000 in use?"), confirmed by
+    // actually running nucleus-server.ts and hitting /api/health.
+    APIServer.start(port);
 
     console.log("Nucleus runtime initialized.");
 

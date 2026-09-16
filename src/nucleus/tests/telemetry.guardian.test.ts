@@ -15,7 +15,7 @@ describe("Telemetry — Guardian", () => {
         recommendation: { action: "approve", confidence: 0.8 },
       };
 
-      eventBus.subscribe("guardian", "guardian.authorization.processed", (signal) => {
+      eventBus.subscribe("guardian.authorization.processed", (signal) => {
         try {
           expect(signal.subsystem).toBe("guardian");
           expect(signal.org).toBe("org-telemetry");
