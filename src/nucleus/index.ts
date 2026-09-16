@@ -14,6 +14,6 @@ import { startNucleus as startNucleusCanonical } from "./startNucleus";
  * "./nucleus" and anything importing from "./nucleus/startNucleus" now
  * gets the identical, correct implementation.
  */
-export function startNucleus(organizationId: string) {
+export async function startNucleus(organizationId: string) {
   return startNucleusCanonical(organizationId);
 }

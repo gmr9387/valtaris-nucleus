@@ -53,7 +53,7 @@ export class RuntimeRouter {
     payload: Dynamic,
     contractVersion: string = DEFAULT_CONTRACT_VERSION,
   ): Promise<Dynamic> {
-    const subsystem = RuntimeGuards.enforceSubsystemPermission(id);
+    const subsystem = RuntimeGuards.enforceSubsystemPermission(id, payload);
 
     const startedAt = Date.now();
     const result = await subsystem.runtime.handle(contractName, payload);
