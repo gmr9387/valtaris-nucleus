@@ -9,6 +9,7 @@ import {
 import { findActiveContractIdForPayer, fetchContractTerms } from "@/engine/contract-to-terms";
 import { findActivePlanIdForPayer, fetchPlanBenefitTerms } from "@/engine/plan-benefits-to-terms";
 import { fetchKillSwitch } from "@/lib/guardian-kill-switch";
+import { nucleusRetry } from "../../retry/retryEngine";
 import type { GuardianRiskTier } from "@/nucleus/contracts/authorizationContract";
 import type { ClaimLine, ContractTerms, MemberAccumulators, PlanBenefits } from "@/types/claim";
 import type { Dynamic } from "../../types/dynamic";
@@ -149,8 +150,26 @@ export class GuardianRuntime {
     // same way accumulator-fetch failures already do below: if Guardian
     // can't confirm the switch is off, it does not guess "probably
     // fine" and proceed.
+    //
+    // Retried up to 3 times (200ms backoff + up to 100ms jitter) via
+    // RetryEngine -- its first real caller anywhere in the codebase --
+    // before falling through to the fail-closed catch below. This is
+    // specifically for a transient network blip to Supabase, which is
+    // recoverable within milliseconds; it does not loosen fail-closed
+    // at all, it only stops a single dropped packet from denying a
+    // claim that a second attempt would have resolved. If all 3
+    // attempts fail, RetryEngine rethrows the last error and this
+    // still denies exactly as it always has.
     try {
-      const killSwitch = await fetchKillSwitch();
+      const killSwitch = await nucleusRetry.run(
+        payload.organizationId ?? "unknown",
+        "guardian",
+        "kill_switch_fetch",
+        3,
+        200,
+        100,
+        () => fetchKillSwitch(),
+      );
       if (killSwitch.active) {
         const result = {
           ...payload,
