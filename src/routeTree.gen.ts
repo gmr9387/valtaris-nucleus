@@ -26,6 +26,7 @@ import { Route as AppGovernanceRouteImport } from './routes/_app.governance'
 import { Route as AppOrganizationsRouteImport } from './routes/_app.organizations'
 import { Route as AppProjectsRouteImport } from './routes/_app.projects'
 import { Route as AppSecretsRouteImport } from './routes/_app.secrets'
+import { Route as AppSsoRouteImport } from './routes/_app.sso'
 import { Route as AppTelemetryRouteImport } from './routes/_app.telemetry'
 import { Route as AppUsersRouteImport } from './routes/_app.users'
 import { Route as AppWorkflowsRouteImport } from './routes/_app.workflows'
@@ -117,6 +118,11 @@ const AppSecretsRoute = AppSecretsRouteImport.update({
   path: '/secrets',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSsoRoute = AppSsoRouteImport.update({
+  id: '/sso',
+  path: '/sso',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppTelemetryRoute = AppTelemetryRouteImport.update({
   id: '/telemetry',
   path: '/telemetry',
@@ -166,6 +172,7 @@ export interface FileRoutesByFullPath {
   '/organizations': typeof AppOrganizationsRoute
   '/projects': typeof AppProjectsRoute
   '/secrets': typeof AppSecretsRoute
+  '/sso': typeof AppSsoRoute
   '/telemetry': typeof AppTelemetryRoute
   '/users': typeof AppUsersRoute
   '/workflows': typeof AppWorkflowsRouteWithChildren
@@ -190,6 +197,7 @@ export interface FileRoutesByTo {
   '/organizations': typeof AppOrganizationsRoute
   '/projects': typeof AppProjectsRoute
   '/secrets': typeof AppSecretsRoute
+  '/sso': typeof AppSsoRoute
   '/telemetry': typeof AppTelemetryRoute
   '/users': typeof AppUsersRoute
   '/workflows': typeof AppWorkflowsRouteWithChildren
@@ -216,6 +224,7 @@ export interface FileRoutesById {
   '/_app/organizations': typeof AppOrganizationsRoute
   '/_app/projects': typeof AppProjectsRoute
   '/_app/secrets': typeof AppSecretsRoute
+  '/_app/sso': typeof AppSsoRoute
   '/_app/telemetry': typeof AppTelemetryRoute
   '/_app/users': typeof AppUsersRoute
   '/_app/workflows': typeof AppWorkflowsRouteWithChildren
@@ -242,6 +251,7 @@ export interface FileRouteTypes {
     | '/organizations'
     | '/projects'
     | '/secrets'
+    | '/sso'
     | '/telemetry'
     | '/users'
     | '/workflows'
@@ -266,6 +276,7 @@ export interface FileRouteTypes {
     | '/organizations'
     | '/projects'
     | '/secrets'
+    | '/sso'
     | '/telemetry'
     | '/users'
     | '/workflows'
@@ -291,6 +302,7 @@ export interface FileRouteTypes {
     | '/_app/organizations'
     | '/_app/projects'
     | '/_app/secrets'
+    | '/_app/sso'
     | '/_app/telemetry'
     | '/_app/users'
     | '/_app/workflows'
@@ -426,6 +438,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSecretsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/sso': {
+      id: '/_app/sso'
+      path: '/sso'
+      fullPath: '/sso'
+      preLoaderRoute: typeof AppSsoRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/telemetry': {
       id: '/_app/telemetry'
       path: '/telemetry'
@@ -514,6 +533,7 @@ interface AppRouteChildren {
   AppOrganizationsRoute: typeof AppOrganizationsRoute
   AppProjectsRoute: typeof AppProjectsRoute
   AppSecretsRoute: typeof AppSecretsRoute
+  AppSsoRoute: typeof AppSsoRoute
   AppTelemetryRoute: typeof AppTelemetryRoute
   AppUsersRoute: typeof AppUsersRoute
   AppWorkflowsRoute: typeof AppWorkflowsRouteWithChildren
@@ -534,6 +554,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppOrganizationsRoute: AppOrganizationsRoute,
   AppProjectsRoute: AppProjectsRoute,
   AppSecretsRoute: AppSecretsRoute,
+  AppSsoRoute: AppSsoRoute,
   AppTelemetryRoute: AppTelemetryRoute,
   AppUsersRoute: AppUsersRoute,
   AppWorkflowsRoute: AppWorkflowsRouteWithChildren,

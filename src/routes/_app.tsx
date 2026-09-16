@@ -150,6 +150,7 @@ function pageTitleFromPath(pathname: string): string {
     "command-center": "Command Center",
     dashboard: "Overview",
     organizations: "Organizations",
+    sso: "Enterprise SSO",
     projects: "Projects",
     environments: "Environments",
     users: "Users",
