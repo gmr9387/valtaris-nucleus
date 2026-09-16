@@ -20,7 +20,26 @@ export class Scheduler {
   private tasks: Map<string, ScheduledTask> = new Map();
   private timers: Map<string, NodeJS.Timeout> = new Map();
 
-  register(org: string, subsystem: string, name: string, intervalMs: number, payload: Dynamic) {
+  /**
+   * FIXED (before this had a real caller): every tick just called
+   * nucleusQueue.enqueue() with nothing ever consuming the queue it
+   * enqueued onto -- messages piled up forever with no delivery, no
+   * result, and no way to tell a live schedule from a broken one.
+   * queueEngine.ts already has a deliver(queue, handler) half of that
+   * pair; this now calls it right after enqueueing, same
+   * enqueue-then-deliver shape TelemetryAdapter already uses. handler
+   * is optional so a caller that genuinely only wants queue backlog
+   * (a real work queue another process drains later) can still get
+   * that by omitting it.
+   */
+  register(
+    org: string,
+    subsystem: string,
+    name: string,
+    intervalMs: number,
+    payload: Dynamic,
+    handler?: (msg: Dynamic) => Promise<Dynamic> | Dynamic,
+  ) {
     const id = crypto.randomUUID();
 
     const task: ScheduledTask = {
@@ -39,6 +58,9 @@ export class Scheduler {
 
     const timer = setInterval(() => {
       nucleusQueue.enqueue(org, subsystem, payload);
+      if (handler) {
+        nucleusQueue.deliver(subsystem, (msg) => handler(msg.payload));
+      }
     }, intervalMs);
 
     this.timers.set(id, timer);
