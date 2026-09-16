@@ -12,6 +12,7 @@ import { lineageEngine } from "../lineage/lineageEngine";
 import { telemetryEngine } from "../telemetry/telemetryEngine";
 import { nucleusAudit } from "../audit/auditEngine";
 import { registerAllSubsystems } from "../subsystems/registerSubsystems";
+import { OSPipeline } from "../runtime/osPipeline";
 
 export const ciSuites = {
   "constitution.tests": () => ({
@@ -65,4 +66,41 @@ export const ciSuites = {
   // *.proof map for this, but it has zero real callers anywhere in the
   // codebase; this suite list is the one bun run ci actually executes).
   "audit.tests": () => nucleusAudit.report(),
+
+  // gapMap.md's "Internal Test Harness (pipelines/workflows/governance)",
+  // #19: every suite above exercises an individual engine in isolation,
+  // but none of them ever actually dispatch a claim -- so RuntimeGuards,
+  // GovernanceEngine, contract validation, StateEngine, and
+  // MetricsEngine (all wired into RuntimeRouter.dispatch() this session)
+  // had zero CI coverage of the one path a real organization actually
+  // calls. This runs the same full five-stage chain
+  // src/nucleus/tests/osPipeline.test.ts already proves under vitest,
+  // but as part of the Sovereign CI self-check `bun run ci` runs on its
+  // own, under a dedicated "org-ci-selfcheck" tenant so it never mixes
+  // with real organization data.
+  "dispatch.tests": async () => {
+    registerAllSubsystems();
+
+    const claimId = "ci-selfcheck-claim";
+    const organizationId = "org-ci-selfcheck";
+    const result = await OSPipeline.runClaim(organizationId, { claimId, amount: 100 });
+
+    if (result.claimId !== claimId || result.organizationId !== organizationId) {
+      throw new Error("dispatch.tests: claim identity did not round-trip through the pipeline");
+    }
+    const stages = [
+      "opportunity",
+      "recommendation",
+      "authorization",
+      "execution",
+      "payment",
+    ] as const;
+    for (const stage of stages) {
+      if (!result[stage]) {
+        throw new Error(`dispatch.tests: "${stage}" stage produced no result`);
+      }
+    }
+
+    return result;
+  },
 };
