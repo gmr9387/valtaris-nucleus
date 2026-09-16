@@ -36,6 +36,34 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+/**
+ * verify_jwt only proves "some signed-in nucleus user" -- it says
+ * nothing about their role. api_clients isn't scoped to one
+ * organization (its keys gate nucleus's entire external API surface),
+ * so the equivalent of the UI's canManageOrg() check here is: does
+ * this user hold owner/admin in ANY organization. Without this, any
+ * authenticated user (viewer, manager, ...) could create/rotate/
+ * disable API clients via a direct request, bypassing the button-level
+ * gating the admin UI applies -- that gating was never enforced here.
+ */
+async function callerIsOwnerOrAdmin(req: Request): Promise<boolean> {
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const jwt = authHeader.replace(/^Bearer\s+/i, "");
+  if (!jwt) return false;
+
+  const { data: userData, error: userError } = await supabase.auth.getUser(jwt);
+  if (userError || !userData?.user) return false;
+
+  const { data, error } = await supabase
+    .from("organization_members")
+    .select("role")
+    .eq("user_id", userData.user.id)
+    .in("role", ["owner", "admin"])
+    .limit(1);
+  if (error) return false;
+  return (data ?? []).length > 0;
+}
+
 interface ApiClientRow {
   client_id: string;
   label: string | null;
@@ -84,8 +112,10 @@ Deno.serve(async (req: Request) => {
 
   // verify_jwt (enabled for this function, unlike this project's
   // x-api-key-authenticated external APIs) already rejected any caller
-  // without a valid Supabase session before this code runs -- this is
-  // an authenticated-user-only surface, not a public one.
+  // without a valid Supabase session before this code runs -- that
+  // proves "signed in," not "authorized." Reads (list) are visible to
+  // any signed-in user, matching the admin UI's own list query; writes
+  // (create/rotate/set_enabled) require owner/admin, checked below.
 
   let body: ManageRequest;
   try {
@@ -101,6 +131,11 @@ Deno.serve(async (req: Request) => {
       .order("created_at", { ascending: false });
     if (error) return jsonResponse({ error: error.message }, 500);
     return jsonResponse({ clients: (data ?? []) as ApiClientRow[] });
+  }
+
+  // Every remaining action mutates api_clients -- require owner/admin.
+  if (!(await callerIsOwnerOrAdmin(req))) {
+    return jsonResponse({ error: "Owner or admin role required" }, 403);
   }
 
   if (body.action === "create") {

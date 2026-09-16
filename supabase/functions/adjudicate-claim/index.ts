@@ -127,6 +127,18 @@ Deno.serve(async (req: Request) => {
     );
   }
 
+  // A negative or non-finite billed_amount_cents (or units) previously
+  // reached adjudicateClaim() unchecked, where a negative downstream
+  // result trips calculationEngine.ts's assertLineInvariant() and
+  // throws -- turning a bad request into an unhandled exception
+  // instead of a clean 400.
+  if (!Number.isFinite(body.billed_amount_cents) || body.billed_amount_cents < 0) {
+    return jsonResponse({ error: "billed_amount_cents must be a non-negative number" }, 400);
+  }
+  if (body.units !== undefined && (!Number.isFinite(body.units) || body.units <= 0)) {
+    return jsonResponse({ error: "units must be a positive number" }, 400);
+  }
+
   const planYear = body.plan_year ?? new Date().getUTCFullYear();
   const serviceDate = body.service_date ?? new Date().toISOString().slice(0, 10);
   const timestamp = new Date().toISOString();
