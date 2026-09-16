@@ -7,6 +7,7 @@ import { sovereigntyRuntime } from "../sovereignty/sovereigntyRuntime";
 import { environmentActivationEngine } from "../activationEnv/environmentActivationEngine";
 import { federationEngine } from "../federation/federationEngine";
 import { autonomyEngine } from "../autonomy/autonomyEngine";
+import { autonomyManifest } from "../autonomy/autonomyManifest";
 import { resourceGraph } from "../resources/resourceGraph";
 import { lineageEngine } from "../lineage/lineageEngine";
 import { telemetryEngine } from "../telemetry/telemetryEngine";
@@ -27,7 +28,16 @@ const stepHandlers: Record<string, Record<string, () => Dynamic>> = {
   environment: { activate: () => environmentActivationEngine.activateAll() },
   federation: { initialize: () => federationEngine.getNodes() },
   autonomy: {
-    initialize: () => autonomyEngine.health.checkAll(autonomyEngine.manifest.subsystems),
+    // autonomyManifest.selfHealingEnabled was declared and set but never
+    // once read anywhere in the codebase -- healAll() now actually runs
+    // (or doesn't) based on it, instead of the flag being pure decoration.
+    initialize: async () => {
+      const health = await autonomyEngine.health.checkAll(autonomyEngine.manifest.subsystems);
+      const healing = autonomyManifest.selfHealingEnabled
+        ? await autonomyEngine.healing.healAll(autonomyEngine.manifest.subsystems)
+        : [];
+      return { health, healing };
+    },
   },
   resources: { initialize: () => resourceGraph.listResources() },
   lineage: { initialize: () => lineageEngine.list() },

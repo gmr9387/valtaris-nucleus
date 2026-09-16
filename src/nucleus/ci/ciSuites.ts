@@ -11,6 +11,7 @@ import { resourceGraph } from "../resources/resourceGraph";
 import { lineageEngine } from "../lineage/lineageEngine";
 import { telemetryEngine } from "../telemetry/telemetryEngine";
 import { nucleusAudit } from "../audit/auditEngine";
+import { registerAllSubsystems } from "../subsystems/registerSubsystems";
 
 export const ciSuites = {
   "constitution.tests": () => ({
@@ -29,9 +30,21 @@ export const ciSuites = {
     environments: federationEngine.identity.validateEnvironment("dev"),
   }),
 
-  "autonomy.tests": () => ({
-    health: autonomyEngine.health.checkAll(autonomyEngine.manifest.subsystems),
-  }),
+  // registerAllSubsystems() is idempotent -- called here because `bun
+  // run ci` runs this suite in its own process, which (unlike a real
+  // server boot or nucleusBoot()) never otherwise registers the four
+  // claim-processing subsystems. Without this, health.checkAll() below
+  // -- now a real diagnostics-backed check instead of a hardcoded stub,
+  // see subsystemHealthEngine.ts -- would correctly but misleadingly
+  // report every subsystem "unhealthy" for a reason that has nothing to
+  // do with autonomy: they were simply never registered in this process.
+  "autonomy.tests": async () => {
+    registerAllSubsystems();
+    return {
+      health: await autonomyEngine.health.checkAll(autonomyEngine.manifest.subsystems),
+      healing: await autonomyEngine.healing.healAll(autonomyEngine.manifest.subsystems),
+    };
+  },
 
   "pipeline.tests": () => constitutionalPipeline.execute(),
 

@@ -1,12 +1,20 @@
 // Phase 39 — Self-Healing Engine
 
+import { nucleusRecovery } from "../recovery/recoveryEngine";
 import { subsystemHealthEngine } from "./subsystemHealthEngine";
 
-export class SelfHealingEngine {
-  heal(subsystem: string) {
-    const health = subsystemHealthEngine.check(subsystem);
+const PLATFORM_ORG = "platform";
 
-    if (health.healthy) {
+export class SelfHealingEngine {
+  async heal(subsystem: string) {
+    // Ensures the diagnostic + recovery action are registered for this
+    // subsystem (see subsystemHealthEngine.ts) even if healAll() runs
+    // before any checkAll() has -- idempotent, cheap.
+    await subsystemHealthEngine.check(subsystem);
+
+    const recovered = await nucleusRecovery.attemptRecovery(PLATFORM_ORG, subsystem);
+
+    if (recovered === null) {
       return {
         subsystem,
         healed: false,
@@ -16,13 +24,15 @@ export class SelfHealingEngine {
 
     return {
       subsystem,
-      healed: true,
-      reason: "Subsystem restored to constitutional baseline",
+      healed: recovered,
+      reason: recovered
+        ? "Subsystem restored to constitutional baseline"
+        : "No recovery action succeeded",
     };
   }
 
-  healAll(subsystems: string[]) {
-    return subsystems.map((s) => this.heal(s));
+  async healAll(subsystems: string[]) {
+    return Promise.all(subsystems.map((s) => this.heal(s)));
   }
 }
 
