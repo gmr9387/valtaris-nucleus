@@ -9,6 +9,8 @@ export interface CommandCenterClient {
   label: string | null;
   enabled: boolean;
   created_at: string;
+  organization_id: string | null;
+  organization_name: string | null;
   requests_last_hour: number;
   last_seen: string | null;
   outcomes_last_24h: Record<string, Record<string, number>>;

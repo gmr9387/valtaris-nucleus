@@ -40,6 +40,8 @@ interface ClientStats {
   label: string | null;
   enabled: boolean;
   created_at: string;
+  organization_id: string | null;
+  organization_name: string | null;
   requests_last_hour: number;
   last_seen: string | null;
   outcomes_last_24h: Record<string, Record<string, number>>;
@@ -59,7 +61,7 @@ Deno.serve(async (req: Request) => {
   const [clientsRes, rateLimitsRes, activityRes, feedRes] = await Promise.all([
     supabase
       .from("api_clients")
-      .select("client_id, label, enabled, created_at")
+      .select("client_id, label, enabled, created_at, organization_id, organizations(name)")
       .order("created_at", { ascending: false }),
     supabase
       .from("api_rate_limits")
@@ -103,15 +105,24 @@ Deno.serve(async (req: Request) => {
     outcomesByClient.set(row.client_id, byEndpoint);
   }
 
-  const clients: ClientStats[] = (clientsRes.data ?? []).map((client) => ({
-    client_id: client.client_id as string,
-    label: client.label as string | null,
-    enabled: client.enabled as boolean,
-    created_at: client.created_at as string,
-    requests_last_hour: volumeByClient.get(client.client_id as string)?.requests ?? 0,
-    last_seen: volumeByClient.get(client.client_id as string)?.lastSeen ?? null,
-    outcomes_last_24h: outcomesByClient.get(client.client_id as string) ?? {},
-  }));
+  const clients: ClientStats[] = (clientsRes.data ?? []).map((client) => {
+    // PostgREST embeds the many-to-one organizations relation as a
+    // single object (or null when organization_id is null) -- never
+    // an array, since api_clients.organization_id -> organizations.id
+    // is unambiguous.
+    const organization = client.organizations as { name: string } | null;
+    return {
+      client_id: client.client_id as string,
+      label: client.label as string | null,
+      enabled: client.enabled as boolean,
+      created_at: client.created_at as string,
+      organization_id: client.organization_id as string | null,
+      organization_name: organization?.name ?? null,
+      requests_last_hour: volumeByClient.get(client.client_id as string)?.requests ?? 0,
+      last_seen: volumeByClient.get(client.client_id as string)?.lastSeen ?? null,
+      outcomes_last_24h: outcomesByClient.get(client.client_id as string) ?? {},
+    };
+  });
 
   return jsonResponse({ clients, recent_activity: feedRes.data ?? [] });
 });
