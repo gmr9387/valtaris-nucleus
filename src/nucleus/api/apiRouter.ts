@@ -3,6 +3,7 @@
 import express from "express";
 import { APIController } from "./apiController";
 import { nucleusOpenApi } from "./openApiGenerator";
+import { getInternalStatus } from "./internalStatusController";
 
 const router = express.Router();
 
@@ -11,6 +12,24 @@ router.get("/health", (_req, res) => {
 });
 
 router.post("/claim", APIController.submitClaim);
+
+// internalStatusController.ts (see that file's header) is the first
+// real place every engine wired live this session -- Governance,
+// Certification, the Constitutional Pipeline/Adapter Registry, Recovery,
+// plus the earlier Event Bus/Queue/Scheduler/Retry/State/Metrics work --
+// is actually queryable in one response, instead of only visible in
+// whichever process's console happened to be running when it fired.
+router.get("/internal-status", async (_req, res) => {
+  try {
+    const status = await getInternalStatus();
+    res.status(200).json(status);
+  } catch (err: unknown) {
+    res.status(500).json({
+      error: "Failed to compute internal status",
+      details: err instanceof Error ? err.message : String(err),
+    });
+  }
+});
 
 // api/openApiGenerator.ts (gapMap.md's "Unified OpenAPI documentation",
 // #12) was fully built -- register()/generate(), the works -- with zero
@@ -48,6 +67,18 @@ nucleusOpenApi.register(
     type: "object",
     description:
       "The full adjudication pipeline result: opportunity, recommendation, authorization, execution, and payment stage outputs.",
+  },
+);
+
+nucleusOpenApi.register(
+  "GET",
+  "/internal-status",
+  "api",
+  "Aggregated real-time status of the internal constitutional engine: subsystem health, governance decisions, certification, adapter/pipeline/CI/deployment state, federation nodes, metrics, audit, resources, lineage, and telemetry.",
+  undefined,
+  {
+    type: "object",
+    description: "See internalStatusController.ts's getInternalStatus() for the exact shape.",
   },
 );
 
