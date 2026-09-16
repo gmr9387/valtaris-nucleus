@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Users,
   Workflow,
+  Fingerprint,
 } from "lucide-react";
 
 type Item = {
@@ -36,6 +37,7 @@ const groups: { label: string; items: Item[] }[] = [
     items: [
       { to: "/dashboard", label: "Overview", icon: LayoutDashboard },
       { to: "/organizations", label: "Organizations", icon: Building2 },
+      { to: "/sso", label: "Enterprise SSO", icon: Fingerprint },
       { to: "/projects", label: "Projects", icon: FolderKanban },
       { to: "/environments", label: "Environments", icon: Server },
       { to: "/users", label: "Users & Roles", icon: Users },

@@ -28,6 +28,9 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [ssoMode, setSsoMode] = useState(false);
+  const [ssoEmail, setSsoEmail] = useState("");
+  const [ssoBusy, setSsoBusy] = useState(false);
   const { session } = useAuth();
   const navigate = useNavigate();
 
@@ -73,6 +76,28 @@ function LoginPage() {
     }
   }
 
+  async function submitSso(e: React.FormEvent) {
+    e.preventDefault();
+    const domain = ssoEmail.trim().toLowerCase().split("@")[1];
+    if (!domain) {
+      toast.error("Enter your work email address");
+      return;
+    }
+    setSsoBusy(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithSSO({ domain });
+      if (error) throw error;
+      if (!data?.url) {
+        throw new Error(`No SSO provider is configured for ${domain}`);
+      }
+      window.location.href = data.url;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "SSO sign-in failed";
+      toast.error(msg);
+      setSsoBusy(false);
+    }
+  }
+
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-background px-4">
       <div className="absolute inset-0 grid-bg opacity-50" />
@@ -95,60 +120,107 @@ function LoginPage() {
               : "Continue to the platform console."}
           </p>
 
-          <form onSubmit={submit} className="mt-6 space-y-3">
-            {mode === "signup" && (
-              <Field label="Full name">
+          {ssoMode ? (
+            <form onSubmit={submitSso} className="mt-6 space-y-3">
+              <Field label="Work email">
                 <input
                   className="input"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@company.com"
+                  value={ssoEmail}
+                  onChange={(e) => setSsoEmail(e.target.value)}
                   required
-                  maxLength={120}
-                  autoComplete="name"
+                  maxLength={254}
                 />
               </Field>
-            )}
-            <Field label="Email">
-              <input
-                className="input"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                maxLength={254}
-              />
-            </Field>
-            <Field label="Password">
-              <input
-                className="input"
-                type="password"
-                autoComplete={mode === "signup" ? "new-password" : "current-password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={8}
-                maxLength={72}
-              />
-            </Field>
 
-            <button
-              type="submit"
-              disabled={busy}
-              className="mt-2 inline-flex h-10 w-full items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-            >
-              {busy ? "..." : mode === "signup" ? "Create account" : "Sign in"}
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={ssoBusy}
+                className="mt-2 inline-flex h-10 w-full items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                {ssoBusy ? "Redirecting…" : "Continue"}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={submit} className="mt-6 space-y-3">
+              {mode === "signup" && (
+                <Field label="Full name">
+                  <input
+                    className="input"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    required
+                    maxLength={120}
+                    autoComplete="name"
+                  />
+                </Field>
+              )}
+              <Field label="Email">
+                <input
+                  className="input"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  maxLength={254}
+                />
+              </Field>
+              <Field label="Password">
+                <input
+                  className="input"
+                  type="password"
+                  autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={8}
+                  maxLength={72}
+                />
+              </Field>
+
+              <button
+                type="submit"
+                disabled={busy}
+                className="mt-2 inline-flex h-10 w-full items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                {busy ? "..." : mode === "signup" ? "Create account" : "Sign in"}
+              </button>
+            </form>
+          )}
 
           <div className="mt-5 text-center text-sm text-muted-foreground">
-            {mode === "signup" ? "Already have an account?" : "Need an account?"}{" "}
-            <button
-              className="text-foreground underline-offset-4 hover:underline"
-              onClick={() => setMode(mode === "signup" ? "signin" : "signup")}
-            >
-              {mode === "signup" ? "Sign in" : "Create one"}
-            </button>
+            {ssoMode ? (
+              <button
+                className="text-foreground underline-offset-4 hover:underline"
+                onClick={() => setSsoMode(false)}
+              >
+                Back to email &amp; password
+              </button>
+            ) : (
+              <>
+                {mode === "signup" ? "Already have an account?" : "Need an account?"}{" "}
+                <button
+                  className="text-foreground underline-offset-4 hover:underline"
+                  onClick={() => setMode(mode === "signup" ? "signin" : "signup")}
+                >
+                  {mode === "signup" ? "Sign in" : "Create one"}
+                </button>
+                {mode === "signin" && (
+                  <>
+                    {" · "}
+                    <button
+                      className="text-foreground underline-offset-4 hover:underline"
+                      onClick={() => setSsoMode(true)}
+                    >
+                      Sign in with SSO
+                    </button>
+                  </>
+                )}
+              </>
+            )}
           </div>
         </div>
       </div>
