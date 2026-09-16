@@ -147,6 +147,7 @@ function pageTitleFromPath(pathname: string): string {
       .filter(Boolean)[0] ?? "dashboard";
 
   const map: Record<string, string> = {
+    "command-center": "Command Center",
     dashboard: "Overview",
     organizations: "Organizations",
     projects: "Projects",

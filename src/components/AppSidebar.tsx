@@ -11,6 +11,7 @@ import {
   KeyRound,
   LayoutDashboard,
   PlugZap,
+  Radar,
   ScrollText,
   Server,
   ShieldCheck,
@@ -26,6 +27,10 @@ type Item = {
 };
 
 const groups: { label: string; items: Item[] }[] = [
+  {
+    label: "ECOSYSTEM",
+    items: [{ to: "/command-center", label: "Command Center", icon: Radar }],
+  },
   {
     label: "PLATFORM",
     items: [
