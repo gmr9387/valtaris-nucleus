@@ -18,5 +18,6 @@ export const ciManifest: CIManifest = {
     "resources.tests",
     "lineage.tests",
     "telemetry.tests",
+    "audit.tests",
   ],
 };
