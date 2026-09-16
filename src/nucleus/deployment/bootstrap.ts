@@ -4,6 +4,8 @@ import { constitution } from "../constitution";
 import { APIServer } from "../api/apiServer";
 import { nucleusBoot } from "../runtime/nucleusBoot";
 import { nucleusScheduler } from "../scheduler/scheduler";
+import { loadAdapters } from "../adapters/loadAdapters";
+import { constitutionalPipeline } from "../pipeline/constitutionalPipeline";
 
 /**
  * FIXED (again): the constitution module was restructured since the
@@ -37,7 +39,7 @@ import { nucleusScheduler } from "../scheduler/scheduler";
  *   here rather than picking an answer for you.
  */
 export class DeploymentBootstrap {
-  static start(organizationId: string, port: number = 3000) {
+  static async start(organizationId: string, port: number = 3000) {
     console.log("=== Valtaris Nucleus Boot Sequence ===");
 
     // 1. Load Constitution (kept for the startup log; nucleusBoot()
@@ -49,6 +51,20 @@ export class DeploymentBootstrap {
     //    NOTE: "nucleus" here is the orchestrator identity -- see the
     //    known-issue comment above regarding per-subsystem dispatch.
     const runtime = nucleusBoot("nucleus", organizationId);
+
+    // 2a. adapters/adapterAutoWireEngine.ts (dependency-ordered adapter
+    // loading against adapterManifest.ts + adapterDependencyGraph.ts)
+    // and pipeline/constitutionalPipeline.ts (the constitution/
+    // sovereignty/environment/federation/autonomy/resources/lineage/
+    // telemetry/workflows boot sequence) were both fully built and
+    // exercised only by `bun run ci` (ciSuites.ts's "adapters.tests"
+    // and "pipeline.tests") and the CLI's `adapters`/`pipeline`
+    // commands -- neither ran on an actual server boot before this.
+    // Running them here means every real process start now actually
+    // wires adapters in dependency order and runs the constitutional
+    // pipeline, instead of that only ever being proven in CI.
+    await loadAdapters();
+    await constitutionalPipeline.execute();
 
     // 3. Start API server. This is the ONLY place APIServer.start() is
     // called -- nucleus-server.ts used to call it a second time after

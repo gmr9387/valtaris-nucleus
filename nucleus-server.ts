@@ -23,4 +23,7 @@ import { startNucleus } from "./src/nucleus/startNucleus";
  */
 const organizationId = process.env.ORGANIZATION_ID || "dev-org";
 const port = Number(process.env.PORT) || 3000;
-startNucleus(organizationId, port);
+startNucleus(organizationId, port).catch((err) => {
+  console.error("Nucleus failed to start:", err);
+  process.exit(1);
+});
