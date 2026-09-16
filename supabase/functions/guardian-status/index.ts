@@ -24,7 +24,7 @@
  * own admin UI, gated to owner/admin roles. An external arm can only
  * ask, never tell.
  */
-import { fetchKillSwitch, verifyApiKey, checkRateLimit } from "./repo.ts";
+import { fetchKillSwitch, verifyApiKey, checkRateLimit, recordActivity } from "./repo.ts";
 
 // X-Api-Version identifies this response as coming from v1 of the
 // contract documented in docs/api/nucleus-external-api.yaml. See
@@ -70,6 +70,23 @@ Deno.serve(async (req: Request) => {
 
   try {
     const killSwitch = await fetchKillSwitch();
+    // Deliberately not logged/recorded on every poll -- this endpoint
+    // is meant to be hit up to 600 times/minute per client, so a log
+    // line and a DB row per request would be pure noise. Only the
+    // state actually worth knowing about (unsafe, or unverifiable
+    // below) gets recorded.
+    if (killSwitch.active) {
+      console.log(
+        JSON.stringify({
+          event: "guardian_status",
+          client_id: clientId,
+          safe_to_process: false,
+          reason: killSwitch.reason,
+          timestamp,
+        }),
+      );
+      await recordActivity(clientId, "unsafe", { reason: killSwitch.reason });
+    }
     return jsonResponse({
       safe_to_process: !killSwitch.active,
       kill_switch_active: killSwitch.active,
@@ -82,6 +99,16 @@ Deno.serve(async (req: Request) => {
     // Same fail-closed convention as adjudicate-claim/index.ts and
     // guardianRuntime.ts: if the switch's own state can't be verified,
     // report unsafe rather than guessing "probably fine."
+    console.log(
+      JSON.stringify({
+        event: "guardian_status",
+        client_id: clientId,
+        safe_to_process: false,
+        reason_category: "kill_switch_unverifiable",
+        timestamp,
+      }),
+    );
+    await recordActivity(clientId, "unverifiable", { error: (err as Error).message });
     return jsonResponse({
       safe_to_process: false,
       kill_switch_active: null,

@@ -54,6 +54,26 @@ export async function checkRateLimit(
 }
 
 /**
+ * Durable, queryable record of this function's business-outcome
+ * events -- identical to adjudicate-claim/repo.ts's recordActivity;
+ * see supabase/migrations/20260916b_api_activity.sql for why. Called
+ * from index.ts only on an unsafe/unverifiable result, matching that
+ * file's console.log convention -- not on every routine poll.
+ */
+export async function recordActivity(
+  clientId: string,
+  outcome: string,
+  detail: Record<string, unknown>,
+): Promise<void> {
+  const { error } = await supabase
+    .from("api_activity")
+    .insert({ client_id: clientId, endpoint: "guardian_status", outcome, detail });
+  if (error) {
+    console.error("[guardian-status] failed to record activity:", error.message);
+  }
+}
+
+/**
  * Real API-key auth: identical to adjudicate-claim/repo.ts's and
  * weaver-score/repo.ts's verifyApiKey -- same api_clients table gates
  * every nucleus external API.

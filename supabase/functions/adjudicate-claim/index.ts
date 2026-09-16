@@ -31,6 +31,7 @@ import {
   fetchKillSwitch,
   verifyApiKey,
   checkRateLimit,
+  recordActivity,
 } from "./repo.ts";
 import { adjudicateClaim, updateMemberAccumulators } from "./calculationEngine.ts";
 import type { ClaimLine, MemberAccumulators } from "./types.ts";
@@ -160,12 +161,39 @@ Deno.serve(async (req: Request) => {
   const serviceDate = body.service_date ?? new Date().toISOString().slice(0, 10);
   const timestamp = new Date().toISOString();
 
+  // Structured business-outcome event -- console.log is queryable one
+  // request at a time via Supabase's log viewer; recordActivity is the
+  // durable, queryable-by-the-admin-UI version of the same event (see
+  // supabase/migrations/20260916b_api_activity.sql). Fires once per
+  // request on every decision path.
+  const logOutcome = async (fields: Record<string, unknown>) => {
+    console.log(
+      JSON.stringify({
+        event: "adjudicate_claim",
+        client_id: clientId,
+        claim_id: body.claim_id,
+        timestamp,
+        ...fields,
+      }),
+    );
+    const { decision, ...detail } = fields;
+    await recordActivity(clientId, String(decision ?? "unknown"), {
+      claim_id: body.claim_id,
+      ...detail,
+    });
+  };
+
   // Kill switch first, before any adjudication work -- fails closed
   // (denies) if its state can't be verified, same convention
   // guardianRuntime.ts uses.
   try {
     const killSwitch = await fetchKillSwitch();
     if (killSwitch.active) {
+      await logOutcome({
+        decision: "deny",
+        reason_category: "kill_switch_active",
+        risk_tier: "critical",
+      });
       return jsonResponse({
         decision: "deny",
         reason: `Guardian kill switch is active: ${killSwitch.reason ?? "no reason given"}`,
@@ -176,6 +204,11 @@ Deno.serve(async (req: Request) => {
       });
     }
   } catch (err) {
+    await logOutcome({
+      decision: "deny",
+      reason_category: "kill_switch_unverifiable",
+      risk_tier: "critical",
+    });
     return jsonResponse({
       decision: "deny",
       reason: `Unable to verify Guardian kill switch state: ${(err as Error).message}`,
@@ -195,6 +228,7 @@ Deno.serve(async (req: Request) => {
       resolvePlan(body.payer_name, serviceDate),
     ]);
   } catch (err) {
+    await logOutcome({ decision: "deny", reason_category: "resolve_error", risk_tier: "critical" });
     return jsonResponse({
       decision: "deny",
       reason: `Unable to resolve contract/plan: ${(err as Error).message}`,
@@ -206,6 +240,12 @@ Deno.serve(async (req: Request) => {
   }
 
   if (!contract || !plan) {
+    await logOutcome({
+      decision: "no_contract_on_file",
+      reason_category: !contract ? "no_contract" : "no_plan",
+      risk_tier: "high",
+      payer_name: body.payer_name,
+    });
     return jsonResponse({
       decision: "no_contract_on_file",
       reason: !contract
@@ -233,6 +273,13 @@ Deno.serve(async (req: Request) => {
       usedEmptyAccumulators = true;
     }
   } catch (err) {
+    await logOutcome({
+      decision: "deny",
+      reason_category: "accumulators_unverifiable",
+      risk_tier: "critical",
+      contract_id: contract.contract_id,
+      plan_id: plan.plan_id,
+    });
     return jsonResponse({
       decision: "deny",
       reason: `Unable to verify member accumulators: ${(err as Error).message}`,
@@ -266,6 +313,15 @@ Deno.serve(async (req: Request) => {
   const lineResult = run.line_results[0];
   const denied = lineResult.status === "denied" || lineResult.status === "benefit_limit_exhausted";
   const decision = denied ? "deny" : "allow";
+
+  await logOutcome({
+    decision,
+    status: lineResult.status,
+    risk_tier: computeRiskTier({ decision, failClosed: false, usedEmptyAccumulators }),
+    used_empty_accumulators: usedEmptyAccumulators,
+    plan_paid: lineResult.plan_paid,
+    member_responsibility: lineResult.member_responsibility,
+  });
 
   return jsonResponse({
     decision,
