@@ -16,11 +16,7 @@ describe("Telemetry — DualPay", () => {
         recommendation: { confidence: 0.9 },
       };
 
-      // eventBus's key for a single-string emit("dualpay.payment.processed", ...)
-      // is `${subsystem}.${type}` with the FULL type string, i.e. it doesn't
-      // strip the leading "dualpay." — so the matching subscribe key is built
-      // the same way here rather than guessing at a shorter form.
-      eventBus.subscribe("dualpay", "dualpay.payment.processed", (signal) => {
+      eventBus.subscribe("dualpay.payment.processed", (signal) => {
         try {
           expect(signal.subsystem).toBe("dualpay");
           expect(signal.org).toBe("org-telemetry");

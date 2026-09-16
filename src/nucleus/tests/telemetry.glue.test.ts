@@ -15,7 +15,7 @@ describe("Telemetry — Glue", () => {
         recommendation: { action: "approve", confidence: 0.9 },
       };
 
-      eventBus.subscribe("glue", "glue.execution.processed", (signal) => {
+      eventBus.subscribe("glue.execution.processed", (signal) => {
         try {
           expect(signal.subsystem).toBe("glue");
           expect(signal.org).toBe("org-telemetry");

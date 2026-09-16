@@ -20,7 +20,7 @@ describe("Telemetry — Weaver", () => {
         if (received === 2) resolve();
       };
 
-      eventBus.subscribe("weaver", "weaver.opportunity.processed", (signal) => {
+      eventBus.subscribe("weaver.opportunity.processed", (signal) => {
         try {
           expect(signal.subsystem).toBe("weaver");
           expect(signal.org).toBe("org-telemetry");
@@ -32,7 +32,7 @@ describe("Telemetry — Weaver", () => {
         }
       });
 
-      eventBus.subscribe("weaver", "weaver.recommendation.processed", (signal) => {
+      eventBus.subscribe("weaver.recommendation.processed", (signal) => {
         try {
           expect(signal.subsystem).toBe("weaver");
           expect(signal.org).toBe("org-telemetry");
