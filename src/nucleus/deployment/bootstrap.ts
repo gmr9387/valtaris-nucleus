@@ -3,6 +3,7 @@
 import { constitution } from "../constitution";
 import { APIServer } from "../api/apiServer";
 import { nucleusBoot } from "../runtime/nucleusBoot";
+import { nucleusScheduler } from "../scheduler/scheduler";
 
 /**
  * FIXED (again): the constitution module was restructured since the
@@ -56,6 +57,27 @@ export class DeploymentBootstrap {
     // ("Failed to start server. Is port 3000 in use?"), confirmed by
     // actually running nucleus-server.ts and hitting /api/health.
     APIServer.start(port);
+
+    // 4. Liveness heartbeat. scheduler.ts was, like queueEngine.ts and
+    // retryEngine.ts before it, fully built (audit + billing hooks,
+    // the works) with zero real callers anywhere in the codebase --
+    // this is its first one. Every 60s, enqueues + immediately
+    // delivers a heartbeat message through nucleusQueue, so both
+    // Scheduler and QueueEngine's timer-driven path (not just their
+    // request-driven path, already proven by the telemetry wiring)
+    // has a real, live exercise -- a persistent process that never
+    // once fires setInterval-driven code is not meaningfully "live,"
+    // just imported.
+    nucleusScheduler.register(
+      "platform",
+      "nucleus",
+      "heartbeat",
+      60_000,
+      { alive: true },
+      (msg) => {
+        console.log(`[HEARTBEAT] nucleus alive`, msg);
+      },
+    );
 
     console.log("Nucleus runtime initialized.");
 
