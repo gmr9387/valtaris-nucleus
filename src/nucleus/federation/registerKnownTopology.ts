@@ -124,7 +124,7 @@ export function registerKnownFederationTopology(): void {
     {
       deployed: false,
       kind: "source-repo",
-      note: "The app itself isn't deployed, but its supabase/functions/execute-api Edge Function is deployed and ACTIVE with a real \"nucleus\" service connector (calling adjudicate-claim/weaver-score/guardian-status) and a real caller in its own frontend. Not yet carrying real production traffic: nucleus has never issued valtaris-glue an api_clients credential, so its calls today hit that function's mock-response fallback (or fail auth) rather than real nucleus data.",
+      note: "The app itself isn't deployed, but its supabase/functions/execute-api Edge Function is deployed and ACTIVE with a real \"nucleus\" service connector (calling adjudicate-claim/weaver-score/guardian-status) and a real caller in its own frontend. A real api_clients credential for \"valtaris-glue\" now exists (issued via the same sha256(vnk_<client>_<32 random bytes>) scheme manage-api-clients uses, verified byte-for-byte against verifyApiKey()'s hash) -- once that raw key is set as this function's NUCLEUS_API_KEY secret in valtaris-glue's own Supabase project, its calls will reach real nucleus data instead of the mock fallback. That secret-setting step needs the project owner's Supabase dashboard/CLI access, not something this repo's tooling can do.",
     },
   );
 
