@@ -23,6 +23,9 @@ export const ciManifest: CIManifest = {
     // always reported empty, regardless of whether the wiring behind
     // them worked -- a vacuous pass, not a real one.
     "dispatch.tests",
+    // sandbox.tests runs right after dispatch.tests so GovernanceSandbox
+    // has real decisions (not an empty array) to replay against.
+    "sandbox.tests",
     "resources.tests",
     "lineage.tests",
     "telemetry.tests",

@@ -21,6 +21,10 @@ import { nucleusTelemetry as liveTelemetry } from "../telemetry/telemetry";
 import { nucleusAudit } from "../audit/auditEngine";
 import { registerAllSubsystems } from "../subsystems/registerSubsystems";
 import { OSPipeline } from "../runtime/osPipeline";
+import { nucleusGovernance } from "../governance/governanceEngine";
+import { governanceSandbox } from "../governance/governanceSandbox";
+import { certificationState } from "../certification/certificationState";
+import { certificationSandbox } from "../certification/certificationSandbox";
 
 export const ciSuites = {
   "constitution.tests": () => ({
@@ -131,5 +135,48 @@ export const ciSuites = {
     }
 
     return result;
+  },
+
+  // gapMap.md's "Governance sandbox (rule validation + isolation)" and
+  // "Certification sandbox (proof generation + validation)" -- unlike
+  // every other gap closed this session, there was no existing module
+  // to wire in for either; the concept itself didn't exist anywhere.
+  // Isolation is the part worth actually proving, not just asserting in
+  // a comment: this runs both sandboxes against real data (the real
+  // governance decisions dispatch.tests just produced, and real current
+  // lineage state) and then verifies neither one touched the real state
+  // it read. A sandbox that quietly wrote through would be worse than
+  // no sandbox at all.
+  "sandbox.tests": () => {
+    const decisionsBefore = nucleusGovernance.getDecisions().length;
+
+    const governanceReplay = governanceSandbox.replay({
+      name: "sandbox.always-deny",
+      evaluate: () => false,
+    });
+
+    if (nucleusGovernance.getDecisions().length !== decisionsBefore) {
+      throw new Error(
+        "sandbox.tests: GovernanceSandbox.replay() mutated real governance decisions -- isolation broken",
+      );
+    }
+
+    const certificationSnapshot = { ...certificationState, proofs: [...certificationState.proofs] };
+
+    const certificationTry = certificationSandbox.tryCheck(
+      "sandbox.lineage-populated",
+      () => lineageEngine.list().length > 0,
+    );
+
+    if (
+      certificationState.certified !== certificationSnapshot.certified ||
+      certificationState.proofs.length !== certificationSnapshot.proofs.length
+    ) {
+      throw new Error(
+        "sandbox.tests: CertificationSandbox.tryCheck() mutated real certificationState -- isolation broken",
+      );
+    }
+
+    return { governanceReplay, certificationTry };
   },
 };
