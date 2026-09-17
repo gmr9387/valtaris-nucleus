@@ -25,6 +25,28 @@
 //     "Wire DualPay's side to call the real nucleus endpoint"). That is
 //     a real, currently-live federation link, not a guess.
 //
+// gapMap.md flagged one more open question: "No live network topology
+// beyond the one confirmed link -- Glue and rre-os-guardian have no
+// confirmed real link to register yet." Checked directly by cloning
+// both real repos and grepping for the real endpoint names/URL:
+//   - valtaris-glue has a real, deployed-shaped Supabase Edge Function
+//     (supabase/functions/execute-api/index.ts) with a "nucleus" service
+//     entry that calls THREE of nucleus's real endpoints --
+//     adjudicate-claim, weaver-score, and guardian-status -- against
+//     this exact SUPABASE_PROJECT_URL, gated behind a real
+//     NUCLEUS_API_KEY credential check (falling back to a mock response
+//     when unset). Its own frontend (src/store/useApiStore.ts's
+//     execute()) is a real caller of it, invoked as a generic
+//     "service.action" workflow step -- the same evidentiary bar
+//     already used for DualPay's link (real code calling the real
+//     endpoint), not a guess.
+//   - rre-os-guardian was also checked and has NO real link: its
+//     "src/nucleus/subsystems/guardian/*" files matched the search only
+//     because that's its own, unrelated legacy folder name -- zero
+//     references anywhere in that repo to the real endpoint names or the
+//     real Supabase project URL. Confirms the existing "legacy" status
+//     below rather than finding anything new.
+//
 // This registers exactly that -- no more, no less -- and does so
 // idempotently (checked by name) so repeated boots don't pile up
 // duplicate nodes, matching the pattern already used for governance
@@ -68,10 +90,16 @@ export function registerKnownFederationTopology(): void {
     kind: "source-repo",
   });
 
-  ensureNode("valtaris-glue", "undeployed", "https://github.com/gmr9387/valtaris-glue", {
-    deployed: false,
-    kind: "source-repo",
-  });
+  const valtarisGlue = ensureNode(
+    "valtaris-glue",
+    "undeployed",
+    "https://github.com/gmr9387/valtaris-glue",
+    {
+      deployed: false,
+      kind: "source-repo",
+      note: 'The app itself isn\'t deployed, but its supabase/functions/execute-api Edge Function has a real "nucleus" service connector calling adjudicate-claim/weaver-score/guardian-status -- see the real link below.',
+    },
+  );
 
   ensureNode("rre-os-guardian", "undeployed", "https://github.com/gmr9387/rre-os-guardian", {
     deployed: false,
@@ -81,10 +109,16 @@ export function registerKnownFederationTopology(): void {
   });
 
   const existingLinks = federationEngine.getLinks();
-  const alreadyLinked = existingLinks.some(
-    (l) => l.sourceNode === dualpay.id && l.targetNode === nucleus.id,
-  );
-  if (!alreadyLinked) {
-    federationEngine.linkNodes(dualpay.id, nucleus.id, "sync");
-  }
+
+  const ensureLink = (sourceId: string, targetId: string) => {
+    const alreadyLinked = existingLinks.some(
+      (l) => l.sourceNode === sourceId && l.targetNode === targetId,
+    );
+    if (!alreadyLinked) {
+      federationEngine.linkNodes(sourceId, targetId, "sync");
+    }
+  };
+
+  ensureLink(dualpay.id, nucleus.id);
+  ensureLink(valtarisGlue.id, nucleus.id);
 }
