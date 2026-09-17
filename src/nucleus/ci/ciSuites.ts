@@ -4,6 +4,7 @@ import { constitution } from "../constitution/constitution";
 import { sovereigntyRuntime } from "../sovereignty/sovereigntyRuntime";
 import { environmentActivationEngine } from "../activationEnv/environmentActivationEngine";
 import { federationEngine } from "../federation/federationEngine";
+import { registerKnownFederationTopology } from "../federation/registerKnownTopology";
 import { autonomyEngine } from "../autonomy/autonomyEngine";
 import { constitutionalPipeline } from "../pipeline/constitutionalPipeline";
 import { adapterAutoWireEngine } from "../adapters/adapterAutoWireEngine";
@@ -33,10 +34,22 @@ export const ciSuites = {
 
   "activation.tests": () => environmentActivationEngine.activateAll(),
 
-  "federation.tests": () => ({
-    tenants: federationEngine.identity.validateTenant("tenant-a"),
-    environments: federationEngine.identity.validateEnvironment("dev"),
-  }),
+  // registerKnownFederationTopology() is idempotent, and registered here
+  // (before "pipeline.tests" runs constitutionalPipeline.execute()'s own
+  // "federation.initialize" step) for the same reason
+  // registerAllSubsystems() is called in "autonomy.tests" below: this
+  // process doesn't otherwise run DeploymentBootstrap.start(), so
+  // without this, federationEngine.getNodes() would report empty here
+  // too -- correct in this process, but not proof the real wiring works.
+  "federation.tests": () => {
+    registerKnownFederationTopology();
+    return {
+      tenants: federationEngine.identity.validateTenant("tenant-a"),
+      environments: federationEngine.identity.validateEnvironment("dev"),
+      nodes: federationEngine.getNodes(),
+      links: federationEngine.getLinks(),
+    };
+  },
 
   // registerAllSubsystems() is idempotent -- called here because `bun
   // run ci` runs this suite in its own process, which (unlike a real
