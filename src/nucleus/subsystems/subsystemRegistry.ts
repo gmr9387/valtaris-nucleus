@@ -12,14 +12,18 @@ import type { Dynamic } from "../types/dynamic";
  *
  * NOTE: This is a SEPARATE registry from src/integrations/integrationRegistry.ts,
  * which registers subsystems under different ids ("decision-weaver" instead of
- * "weaver", no "telemetry"/"contracts"). That registry is used elsewhere
+ * "weaver", no "telemetry"). That registry is used elsewhere
  * (glue/guardian/weaver/dualpay integration adapters) — do not merge the two
  * without deciding which is canonical first. This file is scoped specifically
  * to what RuntimeGuards.enforceSubsystemPermission expects: "weaver",
- * "guardian", "glue", "dualpay", "contracts", "telemetry".
+ * "guardian", "glue", "dualpay", "telemetry".
+ *
+ * "contracts" was removed from this type when the ContractsRuntime
+ * subsystem (and the NucleusApi prototype it only existed to serve)
+ * was retired -- see registerSubsystems.ts's own comment.
  */
 
-export type SubsystemId = "contracts" | "guardian" | "glue" | "weaver" | "dualpay" | "telemetry";
+export type SubsystemId = "guardian" | "glue" | "weaver" | "dualpay" | "telemetry";
 
 export interface SubsystemRegistration {
   id: SubsystemId;

@@ -26,11 +26,13 @@ export const Route = createFileRoute("/_app/governance")({
 
 const ROLES: AppRole[] = ["owner", "admin", "manager", "operator", "viewer"];
 
-// Not planned -- this mirrors the real, enforced permission matrix in
-// src/nucleus/api/nucleusApi.ts (SUBSYSTEM_PERMISSIONS). emit() throws
-// if a subsystem tries to emit a contract it doesn't own; that's the
-// actual governance boundary the constitutional runtime enforces on
-// every claim, not a policy someone still needs to write.
+// Not planned -- this mirrors the real, fixed shape of the constitutional
+// claim pipeline (src/nucleus/runtime/osPipeline.ts): each stage is
+// structurally wired to exactly one subsystem's handler, and
+// RuntimeGuards/GovernanceEngine (src/nucleus/runtime/runtimeGuards.ts)
+// governs whether that subsystem may run at all on every real dispatch.
+// That's the actual governance boundary the constitutional runtime
+// enforces on every claim, not a policy someone still needs to write.
 const SUBSYSTEM_PERMISSIONS: Record<string, string[]> = {
   weaver: ["opportunity", "recommendation"],
   guardian: ["authorization"],
@@ -172,8 +174,9 @@ function GovernancePage() {
               <div className="border-b border-border px-5 py-4">
                 <h2 className="text-sm font-semibold">Constitutional Permission Matrix</h2>
                 <p className="text-xs text-muted-foreground">
-                  Enforced by NucleusApi.emit() on every claim -- a subsystem that tries to emit a
-                  contract it doesn't own throws before anything is recorded.
+                  Structurally enforced by the claim pipeline -- each stage below is wired to
+                  exactly one subsystem's handler, and the runtime governs whether that subsystem
+                  may run at all on every real dispatch.
                 </p>
               </div>
 
