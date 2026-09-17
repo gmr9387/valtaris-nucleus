@@ -58,11 +58,36 @@ export const ciSuites = {
   // too -- correct in this process, but not proof the real wiring works.
   "federation.tests": () => {
     registerKnownFederationTopology();
+    const nodes = federationEngine.getNodes();
+    const links = federationEngine.getLinks();
+
+    // gapMap.md's Federation gap "no live network topology beyond the
+    // one confirmed link": valtaris-glue's real supabase/functions/
+    // execute-api Edge Function calling nucleus's real
+    // adjudicate-claim/weaver-score/guardian-status endpoints is a
+    // second real, confirmed link (same evidentiary bar as DualPay's --
+    // real code calling the real endpoint). Asserted here, not just
+    // returned, so a future regression in registerKnownTopology.ts
+    // actually fails CI.
+    const nucleusNode = nodes.find((n) => n.name === "nucleus");
+    const glueNode = nodes.find((n) => n.name === "valtaris-glue");
+    if (!nucleusNode || !glueNode) {
+      throw new Error(
+        "federation.tests: expected both the nucleus and valtaris-glue nodes to be registered",
+      );
+    }
+    const glueLinked = links.some(
+      (l) => l.sourceNode === glueNode.id && l.targetNode === nucleusNode.id,
+    );
+    if (!glueLinked) {
+      throw new Error("federation.tests: expected a real valtaris-glue -> nucleus link");
+    }
+
     return {
       tenants: federationEngine.identity.validateTenant("tenant-a"),
       environments: federationEngine.identity.validateEnvironment("dev"),
-      nodes: federationEngine.getNodes(),
-      links: federationEngine.getLinks(),
+      nodes,
+      links,
     };
   },
 
