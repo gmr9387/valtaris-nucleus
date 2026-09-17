@@ -6,6 +6,7 @@ import { nucleusBoot } from "../runtime/nucleusBoot";
 import { nucleusScheduler } from "../scheduler/scheduler";
 import { loadAdapters } from "../adapters/loadAdapters";
 import { constitutionalPipeline } from "../pipeline/constitutionalPipeline";
+import { registerKnownFederationTopology } from "../federation/registerKnownTopology";
 
 /**
  * FIXED (again): the constitution module was restructured since the
@@ -64,6 +65,20 @@ export class DeploymentBootstrap {
     // wires adapters in dependency order and runs the constitutional
     // pipeline, instead of that only ever being proven in CI.
     await loadAdapters();
+
+    // 2b. FederationEngine.registerNode()/linkNodes() (gapMap.md's
+    // "Resource Federation Engine (formalized)", #15) had zero real
+    // callers -- there was no real topology to register without
+    // inventing fake nodes. That data is now real, confirmed rather than
+    // guessed (see registerKnownTopology.ts's header): the actual
+    // sibling repos, their real (non-)deployment status, and the one
+    // link that's genuinely live today (DualPay calling nucleus's real
+    // adjudicate-claim Edge Function). Registered before
+    // constitutionalPipeline.execute() runs so its own
+    // "federation.initialize" step (federationEngine.getNodes()) reports
+    // these instead of an empty list.
+    registerKnownFederationTopology();
+
     await constitutionalPipeline.execute();
 
     // 3. Start API server. This is the ONLY place APIServer.start() is
