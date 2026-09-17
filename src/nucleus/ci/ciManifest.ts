@@ -27,6 +27,10 @@ export const ciManifest: CIManifest = {
     // sandbox.tests runs right after dispatch.tests so GovernanceSandbox
     // has real decisions (not an empty array) to replay against.
     "sandbox.tests",
+    // Runs right after sandbox.tests: same "prove isolation, don't just
+    // assert it" standard, applied to per-tenant subsystem overrides
+    // (gapMap.md's Weaver/DualPay multi-tenant gaps).
+    "tenant-override.tests",
     "resources.tests",
     "lineage.tests",
     "telemetry.tests",

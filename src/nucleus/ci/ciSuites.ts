@@ -22,6 +22,11 @@ import { nucleusTelemetry as liveTelemetry } from "../telemetry/telemetry";
 import { nucleusAudit } from "../audit/auditEngine";
 import { registerAllSubsystems } from "../subsystems/registerSubsystems";
 import { OSPipeline } from "../runtime/osPipeline";
+import { RuntimeGuardError } from "../runtime/runtimeGuards";
+import {
+  setTenantSubsystemEnabled,
+  clearTenantSubsystemOverrides,
+} from "../subsystems/tenantSubsystemOverrides";
 import { nucleusGovernance } from "../governance/governanceEngine";
 import { governanceSandbox } from "../governance/governanceSandbox";
 import { certificationState } from "../certification/certificationState";
@@ -190,6 +195,78 @@ export const ciSuites = {
     }
 
     return { governanceReplay, certificationTry };
+  },
+
+  // gapMap.md's Weaver gap "Multi-tenant subsystem activation rules" and
+  // DualPay gap "Multi-tenant payment isolation hooks" -- proves
+  // tenantSubsystemOverrides.ts's per-org override actually changes real
+  // dispatch outcomes (not just that the functions exist): a baseline
+  // claim for org A succeeds with dualpay enabled (the global default),
+  // an override disabling dualpay for org A alone then makes the same
+  // dispatch fail, a claim for a *different* org with no override at all
+  // proves the override didn't leak across tenants, and clearing the
+  // override restores org A to the global default.
+  "tenant-override.tests": async () => {
+    registerAllSubsystems();
+
+    const orgA = "org-ci-tenant-override-a";
+    const orgB = "org-ci-tenant-override-b";
+
+    const baseline = await OSPipeline.runClaim(orgA, {
+      claimId: "ci-tenant-override-baseline",
+      amount: 100,
+    });
+    if (!baseline.payment) {
+      throw new Error(
+        "tenant-override.tests: baseline claim for org A should succeed with dualpay enabled globally",
+      );
+    }
+
+    setTenantSubsystemEnabled(orgA, "dualpay", false);
+
+    let deniedForOrgA = false;
+    try {
+      await OSPipeline.runClaim(orgA, {
+        claimId: "ci-tenant-override-denied",
+        amount: 100,
+      });
+    } catch (error) {
+      deniedForOrgA = error instanceof RuntimeGuardError;
+    }
+
+    if (!deniedForOrgA) {
+      throw new Error(
+        "tenant-override.tests: org A's tenant override should have denied dualpay dispatch",
+      );
+    }
+
+    const orgBResult = await OSPipeline.runClaim(orgB, {
+      claimId: "ci-tenant-override-orgb",
+      amount: 100,
+    });
+    if (!orgBResult.payment) {
+      throw new Error(
+        "tenant-override.tests: org B (no override set) should be unaffected by org A's override -- cross-tenant leakage",
+      );
+    }
+
+    clearTenantSubsystemOverrides(orgA);
+
+    const afterClear = await OSPipeline.runClaim(orgA, {
+      claimId: "ci-tenant-override-after-clear",
+      amount: 100,
+    });
+    if (!afterClear.payment) {
+      throw new Error(
+        "tenant-override.tests: clearing org A's override should restore the global default",
+      );
+    }
+
+    return {
+      deniedForOrgA,
+      orgBUnaffected: !!orgBResult.payment,
+      restoredAfterClear: !!afterClear.payment,
+    };
   },
 
   // gapMap.md's "Internal Benchmark Suite (runtime/pipelines/workflows)"

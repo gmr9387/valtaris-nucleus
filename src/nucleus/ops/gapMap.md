@@ -2,7 +2,7 @@
 
 This document is the canonical map of what already exists in the Valtaris ecosystem and what is still missing. It prevents duplication and ensures we only close real gaps instead of rebuilding the same capability under different filenames.
 
-**Last verified against the real codebase:** 2026-09-17, after PRs #9–#21 plus the NucleusApi retirement. Everything below reflects actual importers/callers checked directly, not file existence. Where a status changed, the entry says what changed it and how it was verified.
+**Last verified against the real codebase:** 2026-09-17, after PRs #9–#22 (the NucleusApi retirement) plus multi-tenant subsystem activation (`tenantSubsystemOverrides.ts`). Everything below reflects actual importers/callers checked directly, not file existence. Where a status changed, the entry says what changed it and how it was verified.
 
 ---
 
@@ -19,6 +19,8 @@ This document is the canonical map of what already exists in the Valtaris ecosys
 - `HealthEngine`/`DiagnosticsEngine`/`RecoveryEngine` — real per-subsystem diagnostics feeding health status feeding a real recovery action (re-enable a disabled subsystem)
 - `CertificationEngine` — real checks (subsystem health, adapter loading, pipeline completion) via `certifyNucleus()`, plus `CertificationSandbox` for trying a candidate check without making it permanent
 - `GovernanceEngine` — real per-dispatch decisions via `RuntimeGuards`, plus `GovernanceSandbox` for replaying a candidate rule against real historical decisions
+- `tenantSubsystemOverrides.ts` — real per-org subsystem enable/disable override, checked by `RuntimeGuards`' governance rule ahead of the global `enabled` flag; closes the Weaver/DualPay multi-tenant gaps (see §1.4/§1.5), proven by CI's `"tenant-override.tests"`
+- Scheduled certification — `DeploymentBootstrap.start()` registers a real `Scheduler` task calling `certifyNucleus()` every 5 minutes (see §1.6), closing the "certification only runs when invoked" gap
 - Adapter Registry (`adapterAutoWireEngine`) + Constitutional Pipeline (`constitutionalPipeline.execute()`) — both now run on real boot (`DeploymentBootstrap.start()`), not just `bun run ci`
 - `AuditEngine.report()` — real aggregation, exercised by CI's `"audit.tests"`
 - `GET /api/openapi.json` — real generator wired to the real routes
@@ -77,7 +79,7 @@ This document is the canonical map of what already exists in the Valtaris ecosys
 - Real federation link registered: DualPay → nucleus's live `adjudicate-claim` Edge Function
 
 **Gaps:**
-- Multi-tenant payment isolation hooks — not independently verified inside `src/nucleus/*` this pass
+- ~~Multi-tenant payment isolation hooks~~ — closed. `tenantSubsystemOverrides.ts` adds a real per-org enable/disable override, checked by `RuntimeGuards`' existing governance rule (see §1.5) before falling back to the global flag. No fake plan-tier lookup or admin UI was invented to drive it — nothing in `src/nucleus/*` has a real source of truth for which tenant should have a subsystem disabled, that's a Supabase-backed product decision outside this engine. What's built is the real mechanism a future caller (plan-tier check, admin action) would call. Proven end-to-end by CI's `"tenant-override.tests"` (a real dispatch denied for one org under an override, an unaffected dispatch for a different org proving no cross-tenant leakage, restored default after clearing) and a live boot smoke test.
 - Formal failure/retry/recovery policies — `DualPayEngine.react()` is a pure function with no external I/O, so there's no legitimate retry target the way Guardian's kill-switch fetch has one; not a gap so much as not applicable as currently designed
 
 ---
@@ -92,21 +94,21 @@ This document is the canonical map of what already exists in the Valtaris ecosys
 - Dependency mapping — `adapterDependencyGraph.ts`, exercised by `adapterAutoWireEngine` on real boot
 
 **Gaps:**
-- Multi-tenant subsystem activation rules — not independently verified this pass
+- ~~Multi-tenant subsystem activation rules~~ — closed. Same mechanism as DualPay's payment-isolation gap above (`tenantSubsystemOverrides.ts` + `RuntimeGuards`' governance rule) — it's the general per-org subsystem-enable override, not Weaver-specific, so it applies to any of the four registered subsystems including Weaver itself. See §1.4 for verification details.
 
 ---
 
 ### 1.6 Certification Engine
 
-**Status:** Live, opt-in.
+**Status:** Live, scheduled.
 
 **Existing:**
 - Real certification sweep (`certifyNucleus()`): registers real checks (subsystem health, adapter loading, pipeline completion), boots what it certifies itself, writes the real result to `certificationState`
 - Certification sandbox — `CertificationSandbox.tryCheck()`, isolation proven by a real CI assertion
+- ~~Certification only runs when invoked~~ — closed. `DeploymentBootstrap.start()` now registers a real `Scheduler` task (its second real caller, same pattern as the existing 60s liveness heartbeat) that calls `certifyNucleus()` every 5 minutes, so `certificationState.certified` reflects a real, current sweep on any live boot instead of only ever whatever the CLI happened to run once. Verified with a standalone scheduler smoke test (short interval) confirming the registered task actually fires and flips `certificationState.certified`/`lastCertifiedAt`.
 
 **Gaps:**
 - Versioned certifications (history + snapshots) — not built
-- Certification only runs when invoked (CLI's `certify` command); nothing schedules it, so `certificationState.certified` reads `false` by default
 
 ---
 
@@ -198,8 +200,8 @@ Real topology registered from confirmed data (see §1.7). `federationEngine.iden
 10. Diff Engine — **closed**
 11. Unified API Gateway — **already live** (found during investigation, not a real gap — `GatewayAdapter → GatewayRuntime → GatewayEngine` was already called by the real `/api/claim` route)
 12. Unified OpenAPI documentation — **closed** (for this repo's own routes)
-13. Multi-Tenant Runtime Hooks (fully implemented) — **handled elsewhere** (Supabase-side SSO/tenancy work), not re-verified inside `src/nucleus/*`
-14. Multi-Tenant Deployment Hooks (fully implemented) — **handled elsewhere**, same caveat
+13. Multi-Tenant Runtime Hooks (fully implemented) — **closed**. Tenancy identity/isolation itself (org-scoped auth, Supabase RLS) is still handled elsewhere as before, but the specific runtime hook that was actually missing inside `src/nucleus/*` — per-tenant subsystem enable/disable — is now real: `tenantSubsystemOverrides.ts`, checked by `RuntimeGuards`' governance rule (see §1.1/§1.4/§1.5). Proven by CI's `"tenant-override.tests"` and a live boot smoke test.
+14. Multi-Tenant Deployment Hooks (fully implemented) — **closed**, same mechanism as #13 above (a subsystem disabled for one tenant is effectively "not deployed" for that tenant without a separate deployment concept)
 15. Resource Federation Engine (formalized) — **closed**
 16. Certification Sandbox — **closed**
 17. Governance Sandbox — **closed**
@@ -207,7 +209,7 @@ Real topology registered from confirmed data (see §1.7). `federationEngine.iden
 19. Internal Test Harness (pipelines/workflows/governance) — **closed**
 20. Internal Benchmark Suite (runtime/pipelines/workflows) — **closed**
 
-17 of 20 fully closed; 2 handled outside this pass (13/14, via Supabase-side work); 1 already-live false alarm (11). Every item that was safe to close autonomously is closed. What's left is judgment calls, not wiring: `ResourceGraph`'s identity-boundary mismatch (§1.1), and whatever the ecosystem needs next that isn't on this specific list (e.g. deploying `nucleus-server.ts` somewhere real, or extending Federation's topology beyond the one confirmed link).
+19 of 20 fully closed; 1 already-live false alarm (11). Every item that was safe to close autonomously is closed. What's left is judgment calls, not wiring: `ResourceGraph`'s identity-boundary mismatch (§1.1), and whatever the ecosystem needs next that isn't on this specific list (e.g. deploying `nucleus-server.ts` somewhere real, or extending Federation's topology beyond the one confirmed link).
 
 ---
 
