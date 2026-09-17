@@ -24,6 +24,9 @@ import { validateContract } from "../contracts/contractRegistry";
 import { nucleusState } from "../state/stateEngine";
 import { nucleusMetrics } from "../metrics/metricsEngine";
 import { lineageEngine } from "../lineage/lineageEngine";
+import { constitution } from "../constitution/constitution";
+import { resourceGraph } from "../resources/resourceGraph";
+import type { ResourceIdentity } from "../resources/resourceIdentity";
 import type { NucleusSubsystem } from "../identity/nucleusIdentity";
 // Side-effect import: registers the five per-stage contract
 // definitions (opportunity/recommendation/authorization/execution/
@@ -131,6 +134,41 @@ export class RuntimeRouter {
         claimId,
         "claim",
       );
+
+      // gapMap.md's ResourceGraph gap: an earlier pass this session
+      // concluded resourceGuards.ts's identity-boundary guard "assumes
+      // one resource belongs to a single fixed (subsystem, capability)
+      // pair, which doesn't fit a claim four different subsystems each
+      // touch once with a different capability" -- that reasoning
+      // modeled it as one resource crossing subsystems. Rereading
+      // constitution.ts's own resources[] table shows the real model:
+      // four separate resource *types*, each already constitutionally
+      // declared with exactly one owning (subsystem, capability) pair
+      // (OpportunityResource -> weaver.discover, AuthorizationResource
+      // -> guardian.authorize, WorkflowResource -> glue.bind,
+      // PaymentResource -> dualpay.charge) -- a fit for the guard, not a
+      // mismatch. Each stage now creates (or, for weaver's two dispatches
+      // per claim, mutates with the same declared identity) its own
+      // claim-scoped resource, reusing the same tenantId/environmentId/
+      // projectId derivation the lineage recording above already uses --
+      // one identity shape, two real consumers.
+      const resourceDef = constitution.resources.find((r) => r.subsystem === id);
+      if (resourceDef) {
+        const identity: ResourceIdentity = {
+          tenantId: organizationId,
+          environmentId: process.env.NODE_ENV ?? "development",
+          projectId: "nucleus",
+          subsystem: id,
+          capability: resourceDef.capability,
+        };
+        const resourceId = `${organizationId}.${claimId}.${resourceDef.type}`;
+
+        if (resourceGraph.getResource(resourceId)) {
+          resourceGraph.mutateResource(resourceId, identity, () => result);
+        } else {
+          resourceGraph.createResource(resourceId, resourceDef.type, identity, result);
+        }
+      }
     }
 
     return result;

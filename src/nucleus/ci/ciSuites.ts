@@ -86,7 +86,55 @@ export const ciSuites = {
 
   "adapters.tests": () => adapterAutoWireEngine.autoWire(),
 
-  "resources.tests": () => resourceGraph.listResources(),
+  // gapMap.md's ResourceGraph gap: this used to just return
+  // resourceGraph.listResources() with nothing to actually check --
+  // vacuously "passing" whether or not RuntimeRouter.dispatch() (see
+  // that file's own comment) really wired resource creation in. Now
+  // asserts dispatch.tests's real claim actually produced all four
+  // constitutionally-declared resource types, that each carries a real
+  // identity, and that enforceResourceGuards() genuinely throws on a
+  // cross-subsystem mutation attempt -- proving the guard is live, not
+  // just imported.
+  "resources.tests": () => {
+    const resources = resourceGraph.listResources();
+    const expectedTypes = [
+      "OpportunityResource",
+      "AuthorizationResource",
+      "WorkflowResource",
+      "PaymentResource",
+    ];
+
+    for (const type of expectedTypes) {
+      if (!resources.some((r) => r.type === type)) {
+        throw new Error(
+          `resources.tests: expected a real "${type}" from dispatch.tests's claim, found none`,
+        );
+      }
+    }
+
+    if (!resources.every((r) => r.identity.projectId)) {
+      throw new Error("resources.tests: every real resource should carry a projectId");
+    }
+
+    const target = resources.find((r) => r.type === "AuthorizationResource")!;
+    let guardThrew = false;
+    try {
+      resourceGraph.mutateResource(
+        target.id,
+        { ...target.identity, subsystem: "weaver", capability: "discover" },
+        () => ({ hacked: true }),
+      );
+    } catch (error) {
+      guardThrew = error instanceof Error && error.message === "Subsystem boundary violation";
+    }
+    if (!guardThrew) {
+      throw new Error(
+        "resources.tests: enforceResourceGuards() should have thrown on a cross-subsystem mutation attempt",
+      );
+    }
+
+    return resources;
+  },
 
   "lineage.tests": () => lineageEngine.list(),
 
