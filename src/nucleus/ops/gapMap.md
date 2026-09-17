@@ -2,7 +2,7 @@
 
 This document is the canonical map of what already exists in the Valtaris ecosystem and what is still missing. It prevents duplication and ensures we only close real gaps instead of rebuilding the same capability under different filenames.
 
-**Last verified against the real codebase:** 2026-09-17, after PRs #9–#22 (the NucleusApi retirement) plus multi-tenant subsystem activation (`tenantSubsystemOverrides.ts`). Everything below reflects actual importers/callers checked directly, not file existence. Where a status changed, the entry says what changed it and how it was verified.
+**Last verified against the real codebase:** 2026-09-17, after PRs #9–#23 (multi-tenant subsystem activation, scheduled certification) plus this pass's versioned policy/certification history (`StateEngine`-backed). Everything below reflects actual importers/callers checked directly, not file existence. Where a status changed, the entry says what changed it and how it was verified.
 
 ---
 
@@ -21,6 +21,7 @@ This document is the canonical map of what already exists in the Valtaris ecosys
 - `GovernanceEngine` — real per-dispatch decisions via `RuntimeGuards`, plus `GovernanceSandbox` for replaying a candidate rule against real historical decisions
 - `tenantSubsystemOverrides.ts` — real per-org subsystem enable/disable override, checked by `RuntimeGuards`' governance rule ahead of the global `enabled` flag; closes the Weaver/DualPay multi-tenant gaps (see §1.4/§1.5), proven by CI's `"tenant-override.tests"`
 - Scheduled certification — `DeploymentBootstrap.start()` registers a real `Scheduler` task calling `certifyNucleus()` every 5 minutes (see §1.6), closing the "certification only runs when invoked" gap
+- Versioned policy/certification history — tenant subsystem overrides and certification sweeps both now write through `StateEngine` (see §1.3/§1.6), closing the "versioned governance rules"/"versioned certifications" gaps
 - Adapter Registry (`adapterAutoWireEngine`) + Constitutional Pipeline (`constitutionalPipeline.execute()`) — both now run on real boot (`DeploymentBootstrap.start()`), not just `bun run ci`
 - `AuditEngine.report()` — real aggregation, exercised by CI's `"audit.tests"`
 - `GET /api/openapi.json` — real generator wired to the real routes
@@ -64,8 +65,8 @@ This document is the canonical map of what already exists in the Valtaris ecosys
 - Governance sandbox — `GovernanceSandbox.replay()`, isolation proven by a real CI assertion
 
 **Gaps:**
-- Unified audit engine integration — audit logging exists per-engine (billing + audit hooks on every engine touched this pass); not consolidated into one cross-engine report beyond `AuditEngine.report()`'s aggregation
-- Versioned governance rules (diffs + snapshots) — not built; `StateEngine`'s diff/snapshot capability exists generically but hasn't been applied to rule/policy history specifically
+- ~~Unified audit engine integration~~ — this line was stale, contradicting §3 item #3 (already marked **closed**). Verified directly: `nucleusAudit.log()` is called from every real engine touched this session (certification, diagnostics, governance, pipeline, workflows, plus billing/state/queue/scheduler elsewhere), all into the one `AuditEngine` instance, and `report()` aggregates across all of it by subsystem/action/actor — a real cross-engine report already, not a per-engine one.
+- ~~Versioned governance rules (diffs + snapshots)~~ — closed. `tenantSubsystemOverrides.ts`'s `setTenantSubsystemEnabled()` now also writes through `StateEngine` (the same diff/snapshot mechanism `RuntimeRouter.dispatch()` already trusts for claim state), so every real policy change gets a real version number and diff trail — `getTenantSubsystemOverrideHistory()` — instead of the override map holding only its current value. Proven by CI's `"versioning.tests"` (real successive changes produce one diff each) and a live smoke test.
 
 ---
 
@@ -106,9 +107,10 @@ This document is the canonical map of what already exists in the Valtaris ecosys
 - Real certification sweep (`certifyNucleus()`): registers real checks (subsystem health, adapter loading, pipeline completion), boots what it certifies itself, writes the real result to `certificationState`
 - Certification sandbox — `CertificationSandbox.tryCheck()`, isolation proven by a real CI assertion
 - ~~Certification only runs when invoked~~ — closed. `DeploymentBootstrap.start()` now registers a real `Scheduler` task (its second real caller, same pattern as the existing 60s liveness heartbeat) that calls `certifyNucleus()` every 5 minutes, so `certificationState.certified` reflects a real, current sweep on any live boot instead of only ever whatever the CLI happened to run once. Verified with a standalone scheduler smoke test (short interval) confirming the registered task actually fires and flips `certificationState.certified`/`lastCertifiedAt`.
+- ~~Versioned certifications (history + snapshots)~~ — closed. `certifyNucleus()` now also writes each sweep's result through `StateEngine` (`nucleusState.set()` + `.snapshot()`, the same mechanism `RuntimeRouter.dispatch()` already trusts for claim state) instead of only overwriting `certificationState`'s single current value. `getCertificationHistory()` returns the real diff trail and snapshots across sweeps. Proven by CI's `"versioning.tests"` (a real sweep produces a new diff and a new snapshot) and a live smoke test.
 
 **Gaps:**
-- Versioned certifications (history + snapshots) — not built
+(none independently identified this pass beyond what's tracked above)
 
 ---
 
@@ -122,7 +124,7 @@ This document is the canonical map of what already exists in the Valtaris ecosys
 
 **Gaps:**
 - No live network topology beyond the one confirmed link — Glue and rre-os-guardian have no confirmed real link to register yet
-- Multi-tenant runtime/deployment hooks — handled outside this pass (Supabase-side SSO/tenancy work), not independently re-verified inside `src/nucleus/*`
+- ~~Multi-tenant runtime/deployment hooks~~ — closed inside `src/nucleus/*` itself now (`tenantSubsystemOverrides.ts`, see §1.4/§1.5); this line was stale (still describing it as "handled outside this pass" after that closure landed)
 
 ---
 
@@ -134,9 +136,10 @@ This document is the canonical map of what already exists in the Valtaris ecosys
 - `certify`, `pipeline`, `adapters`, `ci`, `benchmark` commands all point at real, live mechanisms now (previously some pointed at weaker/broken paths)
 - Fixed: `cliManifest.ts`'s command allowlist was missing `"deploy"` and `"certify"` — both real, working commands that would have thrown "Unknown command" if anyone actually ran them. `shellCommands.ts`'s `help` list now reads from the manifest directly instead of a separately hand-maintained copy that had gone stale.
 - Test harness integration — `bun run ci`'s `"dispatch.tests"`, `"sandbox.tests"`, and `"adapter-sandbox.tests"` genuinely exercise the claim path and both sandboxes' isolation, not just individual engines
+- ~~Unified diagnostics/health/metrics CLI commands specifically~~ — closed. New `diagnostics`/`health` commands run the real `DiagnosticsEngine`/`HealthEngine` chain (`autonomy`'s own mechanism, via `subsystemHealthEngine`) and return the full per-check breakdown instead of only `autonomy`'s boolean healthy/unhealthy summary; new `metrics` command is `MetricsEngine`'s first CLI reader (it was already readable via `GET /api/internal-status`, just not from the CLI). Added to `cliManifest.ts`'s allowlist in the same change this time, learning the `deploy`/`certify` lesson above. Verified with a standalone script confirming all three are actually reachable through `cliRouter.execute()` (not just present in `cliCommands`) and that a genuinely unknown command still throws.
 
 **Gaps:**
-- Unified diagnostics/health/metrics CLI commands specifically — the engines are real; dedicated CLI surfacing of them beyond what `certify`/`ci`/`benchmark` already show wasn't built
+(none independently identified this pass)
 
 ---
 

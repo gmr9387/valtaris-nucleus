@@ -26,11 +26,13 @@ import { RuntimeGuardError } from "../runtime/runtimeGuards";
 import {
   setTenantSubsystemEnabled,
   clearTenantSubsystemOverrides,
+  getTenantSubsystemOverrideHistory,
 } from "../subsystems/tenantSubsystemOverrides";
 import { nucleusGovernance } from "../governance/governanceEngine";
 import { governanceSandbox } from "../governance/governanceSandbox";
 import { certificationState } from "../certification/certificationState";
 import { certificationSandbox } from "../certification/certificationSandbox";
+import { certifyNucleus, getCertificationHistory } from "../certification/certifyNucleus";
 import { nucleusBenchmark } from "../benchmark/benchmarkEngine";
 import { adapterState } from "../adapters/adapterState";
 import { adapterSandbox } from "../adapters/adapterSandbox";
@@ -266,6 +268,48 @@ export const ciSuites = {
       deniedForOrgA,
       orgBUnaffected: !!orgBResult.payment,
       restoredAfterClear: !!afterClear.payment,
+    };
+  },
+
+  // gapMap.md's Guardian gap "Versioned governance rules (diffs +
+  // snapshots)" and Certification Engine gap "Versioned certifications
+  // (history + snapshots)" -- both closed via StateEngine's existing
+  // diff/snapshot mechanism (the same one RuntimeRouter.dispatch()
+  // already trusts for claim state) applied to policy/certification
+  // history, not a second, parallel history mechanism. This proves real
+  // diffs/snapshots actually accumulate on real changes, not just that
+  // the functions exist.
+  "versioning.tests": async () => {
+    const org = "org-ci-versioning";
+    const before = getTenantSubsystemOverrideHistory(org, "weaver").length;
+
+    setTenantSubsystemEnabled(org, "weaver", false);
+    setTenantSubsystemEnabled(org, "weaver", true);
+
+    const overrideHistory = getTenantSubsystemOverrideHistory(org, "weaver");
+    if (overrideHistory.length !== before + 2) {
+      throw new Error(
+        "versioning.tests: each tenant override change should produce its own real diff",
+      );
+    }
+
+    clearTenantSubsystemOverrides(org);
+
+    const certBefore = getCertificationHistory();
+    await certifyNucleus();
+    const certAfter = getCertificationHistory();
+
+    if (certAfter.diffs.length <= certBefore.diffs.length) {
+      throw new Error("versioning.tests: certifyNucleus() should record a new versioned diff");
+    }
+    if (certAfter.snapshots.length <= certBefore.snapshots.length) {
+      throw new Error("versioning.tests: certifyNucleus() should record a new snapshot");
+    }
+
+    return {
+      overrideDiffCount: overrideHistory.length,
+      certificationDiffCount: certAfter.diffs.length,
+      certificationSnapshotCount: certAfter.snapshots.length,
     };
   },
 

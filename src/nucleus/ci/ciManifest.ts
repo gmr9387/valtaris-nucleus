@@ -31,6 +31,12 @@ export const ciManifest: CIManifest = {
     // assert it" standard, applied to per-tenant subsystem overrides
     // (gapMap.md's Weaver/DualPay multi-tenant gaps).
     "tenant-override.tests",
+    // Runs right after tenant-override.tests: same "prove it, don't just
+    // assert it" standard, applied to the version history StateEngine
+    // now keeps for tenant overrides and certification sweeps
+    // (gapMap.md's "Versioned governance rules"/"Versioned
+    // certifications" gaps).
+    "versioning.tests",
     "resources.tests",
     "lineage.tests",
     "telemetry.tests",

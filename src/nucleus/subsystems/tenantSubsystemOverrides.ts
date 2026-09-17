@@ -19,6 +19,16 @@
 // an admin action) would call -- matching this repo's own precedent of
 // building the real plumbing before the business rule that drives it
 // exists ("build all the plumbing now, activate later").
+//
+// gapMap.md's Guardian gap "Versioned governance rules (diffs +
+// snapshots)": StateEngine's diff/snapshot capability already runs on
+// every real dispatch (RuntimeRouter.dispatch()) but had never been
+// applied to policy history itself -- there was no real policy whose
+// changes were worth tracking until this override existed. Every real
+// change now also goes through StateEngine, so it gets a real version
+// number and diff trail for free, the same mechanism dispatch already
+// trusts, not a new one invented for this file.
+import { nucleusState } from "../state/stateEngine";
 
 const overrides = new Map<string, Map<string, boolean>>(); // org -> subsystemId -> enabled
 
@@ -31,6 +41,19 @@ export function setTenantSubsystemEnabled(
     overrides.set(organizationId, new Map());
   }
   overrides.get(organizationId)!.set(subsystemId, enabled);
+
+  nucleusState.set(organizationId, subsystemId, "tenantOverride", enabled);
+}
+
+/**
+ * The real diff trail for this org's (or this org+subsystem's) override
+ * changes -- gapMap.md's "Versioned governance rules" gap, closed via
+ * StateEngine rather than a second, parallel history mechanism.
+ */
+export function getTenantSubsystemOverrideHistory(organizationId: string, subsystemId?: string) {
+  return nucleusState
+    .getDiffs(organizationId, subsystemId)
+    .filter((diff) => diff.key === "tenantOverride");
 }
 
 /**
