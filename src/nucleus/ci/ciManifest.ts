@@ -15,6 +15,7 @@ export const ciManifest: CIManifest = {
     "autonomy.tests",
     "pipeline.tests",
     "adapters.tests",
+    "adapter-sandbox.tests",
     // dispatch.tests moved here, before resources/lineage/telemetry --
     // it runs one real claim through the full pipeline, and
     // lineage.tests/telemetry.tests (see ciSuites.ts) read whatever
