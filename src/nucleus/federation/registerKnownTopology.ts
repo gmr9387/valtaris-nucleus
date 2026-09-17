@@ -47,6 +47,32 @@
 //     real Supabase project URL. Confirms the existing "legacy" status
 //     below rather than finding anything new.
 //
+// CORRECTION (checked directly against both sides via Supabase MCP,
+// not just source code): "real link" above meant "real code targeting
+// the real endpoint," which is true for both -- but neither is
+// currently carrying real production traffic, for two different
+// reasons:
+//   - DualPay: its Supabase project (ollsdgtduinxksvwmham) really does
+//     have three deployed proxy functions (nucleus-adjudicate v6,
+//     nucleus-weaver-score v5, nucleus-guardian-status v1) that hold
+//     nucleus's API key server-side and forward to this repo's real
+//     endpoints -- and matching client wrappers exist in DualPay's own
+//     frontend (src/engine/nucleus-*-client.ts). But DualPay's actual
+//     live UI (ClaimsWorkbench.tsx/Index.tsx/case-management.ts) still
+//     calls its own local calculation engine, not these wrappers --
+//     confirmed by reading those wrapper files' own header comments,
+//     which say wiring a real call site in is "a separate, deliberate
+//     decision" the codebase's owner hasn't made yet.
+//   - valtaris-glue: its execute-api function really is deployed
+//     (confirmed ACTIVE) with a real caller in its own frontend. But
+//     nucleus's own api_clients table (the thing every real endpoint's
+//     verifyApiKey checks) has exactly one row, for DualPay -- nucleus
+//     has never issued valtaris-glue a credential. Its calls today run
+//     in that function's own mock-response fallback (or fail auth, if
+//     NUCLEUS_API_KEY is set to something else), not against real data.
+// Both nodes' metadata below now says this precisely instead of
+// implying real traffic flows.
+//
 // This registers exactly that -- no more, no less -- and does so
 // idempotently (checked by name) so repeated boots don't pile up
 // duplicate nodes, matching the pattern already used for governance
@@ -88,6 +114,7 @@ export function registerKnownFederationTopology(): void {
   const dualpay = ensureNode("dualpay", "undeployed", "https://github.com/gmr9387/Dualpay", {
     deployed: false,
     kind: "source-repo",
+    note: "The app itself isn't deployed, but its Supabase project has three real, deployed proxy Edge Functions (nucleus-adjudicate, nucleus-weaver-score, nucleus-guardian-status) that forward to nucleus's real endpoints, with matching client wrappers in its own frontend. Not yet carrying real production traffic: DualPay's live UI still calls its own local calculation engine, not these wrappers -- confirmed by reading the wrappers' own header comments.",
   });
 
   const valtarisGlue = ensureNode(
@@ -97,7 +124,7 @@ export function registerKnownFederationTopology(): void {
     {
       deployed: false,
       kind: "source-repo",
-      note: 'The app itself isn\'t deployed, but its supabase/functions/execute-api Edge Function has a real "nucleus" service connector calling adjudicate-claim/weaver-score/guardian-status -- see the real link below.',
+      note: "The app itself isn't deployed, but its supabase/functions/execute-api Edge Function is deployed and ACTIVE with a real \"nucleus\" service connector (calling adjudicate-claim/weaver-score/guardian-status) and a real caller in its own frontend. A real api_clients credential for \"valtaris-glue\" now exists (issued via the same sha256(vnk_<client>_<32 random bytes>) scheme manage-api-clients uses, verified byte-for-byte against verifyApiKey()'s hash) -- once that raw key is set as this function's NUCLEUS_API_KEY secret in valtaris-glue's own Supabase project, its calls will reach real nucleus data instead of the mock fallback. That secret-setting step needs the project owner's Supabase dashboard/CLI access, not something this repo's tooling can do.",
     },
   );
 
