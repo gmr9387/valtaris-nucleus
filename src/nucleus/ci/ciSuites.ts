@@ -27,6 +27,8 @@ import { governanceSandbox } from "../governance/governanceSandbox";
 import { certificationState } from "../certification/certificationState";
 import { certificationSandbox } from "../certification/certificationSandbox";
 import { nucleusBenchmark } from "../benchmark/benchmarkEngine";
+import { adapterState } from "../adapters/adapterState";
+import { adapterSandbox } from "../adapters/adapterSandbox";
 
 export const ciSuites = {
   "constitution.tests": () => ({
@@ -224,5 +226,39 @@ export const ciSuites = {
     }
 
     return result;
+  },
+
+  // gapMap.md's "Adapter Registry + Sandbox" (#18) -- the registry half
+  // (dependency-ordered loading on real boot) closed earlier this
+  // session; this closes the sandbox half. Proves three things a
+  // comment alone wouldn't: the real manifest's dependency graph
+  // actually resolves (adapterAutoWireEngine.autoWire() has no cycle/
+  // unknown-adapter detection of its own -- this is the first thing
+  // that would ever catch a broken graph before a real boot does), a
+  // genuinely broken graph is correctly rejected rather than silently
+  // accepted, and none of this touches the real adapterState.loaded
+  // that a real boot's autoWire() call commits to.
+  "adapter-sandbox.tests": () => {
+    const loadedBefore = [...adapterState.loaded];
+
+    const realGraph = adapterSandbox.tryLoadAll();
+    if (!realGraph.ok) {
+      throw new Error(
+        `adapter-sandbox.tests: the real adapter manifest does not resolve -- ${JSON.stringify(realGraph.results.filter((r) => !r.resolvable))}`,
+      );
+    }
+
+    const unknown = adapterSandbox.tryLoad("nonexistent.adapter");
+    if (unknown.resolvable) {
+      throw new Error("adapter-sandbox.tests: sandbox accepted an unknown adapter as resolvable");
+    }
+
+    if (JSON.stringify(adapterState.loaded) !== JSON.stringify(loadedBefore)) {
+      throw new Error(
+        "adapter-sandbox.tests: AdapterSandbox mutated real adapterState.loaded -- isolation broken",
+      );
+    }
+
+    return { realGraph, unknownAdapterRejected: !unknown.resolvable };
   },
 };
