@@ -1,23 +1,15 @@
 // Phase 47 — Shell Commands
 
 import { nucleus } from "../cliSovereign/nucleus";
+import { cliManifest } from "../cliSovereign/cliManifest";
 
 export const shellCommands = {
   help: () => ({
-    commands: [
-      "start",
-      "pipeline",
-      "adapters",
-      "ci",
-      "sovereignty",
-      "activation",
-      "federation",
-      "autonomy",
-      "resources",
-      "lineage",
-      "telemetry",
-      "exit",
-    ],
+    // FIXED: stale -- missing "deploy"/"certify" (real cliCommands
+    // entries that were also missing from cliManifest.ts's allowlist,
+    // fixed alongside this) and the new "benchmark" command. This list
+    // should track cliManifest.commands.
+    commands: [...cliManifest.commands, "exit"],
   }),
 
   exit: () => ({ exit: true }),

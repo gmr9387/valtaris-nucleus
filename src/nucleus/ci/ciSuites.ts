@@ -26,6 +26,7 @@ import { nucleusGovernance } from "../governance/governanceEngine";
 import { governanceSandbox } from "../governance/governanceSandbox";
 import { certificationState } from "../certification/certificationState";
 import { certificationSandbox } from "../certification/certificationSandbox";
+import { nucleusBenchmark } from "../benchmark/benchmarkEngine";
 
 export const ciSuites = {
   "constitution.tests": () => ({
@@ -187,5 +188,41 @@ export const ciSuites = {
     }
 
     return { governanceReplay, certificationTry };
+  },
+
+  // gapMap.md's "Internal Benchmark Suite (runtime/pipelines/workflows)"
+  // (#20) -- the last genuinely untouched item on the list. Runs a
+  // small number of real claims (3, to keep `bun run ci` fast) through
+  // the real pipeline under a dedicated "org-benchmark-selfcheck"
+  // tenant and asserts the results are internally consistent, not just
+  // that nothing threw.
+  "benchmark.tests": async () => {
+    registerAllSubsystems();
+
+    const result = await nucleusBenchmark.run("org-benchmark-selfcheck", 3);
+
+    if (result.perClaimDurationsMs.length !== 3) {
+      throw new Error(
+        `benchmark.tests: expected 3 timed claims, got ${result.perClaimDurationsMs.length}`,
+      );
+    }
+    if (result.minMs > result.avgMs || result.avgMs > result.maxMs) {
+      throw new Error(
+        `benchmark.tests: min/avg/max out of order (${result.minMs}/${result.avgMs}/${result.maxMs})`,
+      );
+    }
+    for (const stage of [
+      "opportunity",
+      "recommendation",
+      "authorization",
+      "execution",
+      "payment",
+    ]) {
+      if (!(result.perStageAvgMs[stage] >= 0)) {
+        throw new Error(`benchmark.tests: no timing recorded for stage "${stage}"`);
+      }
+    }
+
+    return result;
   },
 };
