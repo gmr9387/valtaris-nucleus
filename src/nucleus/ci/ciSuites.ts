@@ -10,13 +10,14 @@ import { constitutionalPipeline } from "../pipeline/constitutionalPipeline";
 import { adapterAutoWireEngine } from "../adapters/adapterAutoWireEngine";
 import { resourceGraph } from "../resources/resourceGraph";
 import { lineageEngine } from "../lineage/lineageEngine";
+// telemetryEngine.ts's list()/recordEvent() now delegate to
+// telemetry/telemetry.ts's live store (the one weaver/guardian/glue/
+// dualpay's real runtimes write to on every dispatch) instead of
+// keeping a second, boot-only array -- see telemetryEngine.ts's own
+// header comment. Both imports below now read the same underlying
+// data; kept separate only because telemetryEngine.ts is still the
+// name constitutionalPipeline.ts/internal-status/the CLI use.
 import { telemetryEngine } from "../telemetry/telemetryEngine";
-// telemetry/telemetry.ts's recordTelemetry() is what weaver/guardian/
-// glue/dualpay's real runtimes actually call on every claim dispatch
-// (telemetry/telemetryEngine.ts's own nucleusTelemetry, imported above,
-// is a separate, differently-named singleton that's only ever written
-// to once, at boot -- see telemetry.ts's own header comment on the
-// duplication). Aliased to avoid colliding with the import above.
 import { nucleusTelemetry as liveTelemetry } from "../telemetry/telemetry";
 import { nucleusAudit } from "../audit/auditEngine";
 import { registerAllSubsystems } from "../subsystems/registerSubsystems";
@@ -25,6 +26,7 @@ import { nucleusGovernance } from "../governance/governanceEngine";
 import { governanceSandbox } from "../governance/governanceSandbox";
 import { certificationState } from "../certification/certificationState";
 import { certificationSandbox } from "../certification/certificationSandbox";
+import { nucleusBenchmark } from "../benchmark/benchmarkEngine";
 
 export const ciSuites = {
   "constitution.tests": () => ({
@@ -79,16 +81,24 @@ export const ciSuites = {
 
   "lineage.tests": () => lineageEngine.list(),
 
-  // Was telemetryEngine.list() -- the boot-only singleton, always a
-  // single "runtime.boot" entry regardless of real claim activity. This
-  // now reads the telemetry module the real runtimes actually write to
-  // on every dispatch (see the import comment above), so this suite
-  // reflects real per-claim signals now that dispatch.tests runs before
-  // it (see ciManifest.ts).
-  "telemetry.tests": () => ({
-    boot: telemetryEngine.list(),
-    dispatch: liveTelemetry.getAll(),
-  }),
+  // telemetryEngine.list() used to be a separate, boot-only array,
+  // always a single "runtime.boot" entry regardless of real claim
+  // activity -- now it delegates to the same live store liveTelemetry
+  // reads directly (see telemetryEngine.ts's header comment). This
+  // suite asserts that consolidation actually holds instead of just
+  // trusting the comment: both reads must agree.
+  "telemetry.tests": () => {
+    const viaEngine = telemetryEngine.list();
+    const viaLive = liveTelemetry.getAll();
+
+    if (viaEngine.length !== viaLive.length) {
+      throw new Error(
+        `telemetry.tests: telemetryEngine.list() (${viaEngine.length}) and the live telemetry store (${viaLive.length}) disagree -- consolidation is broken`,
+      );
+    }
+
+    return { events: viaLive };
+  },
 
   // gapMap.md's "Unified Audit Engine (reports + proofs)" gap: the log
   // half (nucleusAudit.log()) was already the most heavily-used module
@@ -178,5 +188,41 @@ export const ciSuites = {
     }
 
     return { governanceReplay, certificationTry };
+  },
+
+  // gapMap.md's "Internal Benchmark Suite (runtime/pipelines/workflows)"
+  // (#20) -- the last genuinely untouched item on the list. Runs a
+  // small number of real claims (3, to keep `bun run ci` fast) through
+  // the real pipeline under a dedicated "org-benchmark-selfcheck"
+  // tenant and asserts the results are internally consistent, not just
+  // that nothing threw.
+  "benchmark.tests": async () => {
+    registerAllSubsystems();
+
+    const result = await nucleusBenchmark.run("org-benchmark-selfcheck", 3);
+
+    if (result.perClaimDurationsMs.length !== 3) {
+      throw new Error(
+        `benchmark.tests: expected 3 timed claims, got ${result.perClaimDurationsMs.length}`,
+      );
+    }
+    if (result.minMs > result.avgMs || result.avgMs > result.maxMs) {
+      throw new Error(
+        `benchmark.tests: min/avg/max out of order (${result.minMs}/${result.avgMs}/${result.maxMs})`,
+      );
+    }
+    for (const stage of [
+      "opportunity",
+      "recommendation",
+      "authorization",
+      "execution",
+      "payment",
+    ]) {
+      if (!(result.perStageAvgMs[stage] >= 0)) {
+        throw new Error(`benchmark.tests: no timing recorded for stage "${stage}"`);
+      }
+    }
+
+    return result;
   },
 };

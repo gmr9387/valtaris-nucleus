@@ -25,6 +25,8 @@ import { lineageEngine } from "../lineage/lineageEngine";
 import { telemetryEngine } from "../telemetry/telemetryEngine";
 import { deployNucleus } from "../deployment/deployNucleus";
 import { certifyNucleus } from "../certification/certifyNucleus";
+import { registerAllSubsystems } from "../subsystems/registerSubsystems";
+import { nucleusBenchmark } from "../benchmark/benchmarkEngine";
 
 export const cliCommands = {
   start: async () => startNucleus(process.env.ORGANIZATION_ID || "dev-org"),
@@ -40,4 +42,14 @@ export const cliCommands = {
   telemetry: async () => telemetryEngine.list(),
   deploy: async () => deployNucleus(),
   certify: async () => certifyNucleus(),
+  // gapMap.md's "Internal Benchmark Suite" (#20) -- runs real claims
+  // through the real pipeline and reports real timing, not a synthetic
+  // stand-in. registerAllSubsystems() matches the same idempotent
+  // pattern the `autonomy`/`certify` commands already need for a
+  // standalone CLI invocation.
+  benchmark: async () => {
+    registerAllSubsystems();
+    const iterations = Number(process.env.BENCHMARK_ITERATIONS) || 10;
+    return nucleusBenchmark.run(process.env.ORGANIZATION_ID || "dev-org", iterations);
+  },
 };
