@@ -10,12 +10,13 @@ import type { Dynamic } from "../types/dynamic";
  * not exist here, causing RuntimeRouter.dispatch() to be unable to resolve
  * any subsystem at all.
  *
- * NOTE: This is a SEPARATE registry from src/integrations/integrationRegistry.ts,
- * which registers subsystems under different ids ("decision-weaver" instead of
- * "weaver", no "telemetry"). That registry is used elsewhere
- * (glue/guardian/weaver/dualpay integration adapters) — do not merge the two
- * without deciding which is canonical first. This file is scoped specifically
- * to what RuntimeGuards.enforceSubsystemPermission expects: "weaver",
+ * NOTE: this comment used to warn about a second, separate registry at
+ * src/integrations/integrationRegistry.ts (which used "decision-weaver"
+ * instead of "weaver" as an id). That file was deleted before this
+ * session's work started (confirmed via git log against the deleted
+ * path) -- this is the only subsystem registry in the codebase now.
+ * This file is scoped specifically to what
+ * RuntimeGuards.enforceSubsystemPermission expects: "weaver",
  * "guardian", "glue", "dualpay", "telemetry".
  *
  * "contracts" was removed from this type when the ContractsRuntime
