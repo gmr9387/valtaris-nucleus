@@ -10,9 +10,7 @@ describe("Guardian subsystem permissions", () => {
   it("is registered alongside every other constitutional subsystem", () => {
     registerAllSubsystems();
     const ids = getAllSubsystems().map((s) => s.id);
-    expect(ids).toEqual(
-      expect.arrayContaining(["guardian", "dualpay", "contracts", "glue", "weaver"]),
-    );
+    expect(ids).toEqual(expect.arrayContaining(["guardian", "dualpay", "glue", "weaver"]));
   });
 
   it("only handles the authorization contract, not other subsystems' contracts", async () => {

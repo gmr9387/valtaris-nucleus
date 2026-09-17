@@ -2,7 +2,7 @@
 
 This document is the canonical map of what already exists in the Valtaris ecosystem and what is still missing. It prevents duplication and ensures we only close real gaps instead of rebuilding the same capability under different filenames.
 
-**Last verified against the real codebase:** 2026-09-17, after PRs #9–#19. Everything below reflects actual importers/callers checked directly, not file existence. Where a status changed, the entry says what changed it and how it was verified.
+**Last verified against the real codebase:** 2026-09-17, after PRs #9–#21 plus the NucleusApi retirement. Everything below reflects actual importers/callers checked directly, not file existence. Where a status changed, the entry says what changed it and how it was verified.
 
 ---
 
@@ -23,12 +23,13 @@ This document is the canonical map of what already exists in the Valtaris ecosys
 - `AuditEngine.report()` — real aggregation, exercised by CI's `"audit.tests"`
 - `GET /api/openapi.json` — real generator wired to the real routes
 - `GET /api/internal-status` + `GET /status` — a real JSON endpoint and HTML page exposing all of the above from one place
+- `BenchmarkEngine.run()` — real claims through the real pipeline, real min/max/avg/p50/p95 timing, exposed via the CLI's `benchmark` command and CI's `"benchmark.tests"`
+- `AdapterSandbox` — transitive dependency resolution for a candidate adapter (or the whole manifest) in isolation from the real, shared `adapterState.loaded`; catches an unknown adapter or a dependency cycle before a real boot would
+- Telemetry consolidated: `telemetryEngine.ts`'s `recordEvent()`/`list()` now delegate to `telemetry/telemetry.ts`'s live store instead of keeping a second, boot-only array (see §2.2)
+
+**Retired, not a gap:** `NucleusApi`, `NucleusBatchApi`, the `"contracts"` subsystem (`ContractsRuntime` → `OpportunityRuntime`/`RecommendationRuntime`/`AuthorizationRuntime`/`ExecutionRuntime`/`PaymentRuntime`), `FederatedResourceEngine`, `federatedLineageEngine`, and `federatedTelemetryEngine` were deleted outright rather than retrofitted. This was a parallel, early-prototype "constitutional contract chain" with hardcoded fixture tenants and a payload shape (`executionType`, flat `amount`) the real Guardian/Glue/DualPay runtimes never produced, confirmed incompatible by reading its own test suite's expected shapes — never dispatched via `RuntimeRouter` on the real claim path. Its five dedicated test files (which tested only this prototype's own mechanics) were deleted alongside it. `federationEngine.identity` (tenant/environment validation, a separate and genuinely live sub-engine) was kept.
 
 **Gaps:**
-- Telemetry is still three separate modules (see §2.2) — functional, not consolidated
-- Internal Benchmark Suite (§3, item 20) — not started
-- `NucleusApi` / `FederatedResourceEngine` / `federatedLineageEngine` / `federatedTelemetryEngine` — a parallel, early-prototype "constitutional contract chain" with hardcoded fixture tenants and a payload shape (`executionType`, flat `amount`) the real Guardian/Glue/DualPay runtimes don't produce. Confirmed incompatible by reading its own test suite's expected shapes. Needs a decision (retrofit the real runtimes' output, or retire the prototype), not a wiring pass.
-- The `"contracts"` subsystem is registered but never dispatched via `RuntimeRouter` on the real claim path — only reachable through the incompatible `NucleusApi` layer above.
 - `ResourceGraph` is still never populated by real dispatch. Investigated directly: its identity-boundary guard (`enforceResourceGuards`) assumes one resource belongs to a single fixed (subsystem, capability) pair, which doesn't fit a claim four different subsystems each touch once with a different capability. Wiring it in as originally imagined would either throw on the guard or duplicate what State + Lineage already do — not a real gap closure.
 - `nucleus-server.ts` (this whole internal engine) is not deployed anywhere. Real production traffic runs through the Supabase Edge Functions (`adjudicate-claim` et al.) and the separate TanStack admin app. Everything above is live in the sense that it runs correctly when the process runs, not in the sense of serving real production traffic today.
 
@@ -41,11 +42,11 @@ This document is the canonical map of what already exists in the Valtaris ecosys
 **Existing:**
 - Pipeline execution, workflow state machine, deterministic transitions, contract enforcement — via `GlueRuntime.handle()`, the real registered handler
 - Adapter execution — `adapterAutoWireEngine` (dependency-ordered loading against `adapterManifest.ts`/`adapterDependencyGraph.ts`), now run on real boot
+- Adapter sandboxing — `AdapterSandbox.tryLoad()`/`tryLoadAll()`, isolated transitive dependency resolution, verified against real `adapterState.loaded` isolation
 - Lineage logging — via `RuntimeRouter`'s generic per-stage lineage recording (not Glue-specific)
 - Event emission — `eventBus.emit("glue.execution.processed", ...)`
 
 **Gaps:**
-- Adapter sandboxing (safe/isolated execution) — the registry half of this is live; isolated execution for an adapter was never built
 - Centralized state store integration — satisfied generically via `RuntimeRouter`, not verified as a Glue-specific concern beyond that
 
 ---
@@ -128,11 +129,12 @@ This document is the canonical map of what already exists in the Valtaris ecosys
 **Status:** Live for the commands this pass touched.
 
 **Existing:**
-- `certify`, `pipeline`, `adapters`, `ci` commands all point at real, live mechanisms now (previously some pointed at weaker/broken paths)
-- Test harness integration — `bun run ci`'s `"dispatch.tests"` and `"sandbox.tests"` genuinely exercise the claim path and sandbox isolation, not just individual engines
+- `certify`, `pipeline`, `adapters`, `ci`, `benchmark` commands all point at real, live mechanisms now (previously some pointed at weaker/broken paths)
+- Fixed: `cliManifest.ts`'s command allowlist was missing `"deploy"` and `"certify"` — both real, working commands that would have thrown "Unknown command" if anyone actually ran them. `shellCommands.ts`'s `help` list now reads from the manifest directly instead of a separately hand-maintained copy that had gone stale.
+- Test harness integration — `bun run ci`'s `"dispatch.tests"`, `"sandbox.tests"`, and `"adapter-sandbox.tests"` genuinely exercise the claim path and both sandboxes' isolation, not just individual engines
 
 **Gaps:**
-- Unified diagnostics/health/metrics CLI commands specifically — the engines are real; dedicated CLI surfacing of them beyond what `certify`/`ci` already show wasn't built
+- Unified diagnostics/health/metrics CLI commands specifically — the engines are real; dedicated CLI surfacing of them beyond what `certify`/`ci`/`benchmark` already show wasn't built
 
 ---
 
@@ -141,13 +143,11 @@ This document is the canonical map of what already exists in the Valtaris ecosys
 ### 2.1 Event Bus — **closed**
 One real `subscribe(pattern, handler)` API. A real subscriber-loss bug (`subscribeAll()` monkey-patching `publish` on every call) found and fixed as part of the reconciliation.
 
-### 2.2 Telemetry / Metrics — **partial**
-`MetricsEngine` (`metrics/metricsEngine.ts`) is canonical and live — real per-stage dispatch latency on every claim. Telemetry itself remains **three separate modules**:
-- `telemetry/telemetry.ts`'s `nucleusTelemetry` — the one weaver/guardian/glue/dualpay's real runtimes actually call via `recordTelemetry()` on every dispatch. This is the live one.
-- `telemetry/telemetryEngine.ts`'s `nucleusTelemetry` — same export name, different class, written to exactly once per process at boot (`nucleusRuntime.ts`'s `"runtime.boot"` event).
-- `subsystems/telemetry/telemetryAdapter.ts` → `TelemetryRuntime.emit()` — a third path, called directly by `OSPipeline` per stage, purely an `eventBus.emit()` with no storage.
-
-**Gap:** consolidate into one. `ciSuites.ts`'s `"telemetry.tests"` suite was fixed this pass to read the live one instead of the boot-only one, but the underlying duplication remains.
+### 2.2 Telemetry / Metrics — **closed**
+`MetricsEngine` (`metrics/metricsEngine.ts`) is canonical and live — real per-stage dispatch latency on every claim. Telemetry was three separate modules; now two, reconciled where it mattered:
+- `telemetry/telemetry.ts`'s `nucleusTelemetry` — the one weaver/guardian/glue/dualpay's real runtimes actually call via `recordTelemetry()` on every dispatch. This is the live store.
+- `telemetry/telemetryEngine.ts`'s `recordEvent()`/`getEvents()`/`list()` now delegate to the live store above instead of keeping a second, separate array — `nucleusRuntime.ts`'s boot event and every real per-claim signal now land in one place. `ciSuites.ts`'s `"telemetry.tests"` asserts the two views agree.
+- `subsystems/telemetry/telemetryAdapter.ts` → `TelemetryRuntime.emit()` — still a separate path, called directly by `OSPipeline` per stage via `QueueEngine`, purely an `eventBus.emit()` with no storage. Left as-is: it's a real, distinct pipeline-broadcast mechanism (with its own audit/billing/retry exercise via the queue), not a duplicate log of the same data.
 
 ### 2.3 Workflow / Pipeline State — **closed**
 `StateEngine` wired into `RuntimeRouter.dispatch()` — every validated stage result becomes that subsystem's current state for the org, with automatic diff and snapshot.
@@ -179,15 +179,15 @@ Real topology registered from confirmed data (see §1.7). `federationEngine.iden
 ### 2.12 Subsystem Registration — **closed**
 `adapterDependencyGraph.ts` + `adapterAutoWireEngine` now run on real boot, not just CI.
 
-### 2.13 Contract Infrastructure — **closed** (for the four real subsystems); **open** (for the parallel `"contracts"` subsystem)
-`RuntimeRouter.dispatch()` validates every stage against `contractRegistry.ts`. The separate `"contracts"` subsystem (`ContractsRuntime` → `OpportunityRuntime` etc.) is registered but never dispatched to on the real claim path — see §1.1.
+### 2.13 Contract Infrastructure — **closed**
+`RuntimeRouter.dispatch()` validates every stage against `contractRegistry.ts`. The separate `"contracts"` subsystem (`ContractsRuntime` → `OpportunityRuntime` etc.), which was registered but never dispatched to on the real claim path, was deleted along with `NucleusApi` — see §1.1.
 
 ---
 
 ## 3. True Missing Systems — status
 
 1. Unified Event Bus — **closed**
-2. Unified Telemetry/Metrics spine — **partial** (metrics closed, telemetry still 3 modules)
+2. Unified Telemetry/Metrics spine — **closed**
 3. Unified Audit Engine (reports + proofs) — **closed**
 4. Central State Store abstraction — **closed**
 5. Formal Queue Layer — **closed**
@@ -203,9 +203,11 @@ Real topology registered from confirmed data (see §1.7). `federationEngine.iden
 15. Resource Federation Engine (formalized) — **closed**
 16. Certification Sandbox — **closed**
 17. Governance Sandbox — **closed**
-18. Adapter Registry + Sandbox — **partial** (registry closed; sandbox/isolated-execution half not built)
+18. Adapter Registry + Sandbox — **closed**
 19. Internal Test Harness (pipelines/workflows/governance) — **closed**
-20. Internal Benchmark Suite (runtime/pipelines/workflows) — **open**, not started
+20. Internal Benchmark Suite (runtime/pipelines/workflows) — **closed**
+
+17 of 20 fully closed; 2 handled outside this pass (13/14, via Supabase-side work); 1 already-live false alarm (11). Every item that was safe to close autonomously is closed. What's left is judgment calls, not wiring: `ResourceGraph`'s identity-boundary mismatch (§1.1), and whatever the ecosystem needs next that isn't on this specific list (e.g. deploying `nucleus-server.ts` somewhere real, or extending Federation's topology beyond the one confirmed link).
 
 ---
 
