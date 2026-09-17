@@ -7,6 +7,7 @@ import { nucleusScheduler } from "../scheduler/scheduler";
 import { loadAdapters } from "../adapters/loadAdapters";
 import { constitutionalPipeline } from "../pipeline/constitutionalPipeline";
 import { registerKnownFederationTopology } from "../federation/registerKnownTopology";
+import { certifyNucleus } from "../certification/certifyNucleus";
 
 /**
  * FIXED (again): the constitution module was restructured since the
@@ -107,6 +108,26 @@ export class DeploymentBootstrap {
       { alive: true },
       (msg) => {
         console.log(`[HEARTBEAT] nucleus alive`, msg);
+      },
+    );
+
+    // gapMap.md's Certification Engine gap: "Certification only runs
+    // when invoked (CLI's `certify` command); nothing schedules it, so
+    // certificationState.certified reads false by default." Same
+    // Scheduler.register() pattern as the heartbeat above -- its second
+    // real caller. Runs certifyNucleus() every 5 minutes so
+    // certificationState reflects a real, current sweep instead of only
+    // ever whatever the CLI happened to run once (certifyNucleus() is
+    // already idempotent/self-booting, same as ciSuites.ts's
+    // "autonomy.tests"/"dispatch.tests" -- see its own header comment).
+    nucleusScheduler.register(
+      "platform",
+      "nucleus",
+      "certification",
+      5 * 60_000,
+      { scheduled: true },
+      async () => {
+        await certifyNucleus();
       },
     );
 

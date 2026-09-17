@@ -20,6 +20,7 @@ This document is the canonical map of what already exists in the Valtaris ecosys
 - `CertificationEngine` — real checks (subsystem health, adapter loading, pipeline completion) via `certifyNucleus()`, plus `CertificationSandbox` for trying a candidate check without making it permanent
 - `GovernanceEngine` — real per-dispatch decisions via `RuntimeGuards`, plus `GovernanceSandbox` for replaying a candidate rule against real historical decisions
 - `tenantSubsystemOverrides.ts` — real per-org subsystem enable/disable override, checked by `RuntimeGuards`' governance rule ahead of the global `enabled` flag; closes the Weaver/DualPay multi-tenant gaps (see §1.4/§1.5), proven by CI's `"tenant-override.tests"`
+- Scheduled certification — `DeploymentBootstrap.start()` registers a real `Scheduler` task calling `certifyNucleus()` every 5 minutes (see §1.6), closing the "certification only runs when invoked" gap
 - Adapter Registry (`adapterAutoWireEngine`) + Constitutional Pipeline (`constitutionalPipeline.execute()`) — both now run on real boot (`DeploymentBootstrap.start()`), not just `bun run ci`
 - `AuditEngine.report()` — real aggregation, exercised by CI's `"audit.tests"`
 - `GET /api/openapi.json` — real generator wired to the real routes
@@ -99,15 +100,15 @@ This document is the canonical map of what already exists in the Valtaris ecosys
 
 ### 1.6 Certification Engine
 
-**Status:** Live, opt-in.
+**Status:** Live, scheduled.
 
 **Existing:**
 - Real certification sweep (`certifyNucleus()`): registers real checks (subsystem health, adapter loading, pipeline completion), boots what it certifies itself, writes the real result to `certificationState`
 - Certification sandbox — `CertificationSandbox.tryCheck()`, isolation proven by a real CI assertion
+- ~~Certification only runs when invoked~~ — closed. `DeploymentBootstrap.start()` now registers a real `Scheduler` task (its second real caller, same pattern as the existing 60s liveness heartbeat) that calls `certifyNucleus()` every 5 minutes, so `certificationState.certified` reflects a real, current sweep on any live boot instead of only ever whatever the CLI happened to run once. Verified with a standalone scheduler smoke test (short interval) confirming the registered task actually fires and flips `certificationState.certified`/`lastCertifiedAt`.
 
 **Gaps:**
 - Versioned certifications (history + snapshots) — not built
-- Certification only runs when invoked (CLI's `certify` command); nothing schedules it, so `certificationState.certified` reads `false` by default
 
 ---
 
