@@ -65,7 +65,7 @@ This document is the canonical map of what already exists in the Valtaris ecosys
 - Governance sandbox — `GovernanceSandbox.replay()`, isolation proven by a real CI assertion
 
 **Gaps:**
-- Unified audit engine integration — audit logging exists per-engine (billing + audit hooks on every engine touched this pass); not consolidated into one cross-engine report beyond `AuditEngine.report()`'s aggregation
+- ~~Unified audit engine integration~~ — this line was stale, contradicting §3 item #3 (already marked **closed**). Verified directly: `nucleusAudit.log()` is called from every real engine touched this session (certification, diagnostics, governance, pipeline, workflows, plus billing/state/queue/scheduler elsewhere), all into the one `AuditEngine` instance, and `report()` aggregates across all of it by subsystem/action/actor — a real cross-engine report already, not a per-engine one.
 - ~~Versioned governance rules (diffs + snapshots)~~ — closed. `tenantSubsystemOverrides.ts`'s `setTenantSubsystemEnabled()` now also writes through `StateEngine` (the same diff/snapshot mechanism `RuntimeRouter.dispatch()` already trusts for claim state), so every real policy change gets a real version number and diff trail — `getTenantSubsystemOverrideHistory()` — instead of the override map holding only its current value. Proven by CI's `"versioning.tests"` (real successive changes produce one diff each) and a live smoke test.
 
 ---
