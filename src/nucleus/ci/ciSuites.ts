@@ -10,6 +10,13 @@ import { adapterAutoWireEngine } from "../adapters/adapterAutoWireEngine";
 import { resourceGraph } from "../resources/resourceGraph";
 import { lineageEngine } from "../lineage/lineageEngine";
 import { telemetryEngine } from "../telemetry/telemetryEngine";
+// telemetry/telemetry.ts's recordTelemetry() is what weaver/guardian/
+// glue/dualpay's real runtimes actually call on every claim dispatch
+// (telemetry/telemetryEngine.ts's own nucleusTelemetry, imported above,
+// is a separate, differently-named singleton that's only ever written
+// to once, at boot -- see telemetry.ts's own header comment on the
+// duplication). Aliased to avoid colliding with the import above.
+import { nucleusTelemetry as liveTelemetry } from "../telemetry/telemetry";
 import { nucleusAudit } from "../audit/auditEngine";
 import { registerAllSubsystems } from "../subsystems/registerSubsystems";
 import { OSPipeline } from "../runtime/osPipeline";
@@ -55,7 +62,16 @@ export const ciSuites = {
 
   "lineage.tests": () => lineageEngine.list(),
 
-  "telemetry.tests": () => telemetryEngine.list(),
+  // Was telemetryEngine.list() -- the boot-only singleton, always a
+  // single "runtime.boot" entry regardless of real claim activity. This
+  // now reads the telemetry module the real runtimes actually write to
+  // on every dispatch (see the import comment above), so this suite
+  // reflects real per-claim signals now that dispatch.tests runs before
+  // it (see ciManifest.ts).
+  "telemetry.tests": () => ({
+    boot: telemetryEngine.list(),
+    dispatch: liveTelemetry.getAll(),
+  }),
 
   // gapMap.md's "Unified Audit Engine (reports + proofs)" gap: the log
   // half (nucleusAudit.log()) was already the most heavily-used module
