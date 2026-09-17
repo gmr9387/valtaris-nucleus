@@ -23,6 +23,8 @@ import { RuntimeGuards } from "./runtimeGuards";
 import { validateContract } from "../contracts/contractRegistry";
 import { nucleusState } from "../state/stateEngine";
 import { nucleusMetrics } from "../metrics/metricsEngine";
+import { lineageEngine } from "../lineage/lineageEngine";
+import type { NucleusSubsystem } from "../identity/nucleusIdentity";
 // Side-effect import: registers the five per-stage contract
 // definitions (opportunity/recommendation/authorization/execution/
 // payment @ v1) against contractRegistry.ts. Without this,
@@ -32,6 +34,7 @@ import "../contracts";
 import type { Dynamic } from "../types/dynamic";
 
 const DEFAULT_CONTRACT_VERSION = "v1";
+const NUCLEUS_SUBSYSTEMS: readonly NucleusSubsystem[] = ["weaver", "guardian", "glue", "dualpay"];
 
 /**
  * registerAllSubsystems() is idempotent (it just re-populates a Map),
@@ -92,6 +95,43 @@ export class RuntimeRouter {
     // event, state carries the current value, this carries how long
     // the subsystem actually took).
     nucleusMetrics.record(organizationId, id, `dispatch.${contractName}.duration_ms`, durationMs);
+
+    // lineage/lineageEngine.ts is a fourth fully-built, zero-real-caller
+    // engine of this same shape (its only caller anywhere was
+    // api/nucleusApi.ts -- a parallel, incompatible constitutional
+    // contract-chain implementation with its own hardcoded fixture
+    // tenants that nothing on the real claim path ever invokes; left
+    // untouched rather than force real organization data through a
+    // check designed for "tenant-a"/"tenant-b"/"tenant-c"). This records
+    // the same real dispatch this method already validated, under the
+    // real organizationId as tenantId -- lineageStore.record() has no
+    // such fixture check, so this is safe where routing through
+    // NucleusApi/FederatedIdentityEngine was not. NucleusIdentity only
+    // recognizes the four claim-processing subsystems as valid
+    // "subsystem" values (matching nucleusApi.ts's own permission map),
+    // so "contracts"/"telemetry" dispatches -- neither on the real claim
+    // path today -- are skipped rather than force-cast.
+    if ((NUCLEUS_SUBSYSTEMS as readonly string[]).includes(id)) {
+      const claimId = (payload as Dynamic)?.claimId;
+      lineageEngine.recordEvent(
+        {
+          type: contractName,
+          version: contractVersion,
+          payload: result,
+          source: id,
+          context: {
+            tenantId: organizationId,
+            environmentId: process.env.NODE_ENV ?? "development",
+            projectId: "nucleus",
+            subsystem: id as NucleusSubsystem,
+            capability: contractName,
+          },
+          timestamp: new Date().toISOString(),
+        },
+        claimId,
+        "claim",
+      );
+    }
 
     return result;
   }
