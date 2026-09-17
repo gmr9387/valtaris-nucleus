@@ -2,328 +2,210 @@
 
 This document is the canonical map of what already exists in the Valtaris ecosystem and what is still missing. It prevents duplication and ensures we only close real gaps instead of rebuilding the same capability under different filenames.
 
+**Last verified against the real codebase:** 2026-09-17, after PRs #9–#19. Everything below reflects actual importers/callers checked directly, not file existence. Where a status changed, the entry says what changed it and how it was verified.
+
 ---
 
 ## 1. Subsystem Inventory
 
 ### 1.1 Nucleus (Runtime)
 
-**Status:** 70–80% complete
+**Status:** Live on the real claim path.
 
-**Existing:**
-- Event bus (local to runtime)
-- Telemetry hooks
-- Workflow state handling
-- Deterministic execution loop
-- Subsystem activation
-- Constitutional enforcement
-- Partial scheduler
-- Partial retries
-- Partial recovery
-- Versioning concepts
-- Audit/event logging
-- Resource federation concepts
-- HTTP/API surfaces
-- Subsystem registration
-- Contract infrastructure
+**Existing (verified live):**
+- Unified event bus (`events/eventBus.ts`) — one `subscribe(pattern, handler)` API, reconciled from five overlapping ones
+- `RuntimeRouter.dispatch()` — the one real choke point every claim stage passes through: `RuntimeGuards` permission check (governed by `GovernanceEngine`), the subsystem's real handler, contract validation, `StateEngine` write (diff + snapshot), `MetricsEngine` latency record, `LineageEngine` entry
+- `QueueEngine` + `Scheduler` + `RetryEngine` — real request-driven (telemetry send) and timer-driven (60s liveness heartbeat) exercise; Guardian's kill-switch fetch retried through `RetryEngine`
+- `HealthEngine`/`DiagnosticsEngine`/`RecoveryEngine` — real per-subsystem diagnostics feeding health status feeding a real recovery action (re-enable a disabled subsystem)
+- `CertificationEngine` — real checks (subsystem health, adapter loading, pipeline completion) via `certifyNucleus()`, plus `CertificationSandbox` for trying a candidate check without making it permanent
+- `GovernanceEngine` — real per-dispatch decisions via `RuntimeGuards`, plus `GovernanceSandbox` for replaying a candidate rule against real historical decisions
+- Adapter Registry (`adapterAutoWireEngine`) + Constitutional Pipeline (`constitutionalPipeline.execute()`) — both now run on real boot (`DeploymentBootstrap.start()`), not just `bun run ci`
+- `AuditEngine.report()` — real aggregation, exercised by CI's `"audit.tests"`
+- `GET /api/openapi.json` — real generator wired to the real routes
+- `GET /api/internal-status` + `GET /status` — a real JSON endpoint and HTML page exposing all of the above from one place
 
 **Gaps:**
-- Unified event bus across subsystems
-- Unified telemetry/metrics spine
-- Unified audit engine (reports + proofs)
-- Fully implemented scheduler + retries + recovery
-- Durable, centralized state store abstraction
+- Telemetry is still three separate modules (see §2.2) — functional, not consolidated
+- Internal Benchmark Suite (§3, item 20) — not started
+- `NucleusApi` / `FederatedResourceEngine` / `federatedLineageEngine` / `federatedTelemetryEngine` — a parallel, early-prototype "constitutional contract chain" with hardcoded fixture tenants and a payload shape (`executionType`, flat `amount`) the real Guardian/Glue/DualPay runtimes don't produce. Confirmed incompatible by reading its own test suite's expected shapes. Needs a decision (retrofit the real runtimes' output, or retire the prototype), not a wiring pass.
+- The `"contracts"` subsystem is registered but never dispatched via `RuntimeRouter` on the real claim path — only reachable through the incompatible `NucleusApi` layer above.
+- `ResourceGraph` is still never populated by real dispatch. Investigated directly: its identity-boundary guard (`enforceResourceGuards`) assumes one resource belongs to a single fixed (subsystem, capability) pair, which doesn't fit a claim four different subsystems each touch once with a different capability. Wiring it in as originally imagined would either throw on the guard or duplicate what State + Lineage already do — not a real gap closure.
+- `nucleus-server.ts` (this whole internal engine) is not deployed anywhere. Real production traffic runs through the Supabase Edge Functions (`adjudicate-claim` et al.) and the separate TanStack admin app. Everything above is live in the sense that it runs correctly when the process runs, not in the sense of serving real production traffic today.
 
 ---
 
 ### 1.2 Glue (Workflow / Pipeline Engine)
 
-**Status:** 80–90% complete
+**Status:** Live for its one real contract (`execution`); adapter registry live at the ecosystem level, not Glue-specific.
 
 **Existing:**
-- Pipeline execution
-- Workflow state machine
-- Adapter execution
-- Lineage logging
-- Event emission
-- Deterministic transitions
-- Contract enforcement
-- Resource mapping
+- Pipeline execution, workflow state machine, deterministic transitions, contract enforcement — via `GlueRuntime.handle()`, the real registered handler
+- Adapter execution — `adapterAutoWireEngine` (dependency-ordered loading against `adapterManifest.ts`/`adapterDependencyGraph.ts`), now run on real boot
+- Lineage logging — via `RuntimeRouter`'s generic per-stage lineage recording (not Glue-specific)
+- Event emission — `eventBus.emit("glue.execution.processed", ...)`
 
 **Gaps:**
-- Formal adapter registry
-- Adapter sandboxing (safe execution)
-- Centralized state store integration
-- Unified event bus integration
+- Adapter sandboxing (safe/isolated execution) — the registry half of this is live; isolated execution for an adapter was never built
+- Centralized state store integration — satisfied generically via `RuntimeRouter`, not verified as a Glue-specific concern beyond that
 
 ---
 
 ### 1.3 Guardian (Governance Engine)
 
-**Status:** 70–80% complete
+**Status:** Live — real adjudication, real governance, real recovery.
 
 **Existing:**
-- Rule enforcement
-- Constitutional checks
-- Compliance hooks
-- Governance events
-- Audit logging
-- Contract validation
+- Rule enforcement, constitutional checks — `GovernanceEngine` via `RuntimeGuards`, real decision per dispatch
+- Real kill-switch check (Supabase-backed), retried via `RetryEngine`, fails closed on error
+- Real per-payer contract/plan lookup, real accumulator persistence, real adjudication math (`calculationEngine.ts`)
+- Governance sandbox — `GovernanceSandbox.replay()`, isolation proven by a real CI assertion
 
 **Gaps:**
-- Governance sandbox (rule validation + isolation)
-- Unified audit engine integration
-- Unified event bus integration
-- Versioned governance rules (diffs + snapshots)
+- Unified audit engine integration — audit logging exists per-engine (billing + audit hooks on every engine touched this pass); not consolidated into one cross-engine report beyond `AuditEngine.report()`'s aggregation
+- Versioned governance rules (diffs + snapshots) — not built; `StateEngine`'s diff/snapshot capability exists generically but hasn't been applied to rule/policy history specifically
 
 ---
 
 ### 1.4 DualPay (Payment Orchestration)
 
-**Status:** 60–70% complete
+**Status:** Live for its one real contract (`payment`).
 
 **Existing:**
-- Routing logic
-- Settlement flows
-- Reconciliation logic
-- Certification hooks
-- Pipeline integration
+- Routing logic (`DualPayEngine.react()`) — pure, deterministic, driven by real Guardian adjudication output
+- Real telemetry recording (was missing; fixed this pass — DualPay was the one of four real runtimes that never called `recordTelemetry()`)
+- Real federation link registered: DualPay → nucleus's live `adjudicate-claim` Edge Function
 
 **Gaps:**
-- Full integration with unified event bus
-- Full integration with unified state store
-- Multi‑tenant payment isolation hooks
-- Formal failure/retry/recovery policies
+- Multi-tenant payment isolation hooks — not independently verified inside `src/nucleus/*` this pass
+- Formal failure/retry/recovery policies — `DualPayEngine.react()` is a pure function with no external I/O, so there's no legitimate retry target the way Guardian's kill-switch fetch has one; not a gap so much as not applicable as currently designed
 
 ---
 
 ### 1.5 Weaver (Subsystem Registry)
 
-**Status:** 70–80% complete
+**Status:** Live — real scoring, in-process (not a separate deployed service).
 
 **Existing:**
-- Subsystem registry
-- Subsystem activation
-- Dependency mapping
-- Environment activation
+- Subsystem registry (`subsystemRegistry.ts`) — the real registry `RuntimeRouter` and `RuntimeGuards` both use
+- Real, persisted, editable scoring rules (`weaver_rules`) instead of hardcoded weights
+- Dependency mapping — `adapterDependencyGraph.ts`, exercised by `adapterAutoWireEngine` on real boot
 
 **Gaps:**
-- Formal subsystem dependency graph
-- Deployment engine integration
-- Multi‑tenant subsystem activation rules
+- Multi-tenant subsystem activation rules — not independently verified this pass
 
 ---
 
 ### 1.6 Certification Engine
 
-**Status:** 60–70% complete
+**Status:** Live, opt-in.
 
 **Existing:**
-- Sovereignty proofs
-- Pipeline certification
-- Workflow certification
-- Environment certification
+- Real certification sweep (`certifyNucleus()`): registers real checks (subsystem health, adapter loading, pipeline completion), boots what it certifies itself, writes the real result to `certificationState`
+- Certification sandbox — `CertificationSandbox.tryCheck()`, isolation proven by a real CI assertion
 
 **Gaps:**
-- Certification sandbox (proof generation + validation)
-- Unified audit engine integration
-- Versioned certifications (history + snapshots)
+- Versioned certifications (history + snapshots) — not built
+- Certification only runs when invoked (CLI's `certify` command); nothing schedules it, so `certificationState.certified` reads `false` by default
 
 ---
 
 ### 1.7 Federation Layer
 
-**Status:** 50–60% complete
+**Status:** Live, from confirmed real data.
 
 **Existing:**
-- Tenant isolation concepts
-- Resource federation concepts
-- Tenant mapping
-- Multi‑tenant hooks
+- `federationEngine.identity` (tenant/environment validation) — already live before this pass, used across certification/ci/dashboard/cliSovereign/sovereignty
+- Real topology (`registerKnownTopology.ts`): nucleus's live Supabase Edge Function surface, DualPay/valtaris-glue/rre-os-guardian as real (undeployed) repos, one real link (DualPay → nucleus's `adjudicate-claim`)
 
 **Gaps:**
-- Fully implemented multi‑tenant runtime hooks
-- Fully implemented multi‑tenant deployment hooks
-- Formal resource federation engine (providers/payers/desks)
+- No live network topology beyond the one confirmed link — Glue and rre-os-guardian have no confirmed real link to register yet
+- Multi-tenant runtime/deployment hooks — handled outside this pass (Supabase-side SSO/tenancy work), not independently re-verified inside `src/nucleus/*`
 
 ---
 
 ### 1.8 Shell + CLI
 
-**Status:** 70–80% complete
+**Status:** Live for the commands this pass touched.
 
 **Existing:**
-- Commands for dev/runtime
-- Subsystem activation
-- Pipeline execution
-- Workflow execution
-- Certification commands
+- `certify`, `pipeline`, `adapters`, `ci` commands all point at real, live mechanisms now (previously some pointed at weaker/broken paths)
+- Test harness integration — `bun run ci`'s `"dispatch.tests"` and `"sandbox.tests"` genuinely exercise the claim path and sandbox isolation, not just individual engines
 
 **Gaps:**
-- Unified diagnostics commands
-- Unified health/metrics commands
-- Test harness integration (pipelines/workflows/governance)
+- Unified diagnostics/health/metrics CLI commands specifically — the engines are real; dedicated CLI surfacing of them beyond what `certify`/`ci` already show wasn't built
 
 ---
 
-## 2. Cross‑Cutting Capabilities
+## 2. Cross-Cutting Capabilities
 
-These exist in pieces and must be consolidated rather than rebuilt.
+### 2.1 Event Bus — **closed**
+One real `subscribe(pattern, handler)` API. A real subscriber-loss bug (`subscribeAll()` monkey-patching `publish` on every call) found and fixed as part of the reconciliation.
 
-### 2.1 Event Bus
+### 2.2 Telemetry / Metrics — **partial**
+`MetricsEngine` (`metrics/metricsEngine.ts`) is canonical and live — real per-stage dispatch latency on every claim. Telemetry itself remains **three separate modules**:
+- `telemetry/telemetry.ts`'s `nucleusTelemetry` — the one weaver/guardian/glue/dualpay's real runtimes actually call via `recordTelemetry()` on every dispatch. This is the live one.
+- `telemetry/telemetryEngine.ts`'s `nucleusTelemetry` — same export name, different class, written to exactly once per process at boot (`nucleusRuntime.ts`'s `"runtime.boot"` event).
+- `subsystems/telemetry/telemetryAdapter.ts` → `TelemetryRuntime.emit()` — a third path, called directly by `OSPipeline` per stage, purely an `eventBus.emit()` with no storage.
 
-**Existing:**  
-- Local event emission in Nucleus, Glue, Guardian, DualPay
+**Gap:** consolidate into one. `ciSuites.ts`'s `"telemetry.tests"` suite was fixed this pass to read the live one instead of the boot-only one, but the underlying duplication remains.
 
-**Gap:**  
-- One unified event bus module used by all subsystems.
+### 2.3 Workflow / Pipeline State — **closed**
+`StateEngine` wired into `RuntimeRouter.dispatch()` — every validated stage result becomes that subsystem's current state for the org, with automatic diff and snapshot.
 
----
+### 2.4 Durable Queues — **closed**
+`QueueEngine` real request-driven (telemetry send) and timer-driven (scheduler heartbeat) exercise.
 
-### 2.2 Telemetry / Metrics
+### 2.5 Scheduler — **closed**
+60s liveness heartbeat, its first real caller anywhere.
 
-**Existing:**  
-- Telemetry hooks in Nucleus and lineage tables in Supabase.
+### 2.6 Retries — **closed**
+Redesigned from a boolean-discarding `execute()` to generic `run<T>()`. Backs Guardian's real kill-switch fetch (3 attempts, 200ms backoff + jitter).
 
-**Gap:**  
-- Central metrics spine (runtime, pipelines, workflows, governance).
+### 2.7 Recovery — **closed**
+Real Diagnostics → Health → Recovery chain. Verified end-to-end: disabling a subsystem produces a real UNHEALTHY diagnosis, a real recovery action (re-enable), and a real HEALTHY re-check.
 
----
+### 2.8 Versioning — **closed** (state), **open** (rules/certifications)
+Snapshot + diff exist generically via `StateEngine` and are exercised on every dispatch. Versioning specifically for governance rules or certification history was not built.
 
-### 2.3 Workflow / Pipeline State
+### 2.9 Audit / Event Logging — **closed**
+`AuditEngine.report()` aggregation added. The "proof" half is served by the CI suite itself (`"audit.tests"`, `"dispatch.tests"`), not a separate proof-generation mechanism — a dead, parallel `certificationProofs.ts` proof map was found with zero real callers and left untouched rather than duplicated.
 
-**Existing:**  
-- State machines and state handling in Glue.
+### 2.10 Resource Federation — **closed**
+Real topology registered from confirmed data (see §1.7). `federationEngine.identity` was already live; the node/link mapping+resolution half was the actual gap, now closed.
 
-**Gap:**  
-- Central state store abstraction shared by Nucleus + Glue + Guardian.
+### 2.11 API / OpenAPI Surfaces — **closed** (this repo's own routes); **not attempted** (the real production Edge Function surface)
+`/api/openapi.json` documents this Express app's two real routes plus the new internal-status endpoint. It does not cover the Supabase Edge Functions (`adjudicate-claim`, `weaver-score`, `guardian-status`, `manage-api-clients`, `command-center-stats`, `manage-sso`) — the actual production API surface, which lives in a different deployment entirely.
 
----
+### 2.12 Subsystem Registration — **closed**
+`adapterDependencyGraph.ts` + `adapterAutoWireEngine` now run on real boot, not just CI.
 
-### 2.4 Durable Queues
-
-**Existing:**  
-- Partial durable queue behavior in Nucleus runtime.
-
-**Gap:**  
-- Formal queue layer with clear API and retry semantics.
-
----
-
-### 2.5 Scheduler
-
-**Existing:**  
-- Partial scheduling logic in Nucleus.
-
-**Gap:**  
-- Unified scheduler for timed pipelines, workflows, and governance rules.
+### 2.13 Contract Infrastructure — **closed** (for the four real subsystems); **open** (for the parallel `"contracts"` subsystem)
+`RuntimeRouter.dispatch()` validates every stage against `contractRegistry.ts`. The separate `"contracts"` subsystem (`ContractsRuntime` → `OpportunityRuntime` etc.) is registered but never dispatched to on the real claim path — see §1.1.
 
 ---
 
-### 2.6 Retries
+## 3. True Missing Systems — status
 
-**Existing:**  
-- Partial retry behavior in runtime.
-
-**Gap:**  
-- Unified retry engine with policies per subsystem/pipeline.
-
----
-
-### 2.7 Recovery
-
-**Existing:**  
-- Partial recovery logic in runtime.
-
-**Gap:**  
-- Unified recovery engine for failed pipelines/workflows.
-
----
-
-### 2.8 Versioning
-
-**Existing:**  
-- Conceptual versioning of workflows/governance.
-
-**Gap:**  
-- Snapshot + diff engine for pipelines, workflows, and rules.
-
----
-
-### 2.9 Audit / Event Logging
-
-**Existing:**  
-- Audit/event logging in Nucleus, Guardian, Certification.
-
-**Gap:**  
-- Central audit engine that produces reports + proofs.
-
----
-
-### 2.10 Resource Federation
-
-**Existing:**  
-- Concepts for providers/payers/desks/tenants.
-
-**Gap:**  
-- Formal federation engine with mapping + resolution APIs.
-
----
-
-### 2.11 API / OpenAPI Surfaces
-
-**Existing:**  
-- Per‑subsystem HTTP/API surfaces.
-
-**Gap:**  
-- Unified API gateway + unified OpenAPI spec.
-
----
-
-### 2.12 Subsystem Registration
-
-**Existing:**  
-- Weaver registry and activation logic.
-
-**Gap:**  
-- Formal dependency graph + lifecycle hooks.
-
----
-
-### 2.13 Contract Infrastructure
-
-**Existing:**  
-- Contract enforcement in Nucleus/Glue/Guardian.
-
-**Gap:**  
-- Central contract validator + shared contract types.
-
----
-
-## 3. True Missing Systems (To Be Built)
-
-These do not exist yet and represent real gaps:
-
-1. Unified Event Bus module (used by all subsystems)  
-2. Unified Telemetry/Metrics spine  
-3. Unified Audit Engine (reports + proofs)  
-4. Central State Store abstraction  
-5. Formal Queue Layer  
-6. Unified Scheduler  
-7. Unified Retry Engine  
-8. Unified Recovery Engine  
-9. Snapshot Engine (pipelines/workflows/governance)  
-10. Diff Engine (pipelines/workflows/governance)  
-11. Unified API Gateway  
-12. Unified OpenAPI documentation  
-13. Multi‑Tenant Runtime Hooks (fully implemented)  
-14. Multi‑Tenant Deployment Hooks (fully implemented)  
-15. Resource Federation Engine (formalized)  
-16. Certification Sandbox  
-17. Governance Sandbox  
-18. Adapter Registry + Sandbox  
-19. Internal Test Harness (pipelines/workflows/governance)  
-20. Internal Benchmark Suite (runtime/pipelines/workflows)
+1. Unified Event Bus — **closed**
+2. Unified Telemetry/Metrics spine — **partial** (metrics closed, telemetry still 3 modules)
+3. Unified Audit Engine (reports + proofs) — **closed**
+4. Central State Store abstraction — **closed**
+5. Formal Queue Layer — **closed**
+6. Unified Scheduler — **closed**
+7. Unified Retry Engine — **closed**
+8. Unified Recovery Engine — **closed**
+9. Snapshot Engine — **closed**
+10. Diff Engine — **closed**
+11. Unified API Gateway — **already live** (found during investigation, not a real gap — `GatewayAdapter → GatewayRuntime → GatewayEngine` was already called by the real `/api/claim` route)
+12. Unified OpenAPI documentation — **closed** (for this repo's own routes)
+13. Multi-Tenant Runtime Hooks (fully implemented) — **handled elsewhere** (Supabase-side SSO/tenancy work), not re-verified inside `src/nucleus/*`
+14. Multi-Tenant Deployment Hooks (fully implemented) — **handled elsewhere**, same caveat
+15. Resource Federation Engine (formalized) — **closed**
+16. Certification Sandbox — **closed**
+17. Governance Sandbox — **closed**
+18. Adapter Registry + Sandbox — **partial** (registry closed; sandbox/isolated-execution half not built)
+19. Internal Test Harness (pipelines/workflows/governance) — **closed**
+20. Internal Benchmark Suite (runtime/pipelines/workflows) — **open**, not started
 
 ---
 
@@ -331,16 +213,18 @@ These do not exist yet and represent real gaps:
 
 As we move through phases:
 
-- We **map first**, then build.  
-- We **consolidate** existing behavior before inventing new modules.  
-- We **do not rebuild** capabilities that already exist under a different filename.  
+- We **map first**, then build.
+- We **consolidate** existing behavior before inventing new modules.
+- We **do not rebuild** capabilities that already exist under a different filename.
 - We treat Nucleus as the **constitutional spine** and plug everything into it.
+- **A module with zero real callers is a gap, even if the file is well-written.** Grep for the exact importer before assuming something works — a class name in a comment is not a caller.
+- **A module with an incompatible caller is a trap, not a shortcut.** Wiring in a payload shape or fixture data that doesn't match real production input breaks real claims; it doesn't close a gap. Confirm compatibility (read the real runtimes' actual output, read the candidate's own test suite) before connecting anything.
 
 This file is the source of truth for:
 
-- what exists  
-- what is partial  
-- what is missing  
+- what exists
+- what is partial
+- what is missing
 - what gets built next
 
-Update this document as systems evolve.
+Update this document as systems evolve. (It went stale for the entire PR #9–#19 pass before this update — don't let that happen again: update it in the same PR that changes a status, not after.)
