@@ -28,5 +28,12 @@ export const cliManifest: CLIManifest = {
     "deploy",
     "certify",
     "benchmark",
+    // gapMap.md's "Unified diagnostics/health/metrics CLI commands"
+    // gap -- added alongside their cliCommands.ts entries; learned the
+    // "deploy"/"certify" lesson above and added them here in the same
+    // change that adds the commands, not as an afterthought.
+    "diagnostics",
+    "health",
+    "metrics",
   ],
 };

@@ -27,6 +27,9 @@ import { deployNucleus } from "../deployment/deployNucleus";
 import { certifyNucleus } from "../certification/certifyNucleus";
 import { registerAllSubsystems } from "../subsystems/registerSubsystems";
 import { nucleusBenchmark } from "../benchmark/benchmarkEngine";
+import { nucleusDiagnostics } from "../diagnostics/diagnosticsEngine";
+import { nucleusHealth } from "../health/healthEngine";
+import { nucleusMetrics } from "../metrics/metricsEngine";
 
 export const cliCommands = {
   start: async () => startNucleus(process.env.ORGANIZATION_ID || "dev-org"),
@@ -52,4 +55,28 @@ export const cliCommands = {
     const iterations = Number(process.env.BENCHMARK_ITERATIONS) || 10;
     return nucleusBenchmark.run(process.env.ORGANIZATION_ID || "dev-org", iterations);
   },
+  // gapMap.md's Shell+CLI gap "Unified diagnostics/health/metrics CLI
+  // commands specifically" -- `autonomy` already runs the real
+  // DiagnosticsEngine/HealthEngine chain (via subsystemHealthEngine),
+  // but only ever surfaces its boolean healthy/unhealthy summary, never
+  // which specific check passed or failed. `diagnostics`/`health` run
+  // that same real chain (same registerAllSubsystems() + checkAll()
+  // pattern `autonomy`/`benchmark` already need standalone) and return
+  // the full breakdown its own engines already compute.
+  diagnostics: async () => {
+    registerAllSubsystems();
+    await autonomyEngine.health.checkAll(autonomyEngine.manifest.subsystems);
+    return nucleusDiagnostics.getResults();
+  },
+  health: async () => {
+    registerAllSubsystems();
+    await autonomyEngine.health.checkAll(autonomyEngine.manifest.subsystems);
+    return nucleusHealth.getStatuses();
+  },
+  // MetricsEngine already records real dispatch latency on every claim
+  // (RuntimeRouter.dispatch()) and was already readable via
+  // GET /api/internal-status -- this is its first CLI reader, same
+  // "expose the real engine's own getter" pattern as
+  // `resources`/`lineage`/`telemetry` above.
+  metrics: async () => nucleusMetrics.getPoints(),
 };

@@ -136,9 +136,10 @@ This document is the canonical map of what already exists in the Valtaris ecosys
 - `certify`, `pipeline`, `adapters`, `ci`, `benchmark` commands all point at real, live mechanisms now (previously some pointed at weaker/broken paths)
 - Fixed: `cliManifest.ts`'s command allowlist was missing `"deploy"` and `"certify"` — both real, working commands that would have thrown "Unknown command" if anyone actually ran them. `shellCommands.ts`'s `help` list now reads from the manifest directly instead of a separately hand-maintained copy that had gone stale.
 - Test harness integration — `bun run ci`'s `"dispatch.tests"`, `"sandbox.tests"`, and `"adapter-sandbox.tests"` genuinely exercise the claim path and both sandboxes' isolation, not just individual engines
+- ~~Unified diagnostics/health/metrics CLI commands specifically~~ — closed. New `diagnostics`/`health` commands run the real `DiagnosticsEngine`/`HealthEngine` chain (`autonomy`'s own mechanism, via `subsystemHealthEngine`) and return the full per-check breakdown instead of only `autonomy`'s boolean healthy/unhealthy summary; new `metrics` command is `MetricsEngine`'s first CLI reader (it was already readable via `GET /api/internal-status`, just not from the CLI). Added to `cliManifest.ts`'s allowlist in the same change this time, learning the `deploy`/`certify` lesson above. Verified with a standalone script confirming all three are actually reachable through `cliRouter.execute()` (not just present in `cliCommands`) and that a genuinely unknown command still throws.
 
 **Gaps:**
-- Unified diagnostics/health/metrics CLI commands specifically — the engines are real; dedicated CLI surfacing of them beyond what `certify`/`ci`/`benchmark` already show wasn't built
+(none independently identified this pass)
 
 ---
 
