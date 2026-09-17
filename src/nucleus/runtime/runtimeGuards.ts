@@ -20,6 +20,7 @@ import {
   type SubsystemRegistration,
 } from "../subsystems/subsystemRegistry";
 import { nucleusGovernance } from "../governance/governanceEngine";
+import { getTenantSubsystemOverride } from "../subsystems/tenantSubsystemOverrides";
 import type { Dynamic } from "../types/dynamic";
 
 export class RuntimeGuardError extends Error {
@@ -48,8 +49,19 @@ function governanceRuleFor(id: string, subsystem: SubsystemRegistration): string
     "platform",
     id,
     "subsystem.enabled",
-    `Subsystem "${id}" must be registered and enabled to dispatch.`,
-    () => subsystem.enabled,
+    `Subsystem "${id}" must be registered and enabled to dispatch (globally, or for this tenant).`,
+    // Multi-tenant subsystem activation (gapMap.md's Weaver/DualPay
+    // gaps): a tenant-specific override -- set via
+    // tenantSubsystemOverrides.ts -- takes precedence over the global
+    // enabled flag when one exists for this org, using the real
+    // organizationId every real dispatch payload already carries.
+    // Falls back to the global flag when this org has no override, so
+    // every subsystem's existing behavior is unchanged by default.
+    (payload: Dynamic) => {
+      const organizationId = payload?.organizationId;
+      const override = organizationId ? getTenantSubsystemOverride(organizationId, id) : undefined;
+      return override ?? subsystem.enabled;
+    },
   );
   governanceRuleIds.set(id, rule.id);
   return rule.id;
