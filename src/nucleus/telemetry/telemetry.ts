@@ -1,7 +1,13 @@
 // src/nucleus/telemetry/telemetry.ts
 // Unified telemetry spine for the entire Valtaris ecosystem.
 
+import { NucleusDBBridge } from "../db/nucleusDBBridge";
 import type { Dynamic } from "../types/dynamic";
+
+// One bridge instance is enough here -- insertEvent takes organizationId
+// per call, so there's no need for a fresh instance (or its own client)
+// per emit.
+const dbBridge = new NucleusDBBridge();
 
 export type TelemetrySignal = {
   id: string;
@@ -57,15 +63,6 @@ export class Telemetry {
 export const nucleusTelemetry = new Telemetry();
 
 /**
- * FIXED: added -- this function did not previously exist, but the
- * live subsystem handlers (guardianRuntime.ts, weaverRuntime.ts,
- * glueRuntime.ts -- 3 of the 4 real, .handle()-style runtimes
- * osPipeline.ts actually calls) all import and call it with the
- * same 5-argument shape: (subsystem, eventType, claimId,
- * organizationId, payload). Confirmed by reading all three call
- * sites directly, not just one. Without this, /api/claim throws
- * "recordTelemetry is not a function" immediately.
- *
  * NOTE: there are now two independently-written telemetry
  * singletons both used across this codebase: this file's
  * "nucleusTelemetry" (a Telemetry instance) and
@@ -74,6 +71,19 @@ export const nucleusTelemetry = new Telemetry();
  * different files. They have not been reconciled. This function
  * only wraps this file's Telemetry class, since that's what the
  * three broken callers were already adjacent to.
+ *
+ * FIXED: this only ever appended to the in-process `signals` array
+ * above -- nothing from a real claim reached Supabase, despite
+ * nucleus_events existing and being readable via `nucleus telemetry
+ * <org>`. Every one of this function's real call sites (guardian/
+ * weaver/glue/dualpay runtimes) is synchronous and unawaited, so this
+ * now also fires a best-effort async persist via NucleusDBBridge
+ * .insertEvent() without making the function itself async or
+ * touching any of those 8 call sites: a Supabase hiccup logs and is
+ * swallowed here rather than propagating into claim processing,
+ * mirroring the fail-open pattern DualPay's own nucleus gate uses for
+ * the same reason (an observability write must never be able to
+ * break a real claim outcome).
  */
 export function recordTelemetry(
   subsystem: string,
@@ -82,7 +92,7 @@ export function recordTelemetry(
   organizationId: string,
   payload?: Dynamic,
 ) {
-  return nucleusTelemetry.emit(
+  const signal = nucleusTelemetry.emit(
     organizationId,
     subsystem,
     eventType,
@@ -90,4 +100,10 @@ export function recordTelemetry(
     claimId ? `${eventType} (claim ${claimId})` : eventType,
     payload,
   );
+
+  dbBridge
+    .insertEvent(organizationId, subsystem, eventType, { claimId: claimId ?? null }, payload ?? {})
+    .catch((err) => console.error("[recordTelemetry] Supabase persist failed (non-fatal)", err));
+
+  return signal;
 }

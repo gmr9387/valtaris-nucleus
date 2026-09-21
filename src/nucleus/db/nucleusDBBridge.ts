@@ -2,22 +2,41 @@
 // Constitutional Nucleus DB Bridge
 
 import { createNucleusClient } from "./nucleusDB";
-import { NucleusTelemetryAdapter } from "../telemetry/nucleusTelemetryAdapter";
 import type { Dynamic } from "../types/dynamic";
 
+/**
+ * FIXED: this class used to construct its own NucleusTelemetryAdapter
+ * to log each DB operation's own success/failure -- but
+ * NucleusTelemetryAdapter -> NucleusTelemetry -> `new NucleusDBBridge()`
+ * (nucleusTelemetry.ts constructs a fresh bridge internally), and
+ * *that* bridge's insertTelemetry() call would again try to log its
+ * own success via its own freshly-constructed adapter, forever. Every
+ * real DB write through this class would recurse without bound the
+ * moment anything actually called it -- confirmed by tracing the
+ * constructor chain, not by ever letting it run. Self-logging here now
+ * uses plain console output, which is what actually breaks the cycle;
+ * NucleusTelemetry/NucleusTelemetryAdapter remain real and safe to use
+ * from any OTHER caller that isn't itself the DB bridge.
+ *
+ * FIXED: insertEvent/insertTelemetry previously inserted columns
+ * (subsystem/name/version on nucleus_events; the misspelled `at` on
+ * nucleus_telemetry) that don't exist on the real tables -- see
+ * supabase/migrations/20260824_nucleus_core.sql for the actual shape
+ * (nucleus_events: id/source/type/context/payload/timestamp;
+ * nucleus_telemetry: id/subsystem/level/message/metadata/timestamp).
+ * Both also omitted `id`, which has no DB default on either table, so
+ * every real call would have hit a NOT NULL violation. Neither method
+ * had a real caller before now, which is exactly why this had never
+ * surfaced. Fixed to match the live schema and to generate `id`
+ * client-side.
+ */
 export class NucleusDBBridge {
   private client = createNucleusClient();
-  private telemetry: NucleusTelemetryAdapter;
 
   constructor(
     private organizationId?: string,
     private subsystem?: string,
-  ) {
-    this.telemetry = new NucleusTelemetryAdapter(
-      organizationId ?? "nucleus-db-org",
-      subsystem ?? "nucleus-db",
-    );
-  }
+  ) {}
 
   /** Raw client access for read/query operations the insert* methods below don't cover. */
   getClient() {
@@ -25,8 +44,6 @@ export class NucleusDBBridge {
   }
 
   async insertContract(table: string, organizationId: string, version: string, payload: Dynamic) {
-    const span = this.telemetry.startSpan(`db:insertContract:${table}`);
-
     const { error } = await this.client.from(table).insert({
       organization_id: organizationId,
       version,
@@ -34,60 +51,53 @@ export class NucleusDBBridge {
     });
 
     if (error) {
-      await this.telemetry.error("DB insertContract failed", { table, error });
+      console.error(`[NucleusDBBridge] insertContract(${table}) failed`, error);
       throw error;
     }
 
-    await this.telemetry.info("DB contract inserted", { table, version });
-    this.telemetry.endSpan(span.spanId);
+    console.log(`[NucleusDBBridge] contract inserted: ${table} v${version}`);
   }
 
   async insertEvent(
     organizationId: string,
     subsystem: string,
-    name: string,
-    version: string,
+    type: string,
+    context: Dynamic,
     payload: Dynamic,
   ) {
-    const span = this.telemetry.startSpan(`db:insertEvent:${name}`);
-
     const { error } = await this.client.from("nucleus_events").insert({
+      id: crypto.randomUUID(),
       organization_id: organizationId,
-      subsystem,
-      name,
-      version,
-      payload,
+      source: subsystem,
+      type,
+      context: context ?? {},
+      payload: payload ?? {},
     });
 
     if (error) {
-      await this.telemetry.error("DB insertEvent failed", { name, error });
+      console.error(`[NucleusDBBridge] insertEvent(${type}) failed`, error);
       throw error;
     }
 
-    await this.telemetry.info("DB event inserted", { name, version });
-    this.telemetry.endSpan(span.spanId);
+    console.log(`[NucleusDBBridge] event inserted: ${subsystem}.${type}`);
   }
 
-  async insertLineage(organizationId: string, chain: Dynamic, finalized: boolean = false) {
-    const span = this.telemetry.startSpan("db:insertLineage");
-
+  async insertLineage(organizationId: string, chain: Dynamic[], finalized: boolean = false) {
     const { error } = await this.client.from("nucleus_lineage").insert({
       organization_id: organizationId,
       chain,
       finalized,
+      finalized_at: finalized ? new Date().toISOString() : null,
     });
 
     if (error) {
-      await this.telemetry.error("DB insertLineage failed", { error });
+      console.error("[NucleusDBBridge] insertLineage failed", error);
       throw error;
     }
 
-    await this.telemetry.info("DB lineage inserted", {
-      chainLength: chain.length,
-      finalized,
-    });
-
-    this.telemetry.endSpan(span.spanId);
+    console.log(
+      `[NucleusDBBridge] lineage inserted: ${chain.length} stages, finalized=${finalized}`,
+    );
   }
 
   async insertTelemetry(
@@ -97,23 +107,20 @@ export class NucleusDBBridge {
     message: string,
     metadata: Dynamic = null,
   ) {
-    const span = this.telemetry.startSpan("db:insertTelemetry");
-
     const { error } = await this.client.from("nucleus_telemetry").insert({
+      id: crypto.randomUUID(),
       organization_id: organizationId,
       subsystem,
       level,
       message,
       metadata,
-      at: new Date().toISOString(),
     });
 
     if (error) {
-      await this.telemetry.error("DB insertTelemetry failed", { error });
+      console.error("[NucleusDBBridge] insertTelemetry failed", error);
       throw error;
     }
 
-    await this.telemetry.info("DB telemetry inserted", { level });
-    this.telemetry.endSpan(span.spanId);
+    console.log(`[NucleusDBBridge] telemetry inserted: [${subsystem}][${level}] ${message}`);
   }
 }

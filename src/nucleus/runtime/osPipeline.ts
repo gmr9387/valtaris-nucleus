@@ -2,7 +2,10 @@
 
 import { RuntimeRouter } from "./runtimeRouter";
 import { TelemetryAdapter } from "../subsystems/telemetry/telemetryAdapter";
+import { NucleusDBBridge } from "../db/nucleusDBBridge";
 import type { Dynamic } from "../types/dynamic";
+
+const dbBridge = new NucleusDBBridge();
 
 /**
  * FIXED (historical): this previously imported WeaverRuntime/
@@ -70,6 +73,24 @@ export class OSPipeline {
       recommendation,
     });
     TelemetryAdapter.send("dualpay.payment", payment);
+
+    // FIXED: nucleus_lineage was a real table with a real writer
+    // (NucleusDBBridge.insertLineage) that nothing ever called -- a
+    // finished claim's full stage chain never reached Supabase, so
+    // `nucleus lineage <org>` had nothing real to show. Fire-and-forget
+    // (not awaited) so a Supabase hiccup can never add latency to, or
+    // fail, real claim processing -- lineage is a record OF the claim
+    // result, not an input to it.
+    const chain = [
+      { stage: "weaver.opportunity", result: opportunity },
+      { stage: "weaver.recommendation", result: recommendation },
+      { stage: "guardian.authorization", result: authorization },
+      { stage: "glue.execution", result: execution },
+      { stage: "dualpay.payment", result: payment },
+    ];
+    dbBridge
+      .insertLineage(organizationId, chain, true)
+      .catch((err) => console.error("[OSPipeline] lineage persist failed (non-fatal)", err));
 
     return {
       claimId,
