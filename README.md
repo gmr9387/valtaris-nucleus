@@ -122,14 +122,14 @@ There are two separate identity implementations in this repo, at very different 
 The identity layer that is actually real and enforced lives in Supabase Edge Functions, not in this directory: `manage-api-clients` issues real hashed API keys into a real `api_clients` table, and `manage-sso` is backed by a real `sso_configs` migration, both with a real admin UI. This is what actually gates the three live adjudication Edge Functions (§3.7) via `x-api-key` checks.
 
 3.4 Decision Engine
-`src/nucleus/decision/` exists but is currently a stub, disconnected from the real claim path: `Executor.execute()` unconditionally returns `{allowed: true, confidence: 0.9, reasons: ["base-allow"]}`, `Governance` has no rules registered by any real caller, `Confidence.score()` is a plain arithmetic mean, and `Replay` is in-memory only.
+`src/nucleus/decision/` is real and wired into the actual claim path. `Executor.execute()` derives `allowed` from Guardian's real `authorization.decision`/`risk_tier` (no longer a hardcoded `{allowed: true, confidence: 0.9}`), and `confidence` blends Weaver's two real numeric signals (`opportunity.score`, `recommendation.confidence`) when present. `Governance` has two real default rules registered (deny on Guardian's own deny decision, deny on critical risk tier), so `evaluate()` has an explicit, named rule trail instead of an implicit always-allow.
 
-Real authorization and risk scoring for actual claims happen directly inside the Guardian and Weaver subsystem runtimes (§3.2) — real fail-closed kill-switch checks, real contract/plan lookups, real configurable scoring rules — not through this decision engine. The CLI's `nucleus decision` command exercises the stub, not the real path.
+`OSPipeline.runClaim()` calls this engine as a real, non-gating step after Guardian's authorization on every real claim — it does not gate `execution`/`payment` itself (Glue already gates on `authorization` directly, and that established behavior is untouched), so it can never introduce a second authority that disagrees with Guardian. What it adds for real: an explicit governance-rule trail and a real blended confidence score, persisted as a `decision.evaluate` stage in the claim's lineage. The CLI's `nucleus decision context.json` command and `POST /nucleus/decision/evaluate` (§3.7) both exercise this same real engine.
 
 3.5 Telemetry & Lineage
-The `nucleus_lineage` / `nucleus_telemetry` / `nucleus_events` tables are real (real migrations), and a real Supabase writer exists (`NucleusDBBridge.insertTelemetry/insertLineage/insertEvent`).
+The `nucleus_lineage` / `nucleus_telemetry` / `nucleus_events` tables are real (real migrations), and a real Supabase writer exists (`NucleusDBBridge.insertTelemetry/insertLineage/insertEvent`) — fixed to match the live schema and a self-logging infinite-recursion bug that would have hit every real caller.
 
-What's not yet true: the real per-claim runtimes (Weaver/Guardian/Glue/DualPay) currently call `recordTelemetry()`, which only appends to an in-process array (console.log + push) — it does not write to Supabase. `insertLineage` and `insertEvent` have zero real callers anywhere in the codebase today. So `nucleus telemetry <org>` and `nucleus lineage <org>` (§3.8) query real tables that real claim processing doesn't currently populate. Wiring the real runtimes' telemetry emission into `NucleusDBBridge` is the actual remaining gap here, not a UI or schema problem.
+The real per-claim runtimes (Weaver/Guardian/Glue/DualPay) now persist for real: `recordTelemetry()` fires a best-effort, non-blocking `insertEvent()` to `nucleus_events` alongside its existing in-memory array write, and `OSPipeline.runClaim()` persists the full 5-stage result chain (including the decision-engine stage above) to `nucleus_lineage` once a claim completes. Both are fire-and-forget with caught/logged failures, so a Supabase hiccup can never break or slow real claim processing. `nucleus telemetry <org>` and `nucleus lineage <org>` (§3.8), and their HTTP equivalents (§3.7), now return real data from real claims instead of empty tables.
 
 3.6 Background Runtime
 `QueueEngine` is a real in-memory priority/retry queue with audit and billing hooks, and it is genuinely invoked on real boot (`bootstrap.ts`): a 60-second heartbeat and a 5-minute certification sweep run through `nucleusScheduler`/`nucleusQueue` on a real timer, not just defined and left uncalled.
@@ -145,7 +145,12 @@ GET  /status
 POST /claim
 GET  /internal-status
 GET  /openapi.json
-None of the `/nucleus/workflow/run` / `/nucleus/subsystem/dispatch` / `/nucleus/lineage/:org` / `/nucleus/telemetry/:org` / `/nucleus/decision/evaluate` routes described in earlier drafts of this document exist. `POST /claim` is real and wired through `GatewayAdapter` → `OSPipeline` into the real Weaver/Guardian/Glue/DualPay runtimes.
+POST /nucleus/workflow/run
+POST /nucleus/subsystem/dispatch
+GET  /nucleus/lineage/:org
+GET  /nucleus/telemetry/:org
+POST /nucleus/decision/evaluate
+The five `/nucleus/*` routes were entirely aspirational in earlier drafts of this document; they're real now, and each wraps the same real underlying call the CLI already made for the same job rather than inventing new logic — `runWorkflow` → the real `startWorkflow()`, `subsystem/dispatch` → the real `RuntimeRouter.dispatch()` every OSPipeline stage already goes through, `lineage`/`telemetry` → the same real Supabase queries the CLI's `lineage`/`telemetry` commands run, `decision/evaluate` → the real decision engine (§3.4). `POST /claim` is real and wired through `GatewayAdapter` → `OSPipeline` into the real Weaver/Guardian/Glue/DualPay runtimes, same as before.
 
 This Express app is internal-only — `src/nucleus/ops/gapMap.md` states this explicitly and it has never been deployed. The actual production-facing API surface is three real Supabase Edge Functions, each gated by a real `x-api-key` check against the `api_clients` table (§3.3):
 
@@ -164,9 +169,18 @@ nucleus lineage org
 nucleus telemetry org
 nucleus decision context.json
 3.9 Constitution
-There is no `Nucleus` class anywhere in this codebase — `new Nucleus("org-1", "weaver")` and the `runWorkflow`/`dispatch`/`emit`/`evaluate`/`startRuntime`/`enqueue` surface shown in earlier drafts of this document do not exist (`grep "class Nucleus"` returns zero hits).
+`src/nucleus/constitution/nucleus.ts` now has a real `Nucleus` class with exactly the surface shown below — it didn't exist in earlier drafts of this document (`grep "class Nucleus"` returned zero hits before this), and it's a thin facade over pieces that are each independently real, not a new implementation of any of them:
 
-`src/nucleus/constitution/constitution.ts` is real, but it's a plain data structure (subsystems/contracts/resources) plus a validator function, `enforceConstitution()`, that checks a dispatch against it — not a callable unified interface. The real entry points into the runtime today are `OSPipeline.runClaimFromGateway()` (the real dispatch path used by `POST /claim`) and the CLI (§3.8).
+ts
+const nucleus = new Nucleus("org-1", "weaver");
+
+await nucleus.runWorkflow(definition);       // -> real startWorkflow()
+await nucleus.dispatch("authorization", "v1", payload); // -> real RuntimeRouter.dispatch()
+await nucleus.emit("execution", "v1", payload);          // -> real TelemetryAdapter.send()
+nucleus.evaluate(context);                    // -> the real decision engine (§3.4)
+nucleus.startRuntime();                       // -> real nucleusBoot() (per-subsystem, not the process-wide HTTP server)
+nucleus.enqueue("payment", "v1", payload);    // -> the real QueueEngine
+`src/nucleus/constitution/constitution.ts` remains what it always was — a plain data structure (subsystems/contracts/resources) plus a validator function, `enforceConstitution()` — and is unchanged; the `Nucleus` class lives alongside it, re-exported from the same `constitution/index.ts`.
 
 3.10 Federation with Sibling Repos
 Nucleus is meant to be the shared backend for the Valtaris ecosystem (DualPay, valtaris-glue, and future subsystems). What's real today: the three Edge Functions in §3.7 (`adjudicate-claim`, `weaver-score`, `guardian-status`) are live, deployed, contain genuine logic, and are correctly gated by real API-key auth — not mocks.
@@ -259,10 +273,10 @@ DualPay subsystem reactor	Implemented
 External Edge Functions (`adjudicate-claim`, `weaver-score`, `guardian-status`)	Implemented — deployed, real logic, real `x-api-key` auth
 Cross-repo federation (DualPay / valtaris-glue actually calling the above)	Partial — both ends wired, no live production traffic yet
 CLI (`dev`/`run`/`inspect`/`lineage`/`telemetry`/`decision`)	Implemented — all 6 commands do real work
-HTTP API surface described in early drafts of this doc (`/nucleus/workflow/run` etc.)	Not implemented — real routes are `/health`, `/status`, `/claim`, `/internal-status`, `/openapi.json`
-"Constitution" unified interface (`new Nucleus(org, subsystem)`)	Not implemented — no such class exists; `constitution.ts` is data + a validator
-Decision engine (governance rules, confidence scoring, replay)	Stub — hardcoded `{allowed: true, confidence: 0.9}`, disconnected from the real claim path
-Telemetry/lineage persistence to Supabase for real claims	Partial — tables and a writer are real; the real runtimes' telemetry calls don't reach that writer today
+HTTP API: `/nucleus/workflow/run`, `/subsystem/dispatch`, `/lineage/:org`, `/telemetry/:org`, `/decision/evaluate`	Implemented — each wraps the same real underlying call the CLI already made
+"Constitution" unified interface (`new Nucleus(org, subsystem)`)	Implemented — thin facade over the real pieces above; see §3.9
+Decision engine (governance rules, confidence scoring, replay)	Implemented — real rules, real Guardian/Weaver-signal-derived confidence, wired into every real claim; see §3.4
+Telemetry/lineage persistence to Supabase for real claims	Implemented — `recordTelemetry()` and `OSPipeline.runClaim()` both persist for real now; see §3.5
 Identity — in-repo API keys/service accounts/SCIM/SSO (`src/nucleus/identity/`)	Stub — in-memory, zero enforcement, zero real callers
 Identity — Edge Function-based API keys + SSO (`manage-api-clients`, `manage-sso`)	Implemented — real hashed keys, real `sso_configs` table, real admin UI, actually enforced
 Background runtime (queue + scheduler)	Partial — real in-memory priority/retry queue on a real 60s heartbeat + 5-min certification sweep; not a durable/restart-surviving job queue
@@ -307,7 +321,7 @@ Code
 nucleus decision context.json
 
 10. Status
-Nucleus is currently in active development as part of the Valtaris ecosystem. The core claim-adjudication pipeline (Weaver/Guardian/Glue/DualPay, and the three external Edge Functions) is the most trustworthy, load-bearing part of this codebase today. The decision engine, in-repo identity module, and the `/nucleus/*`/`Nucleus`-class surface described in earlier drafts of this README are not yet real — see §7.
+Nucleus is currently in active development as part of the Valtaris ecosystem. The core claim-adjudication pipeline (Weaver/Guardian/Glue/DualPay, the decision engine, the `/nucleus/*` HTTP routes, the `Nucleus` class, and real telemetry/lineage persistence) is real and verified. The in-repo identity module (`src/nucleus/identity/`, distinct from the real, enforced Edge-Function-based identity system — §3.3) and live cross-repo federation traffic (§3.10) are the two remaining gaps — see §7.
 
 11. License
 MIT (or your preferred license — add later)
