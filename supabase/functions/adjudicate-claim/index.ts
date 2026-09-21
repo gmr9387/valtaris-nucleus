@@ -32,9 +32,19 @@ import {
   verifyApiKey,
   checkRateLimit,
   recordActivity,
+  getCachedReplay,
+  saveReplayCache,
 } from "./repo.ts";
 import { adjudicateClaim, updateMemberAccumulators } from "./calculationEngine.ts";
-import type { ClaimLine, MemberAccumulators } from "./types.ts";
+import type {
+  ClaimLine,
+  MemberAccumulators,
+  ContractTerms,
+  PlanBenefits,
+  PriorPayerOutcome,
+  AdjudicationRun,
+  TraceObject,
+} from "./types.ts";
 
 // X-Api-Version identifies this response as coming from v1 of the
 // contract documented in docs/api/nucleus-external-api.yaml. This
@@ -62,6 +72,60 @@ interface AdjudicateRequest {
   units?: number;
   place_of_service?: string;
   service_date?: string;
+}
+
+/**
+ * "resolved" mode -- the caller (DualPay) has already looked up its
+ * own real, live contract/plan/accumulators (the same way it always
+ * has, via its own correctly-scoped queries) and sends them directly,
+ * rather than asking this function to resolve them from nucleus's own
+ * separate contract database. nucleus's own payer_contracts/
+ * plan_benefits/member_accumulators tables hold only nucleus's own
+ * test/seed data -- they were never DualPay's real data, and
+ * resolveContract()/resolvePlan()/fetchMemberAccumulators() below (the
+ * legacy path) can only ever adjudicate against that, not against
+ * DualPay's actual customer contracts. This mode makes nucleus a pure,
+ * stateless calculation service for a caller that already owns its own
+ * real data -- fixing that gap without requiring cross-project
+ * credential sharing or a data-sync pipeline.
+ *
+ * fee_schedule is a plain object (procedure_code -> allowed_cents) on
+ * the wire since ContractTerms.fee_schedule is a Map, which does not
+ * survive JSON.stringify.
+ */
+interface ResolvedAdjudicateRequest {
+  mode: "resolved";
+  claim_id: string;
+  lines: ClaimLine[];
+  accumulators: MemberAccumulators;
+  contract: Omit<ContractTerms, "fee_schedule"> & { fee_schedule: Record<string, number> };
+  plan: PlanBenefits;
+  prior_outcomes?: PriorPayerOutcome[];
+  /** A real content fingerprint the caller already computed (e.g.
+   * DualPay's own buildTraceFingerprint()) -- enables the idempotency
+   * cache below, and is also threaded through as the kernel's own
+   * traceFingerprint (see AdjudicationOptions) so a caller's persisted
+   * run/trace carry ITS real fingerprint, not a generic
+   * "unfingerprinted_..." placeholder the kernel falls back to when no
+   * options are given. Optional: a caller without its own
+   * fingerprinting still gets correct results, just with the kernel's
+   * own defaults for these identifiers instead. */
+  idempotency_key?: string;
+  /** Caller-computed run_id/trace_id/timestamp/snapshot_ref -- passed
+   * straight through as the kernel's AdjudicationOptions so a
+   * caller's own deterministic IDs (e.g. DualPay's
+   * run_${claimId}_${version} / trace_${claimId}_${fingerprint}) are
+   * what actually get returned and persisted, not nucleus's internal
+   * fallback ones. All optional; the kernel has sane defaults for any
+   * omitted. */
+  run_id?: string;
+  timestamp?: string;
+  snapshot_ref?: string;
+  trace_id?: string;
+}
+
+function isResolvedRequest(body: unknown): body is ResolvedAdjudicateRequest {
+  return !!body && typeof body === "object" && (body as { mode?: unknown }).mode === "resolved";
 }
 
 type RiskTier = "low" | "medium" | "high" | "critical";
@@ -132,12 +196,18 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: "Rate limit exceeded: 120 requests/minute per client" }, 429);
   }
 
-  let body: AdjudicateRequest;
+  let rawBody: unknown;
   try {
-    body = await req.json();
+    rawBody = await req.json();
   } catch {
     return jsonResponse({ error: "Invalid JSON body" }, 400);
   }
+
+  if (isResolvedRequest(rawBody)) {
+    return handleResolvedRequest(rawBody, clientId);
+  }
+
+  const body = rawBody as AdjudicateRequest;
 
   if (!body.claim_id || !body.member_id || !body.payer_name || !body.procedure_code) {
     return jsonResponse(
@@ -347,3 +417,137 @@ Deno.serve(async (req: Request) => {
     timestamp,
   });
 });
+
+/**
+ * "resolved" mode handler -- see ResolvedAdjudicateRequest's comment
+ * above for why this exists. Deliberately stateless: no accumulator
+ * write-back here (unlike the legacy path's saveMemberAccumulators
+ * call), since the accumulators this function was given belong to the
+ * caller's own database, not nucleus's -- persisting the post-claim
+ * accumulator state is the caller's own responsibility, the same way
+ * it already resolves the pre-claim state itself.
+ */
+async function handleResolvedRequest(
+  body: ResolvedAdjudicateRequest,
+  clientId: string,
+): Promise<Response> {
+  const timestamp = new Date().toISOString();
+
+  const logOutcome = async (fields: Record<string, unknown>) => {
+    console.log(
+      JSON.stringify({
+        event: "adjudicate_claim_resolved",
+        client_id: clientId,
+        claim_id: body.claim_id,
+        timestamp,
+        ...fields,
+      }),
+    );
+    const { decision, ...detail } = fields;
+    await recordActivity(clientId, String(decision ?? "unknown"), {
+      claim_id: body.claim_id,
+      ...detail,
+    });
+  };
+
+  if (!body.claim_id || !Array.isArray(body.lines) || body.lines.length === 0) {
+    return jsonResponse({ error: "claim_id and a non-empty lines[] array are required" }, 400);
+  }
+  if (!body.accumulators || !body.contract || !body.plan) {
+    return jsonResponse({ error: "accumulators, contract, and plan are all required" }, 400);
+  }
+
+  // Kill switch first, before any adjudication work -- same fail-closed
+  // convention as the legacy path above.
+  try {
+    const killSwitch = await fetchKillSwitch();
+    if (killSwitch.active) {
+      await logOutcome({
+        decision: "deny",
+        reason_category: "kill_switch_active",
+        risk_tier: "critical",
+      });
+      return jsonResponse({
+        decision: "deny",
+        reason: `Guardian kill switch is active: ${killSwitch.reason ?? "no reason given"}`,
+        risk_tier: "critical",
+        timestamp,
+      });
+    }
+  } catch (err) {
+    await logOutcome({
+      decision: "deny",
+      reason_category: "kill_switch_unverifiable",
+      risk_tier: "critical",
+    });
+    return jsonResponse({
+      decision: "deny",
+      reason: `Unable to verify Guardian kill switch state: ${(err as Error).message}`,
+      risk_tier: "critical",
+      timestamp,
+    });
+  }
+
+  if (body.idempotency_key) {
+    const cached = await getCachedReplay(body.idempotency_key);
+    if (cached) {
+      await logOutcome({ decision: "replayed", idempotency_key: body.idempotency_key });
+      return jsonResponse({
+        decision: "allow",
+        replayed: true,
+        run: cached.run,
+        trace: cached.trace,
+        timestamp,
+      });
+    }
+  }
+
+  const contract: ContractTerms = {
+    ...body.contract,
+    fee_schedule: new Map(Object.entries(body.contract.fee_schedule)),
+  };
+
+  let run: AdjudicationRun, trace: TraceObject;
+  try {
+    ({ run, trace } = adjudicateClaim(
+      body.lines,
+      body.accumulators,
+      contract,
+      body.plan,
+      body.prior_outcomes ?? [],
+      {
+        runId: body.run_id,
+        timestamp: body.timestamp,
+        traceFingerprint: body.idempotency_key,
+        snapshotRef: body.snapshot_ref,
+        traceId: body.trace_id,
+      },
+    ));
+  } catch (err) {
+    await logOutcome({ decision: "error", reason_category: "kernel_error" });
+    return jsonResponse({ error: `Adjudication failed: ${(err as Error).message}` }, 400);
+  }
+
+  // Wire-safe: final_accumulator.benefit_limits_remaining is a Map,
+  // which JSON.stringify silently drops (serializes to `{}`).
+  const wireRun = {
+    ...run,
+    final_accumulator: {
+      ...run.final_accumulator,
+      benefit_limits_remaining: Object.fromEntries(run.final_accumulator.benefit_limits_remaining),
+    },
+  };
+
+  if (body.idempotency_key) {
+    await saveReplayCache(body.idempotency_key, clientId, wireRun, trace);
+  }
+
+  await logOutcome({
+    decision: "allow",
+    total_plan_paid: run.total_plan_paid,
+    total_member_responsibility: run.total_member_responsibility,
+    line_count: body.lines.length,
+  });
+
+  return jsonResponse({ decision: "allow", replayed: false, run: wireRun, trace, timestamp });
+}
