@@ -14,7 +14,83 @@
 // underlying implementation -- not that this class reimplements
 // anything itself.
 
-import { describe, test, expect } from "vitest";
+import { describe, test, expect, vi } from "vitest";
+
+// emit()/enqueue() route through the real QueueEngine, which now
+// persists through queueRepo.ts's real DB operations (see
+// queueEngine.test.ts's header for why this needs a fake here too:
+// exercising Nucleus's/QueueEngine's real control flow shouldn't
+// require a live Supabase connection).
+vi.mock("../queue/queueRepo", () => {
+  type Row = {
+    id: string;
+    organization_id: string;
+    queue: string;
+    payload: unknown;
+    attempts: number;
+    max_attempts: number;
+    status: "pending" | "processing" | "delivered" | "failed";
+    last_error: unknown;
+    created_at: string;
+    updated_at: string;
+  };
+  let rows: Row[] = [];
+  let seq = 0;
+  return {
+    insertQueueMessage: async (
+      organizationId: string,
+      queue: string,
+      payload: unknown,
+      maxAttempts: number,
+    ) => {
+      const row: Row = {
+        id: `fake-${++seq}`,
+        organization_id: organizationId,
+        queue,
+        payload,
+        attempts: 0,
+        max_attempts: maxAttempts,
+        status: "pending",
+        last_error: null,
+        created_at: new Date(Date.now() + seq).toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      rows.push(row);
+      return row;
+    },
+    claimNextQueueMessage: async (queue: string) => {
+      const row = rows
+        .filter((r) => r.queue === queue && r.status === "pending")
+        .sort((a, b) => a.created_at.localeCompare(b.created_at))[0];
+      if (!row) return null;
+      row.status = "processing";
+      row.attempts += 1;
+      row.updated_at = new Date().toISOString();
+      return row;
+    },
+    markQueueMessageDelivered: async (id: string) => {
+      const row = rows.find((r) => r.id === id);
+      if (row) row.status = "delivered";
+    },
+    markQueueMessageFailed: async (
+      id: string,
+      attempts: number,
+      maxAttempts: number,
+      error: unknown,
+    ) => {
+      const row = rows.find((r) => r.id === id);
+      if (row) {
+        row.status = attempts < maxAttempts ? "pending" : "failed";
+        row.last_error = error;
+      }
+    },
+    listQueueMessages: async (queue: string) => rows.filter((r) => r.queue === queue),
+    listAllQueueMessages: async () => [...rows],
+    clearQueueMessages: async () => {
+      rows = [];
+    },
+  };
+});
 
 import { Nucleus } from "../constitution/nucleus";
 
@@ -59,10 +135,13 @@ describe("Nucleus (Constitution unified interface)", () => {
     expect(delivery?.status).toBe("delivered");
   });
 
-  test("enqueue() puts a real message on the real QueueEngine without executing it", () => {
+  test("enqueue() puts a real message on the real QueueEngine without executing it", async () => {
     const nucleus = new Nucleus("org-1", "dualpay");
 
-    const message = nucleus.enqueue("payment", "v1", { claimId: "claim-nucleus-3", amount: 100 });
+    const message = await nucleus.enqueue("payment", "v1", {
+      claimId: "claim-nucleus-3",
+      amount: 100,
+    });
 
     expect(message.org).toBe("org-1");
     expect(message.queue).toBe("dualpay.payment");

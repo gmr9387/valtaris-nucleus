@@ -280,7 +280,7 @@ HTTP API: `/nucleus/workflow/run`, `/subsystem/dispatch`, `/lineage/:org`, `/tel
 Decision engine (governance rules, confidence scoring, replay)	Implemented — real rules, real Guardian/Weaver-signal-derived confidence, wired into every real claim; see §3.4
 Telemetry/lineage persistence to Supabase for real claims	Implemented — `recordTelemetry()` and `OSPipeline.runClaim()` both persist for real now; see §3.5
 Identity — Edge Function-based API keys + SSO (`manage-api-clients`, `manage-sso`)	Implemented — real hashed keys, real `sso_configs` table, real admin UI, actually enforced; this is now the only identity implementation in the repo (the dead in-memory stub was deleted)
-Background runtime (queue + scheduler)	Partial — real in-memory priority/retry queue on a real 60s heartbeat + 5-min certification sweep; not a durable/restart-surviving job queue
+Background runtime (queue + scheduler)	Implemented — QueueEngine now persists through `nucleus_queue_messages` (real DB table, atomic `FOR UPDATE SKIP LOCKED` claim function), not an in-memory Map; a restart no longer silently drops a queued or mid-retry message. Real 60s heartbeat + 5-min certification sweep on top of it, unchanged.
 
 8. Project Structure
 Code
@@ -322,7 +322,7 @@ Code
 nucleus decision context.json
 
 10. Status
-Nucleus is currently in active development as part of the Valtaris ecosystem. The core claim-adjudication pipeline (Weaver/Guardian/Glue/DualPay, the decision engine, the `/nucleus/*` HTTP routes, the `Nucleus` class, and real telemetry/lineage persistence) is real and verified. DualPay's live adjudication code now calls Nucleus's real "resolved"-mode endpoint end to end (§3.10), with real rotated credentials issued to both DualPay and valtaris-glue and verified working against the live deployed endpoint. The dead in-repo identity module (`src/nucleus/identity/`'s API-key/SCIM/SSO scaffolding) has been deleted — the Edge-Function-based identity system (§3.3) is now the only identity implementation in the repo. The remaining known gap is nucleus's background runtime (§7): still an in-memory queue, not durable across a restart.
+Nucleus is currently in active development as part of the Valtaris ecosystem. The core claim-adjudication pipeline (Weaver/Guardian/Glue/DualPay, the decision engine, the `/nucleus/*` HTTP routes, the `Nucleus` class, and real telemetry/lineage persistence) is real and verified. DualPay's live adjudication code now calls Nucleus's real "resolved"-mode endpoint end to end (§3.10), with real rotated credentials issued to both DualPay and valtaris-glue and verified working against the live deployed endpoint. The dead in-repo identity module (`src/nucleus/identity/`'s API-key/SCIM/SSO scaffolding) has been deleted — the Edge-Function-based identity system (§3.3) is now the only identity implementation in the repo. The background runtime (queue + scheduler) is now durable too — QueueEngine persists through a real `nucleus_queue_messages` table instead of an in-memory Map, verified live (a real claim run through the boot server, telemetry failures caught and logged non-fatally, server stayed healthy) and by a dedicated test suite. No known gaps remain in this repo's own core pipeline; see §7 for identity/background-runtime detail and the parts of the ecosystem (DualPay's claim-intake UI, valtaris-glue) that still need work outside this repo.
 
 11. License
 MIT (or your preferred license — add later)

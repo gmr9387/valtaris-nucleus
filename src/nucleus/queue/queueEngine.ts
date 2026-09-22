@@ -1,8 +1,30 @@
 // src/nucleus/queue/queueEngine.ts
 // Unified constitutional distributed queue engine for the entire Valtaris ecosystem.
+//
+// FIXED: every message used to live only in a process-local
+// Map<string, QueueMessage[]> -- a restart, deploy, or crash silently
+// dropped anything still queued or mid-retry, with no trace it ever
+// existed. Now backed by nucleus_queue_messages (supabase/migrations/
+// 20260922000000_nucleus_queue.sql) via queueRepo.ts: enqueue/dequeue/
+// deliver/getQueue/getDeliveries/clear all persist through real DB
+// operations instead of in-memory state. This necessarily makes every
+// method async (it wasn't before) -- callers (TelemetryAdapter,
+// Scheduler, Nucleus.enqueue()) already either awaited or returned
+// these calls directly, so this is a type-level change, not a
+// behavioral one for them.
 
 import { nucleusAudit } from "../audit/auditEngine";
 import { nucleusBilling } from "../billing/billingEngine";
+import {
+  insertQueueMessage,
+  claimNextQueueMessage,
+  markQueueMessageDelivered,
+  markQueueMessageFailed,
+  listQueueMessages,
+  listAllQueueMessages,
+  clearQueueMessages,
+  type QueueMessageRow,
+} from "./queueRepo";
 import type { Dynamic } from "../types/dynamic";
 
 export type QueueMessage = {
@@ -25,27 +47,28 @@ export type QueueDelivery = {
   timestamp: number;
 };
 
+function toQueueMessage(row: QueueMessageRow): QueueMessage {
+  return {
+    id: row.id,
+    org: row.organization_id,
+    queue: row.queue,
+    payload: row.payload,
+    attempts: row.attempts,
+    maxAttempts: row.max_attempts,
+    createdAt: new Date(row.created_at).getTime(),
+    updatedAt: new Date(row.updated_at).getTime(),
+  };
+}
+
 export class QueueEngine {
-  private queues: Map<string, QueueMessage[]> = new Map();
-  private deliveries: QueueDelivery[] = [];
-
-  enqueue(org: string, queue: string, payload: Dynamic, maxAttempts: number = 3) {
-    const message: QueueMessage = {
-      id: crypto.randomUUID(),
-      org,
-      queue,
-      payload,
-      attempts: 0,
-      maxAttempts,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-
-    if (!this.queues.has(queue)) {
-      this.queues.set(queue, []);
-    }
-
-    this.queues.get(queue)!.push(message);
+  async enqueue(
+    org: string,
+    queue: string,
+    payload: Dynamic,
+    maxAttempts: number = 3,
+  ): Promise<QueueMessage> {
+    const row = await insertQueueMessage(org, queue, payload, maxAttempts);
+    const message = toQueueMessage(row);
 
     console.log(`[QUEUE][${queue.toUpperCase()}] Enqueued message`);
 
@@ -65,23 +88,22 @@ export class QueueEngine {
     return message;
   }
 
-  dequeue(queue: string) {
-    const messages = this.queues.get(queue);
-    if (!messages || messages.length === 0) return null;
-
-    const message = messages.shift()!;
-    return message;
+  async dequeue(queue: string): Promise<QueueMessage | null> {
+    const row = await claimNextQueueMessage(queue);
+    if (!row) return null;
+    return toQueueMessage(row);
   }
 
-  async deliver(queue: string, handler: (msg: QueueMessage) => Promise<Dynamic> | Dynamic) {
-    const message = this.dequeue(queue);
+  async deliver(
+    queue: string,
+    handler: (msg: QueueMessage) => Promise<Dynamic> | Dynamic,
+  ): Promise<QueueDelivery | null> {
+    const message = await this.dequeue(queue);
     if (!message) return null;
-
-    message.attempts++;
-    message.updatedAt = Date.now();
 
     try {
       await handler(message);
+      await markQueueMessageDelivered(message.id);
 
       const delivery: QueueDelivery = {
         id: crypto.randomUUID(),
@@ -90,8 +112,6 @@ export class QueueEngine {
         status: "delivered",
         timestamp: Date.now(),
       };
-
-      this.deliveries.push(delivery);
 
       console.log(`[QUEUE][${queue.toUpperCase()}] Delivered message`);
 
@@ -112,23 +132,28 @@ export class QueueEngine {
 
       return delivery;
     } catch (err) {
+      // dequeue() already incremented attempts via claimNextQueueMessage();
+      // this just decides whether the row goes back to 'pending' (retry
+      // on a future poll) or terminal 'failed'.
+      await markQueueMessageFailed(
+        message.id,
+        message.attempts,
+        message.maxAttempts,
+        err as Dynamic,
+      );
+
       const delivery: QueueDelivery = {
         id: crypto.randomUUID(),
         messageId: message.id,
         queue,
         status: "failed",
-        error: err,
+        error: err as Dynamic,
         timestamp: Date.now(),
       };
 
-      this.deliveries.push(delivery);
-
       console.error(`[QUEUE][${queue.toUpperCase()}] Delivery failed`, err);
-
-      // Retry logic
       if (message.attempts < message.maxAttempts) {
         console.log(`[QUEUE][${queue.toUpperCase()}] Retrying message`);
-        this.queues.get(queue)!.push(message);
       }
 
       // Audit
@@ -146,18 +171,29 @@ export class QueueEngine {
     }
   }
 
-  getQueue(queue: string) {
-    return this.queues.get(queue) ?? [];
+  async getQueue(queue: string): Promise<QueueMessage[]> {
+    const rows = await listQueueMessages(queue);
+    return rows
+      .filter((r) => r.status === "pending" || r.status === "processing")
+      .map(toQueueMessage);
   }
 
-  getDeliveries(queue?: string) {
-    if (!queue) return [...this.deliveries];
-    return this.deliveries.filter((d) => d.queue === queue);
+  async getDeliveries(queue?: string): Promise<QueueDelivery[]> {
+    const rows = queue ? await listQueueMessages(queue) : await listAllQueueMessages();
+    return rows
+      .filter((r) => r.status === "delivered" || r.status === "failed")
+      .map((r) => ({
+        id: r.id,
+        messageId: r.id,
+        queue: r.queue,
+        status: r.status as "delivered" | "failed",
+        error: r.last_error ?? undefined,
+        timestamp: new Date(r.updated_at).getTime(),
+      }));
   }
 
-  clear() {
-    this.queues.clear();
-    this.deliveries = [];
+  async clear(): Promise<void> {
+    await clearQueueMessages();
   }
 }
 
