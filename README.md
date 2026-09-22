@@ -115,11 +115,11 @@ Each subsystem includes a real runtime with genuine business logic — not pass-
 Three of the four (Weaver/Guardian/DualPay's adjudication path) are also deployed as real, live Supabase Edge Functions that a sibling repo can call over HTTP — see §3.7 and §3.10 (Federation) for what's real there versus what's wired but not yet carrying production traffic.
 
 3.3 Identity Layer
-There are two separate identity implementations in this repo, at very different levels of reality.
+There used to be two separate identity implementations in this repo, at very different levels of reality; the dead one has been removed.
 
-`src/nucleus/identity/` (API keys, service accounts, a SCIM provider, an SSO provider) is in-memory scaffolding with zero real callers anywhere else in the codebase — it enforces nothing today.
+`src/nucleus/identity/` previously held in-memory API-key/service-account/SCIM/SSO scaffolding with zero real callers anywhere else in the codebase — it enforced nothing. That scaffolding has been deleted (only `nucleusIdentity.ts`, the shared `NucleusIdentity`/`NucleusSubsystem` type definitions actually used throughout the runtime, remains in that directory).
 
-The identity layer that is actually real and enforced lives in Supabase Edge Functions, not in this directory: `manage-api-clients` issues real hashed API keys into a real `api_clients` table, and `manage-sso` is backed by a real `sso_configs` migration, both with a real admin UI. This is what actually gates the three live adjudication Edge Functions (§3.7) via `x-api-key` checks.
+The identity layer that is actually real and enforced lives in Supabase Edge Functions: `manage-api-clients` issues real hashed API keys into a real `api_clients` table, and `manage-sso` is backed by a real `sso_configs` migration, both with a real admin UI. This is what actually gates the three live adjudication Edge Functions (§3.7) via `x-api-key` checks.
 
 3.4 Decision Engine
 `src/nucleus/decision/` is real and wired into the actual claim path. `Executor.execute()` derives `allowed` from Guardian's real `authorization.decision`/`risk_tier` (no longer a hardcoded `{allowed: true, confidence: 0.9}`), and `confidence` blends Weaver's two real numeric signals (`opportunity.score`, `recommendation.confidence`) when present. `Governance` has two real default rules registered (deny on Guardian's own deny decision, deny on critical risk tier), so `evaluate()` has an explicit, named rule trail instead of an implicit always-allow.
@@ -279,8 +279,7 @@ HTTP API: `/nucleus/workflow/run`, `/subsystem/dispatch`, `/lineage/:org`, `/tel
 "Constitution" unified interface (`new Nucleus(org, subsystem)`)	Implemented — thin facade over the real pieces above; see §3.9
 Decision engine (governance rules, confidence scoring, replay)	Implemented — real rules, real Guardian/Weaver-signal-derived confidence, wired into every real claim; see §3.4
 Telemetry/lineage persistence to Supabase for real claims	Implemented — `recordTelemetry()` and `OSPipeline.runClaim()` both persist for real now; see §3.5
-Identity — in-repo API keys/service accounts/SCIM/SSO (`src/nucleus/identity/`)	Stub — in-memory, zero enforcement, zero real callers
-Identity — Edge Function-based API keys + SSO (`manage-api-clients`, `manage-sso`)	Implemented — real hashed keys, real `sso_configs` table, real admin UI, actually enforced
+Identity — Edge Function-based API keys + SSO (`manage-api-clients`, `manage-sso`)	Implemented — real hashed keys, real `sso_configs` table, real admin UI, actually enforced; this is now the only identity implementation in the repo (the dead in-memory stub was deleted)
 Background runtime (queue + scheduler)	Partial — real in-memory priority/retry queue on a real 60s heartbeat + 5-min certification sweep; not a durable/restart-surviving job queue
 
 8. Project Structure
@@ -323,7 +322,7 @@ Code
 nucleus decision context.json
 
 10. Status
-Nucleus is currently in active development as part of the Valtaris ecosystem. The core claim-adjudication pipeline (Weaver/Guardian/Glue/DualPay, the decision engine, the `/nucleus/*` HTTP routes, the `Nucleus` class, and real telemetry/lineage persistence) is real and verified. DualPay's live adjudication code now calls Nucleus's real "resolved"-mode endpoint end to end (§3.10) — the remaining gap there is entirely operational, not code: an operator needs to rotate/issue the `api_clients` credentials for DualPay and valtaris-glue and set them as Edge Function secrets before any of this carries live traffic. The in-repo identity module (`src/nucleus/identity/`, distinct from the real, enforced Edge-Function-based identity system — §3.3) is the other remaining gap — see §7.
+Nucleus is currently in active development as part of the Valtaris ecosystem. The core claim-adjudication pipeline (Weaver/Guardian/Glue/DualPay, the decision engine, the `/nucleus/*` HTTP routes, the `Nucleus` class, and real telemetry/lineage persistence) is real and verified. DualPay's live adjudication code now calls Nucleus's real "resolved"-mode endpoint end to end (§3.10), with real rotated credentials issued to both DualPay and valtaris-glue and verified working against the live deployed endpoint. The dead in-repo identity module (`src/nucleus/identity/`'s API-key/SCIM/SSO scaffolding) has been deleted — the Edge-Function-based identity system (§3.3) is now the only identity implementation in the repo. The remaining known gap is nucleus's background runtime (§7): still an in-memory queue, not durable across a restart.
 
 11. License
 MIT (or your preferred license — add later)
