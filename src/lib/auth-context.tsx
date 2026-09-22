@@ -20,6 +20,21 @@ const Ctx = createContext<AuthCtx>({
   signOut: async () => {},
 });
 
+/**
+ * Dev-only auto-login: signs in with a local preview account so the
+ * `_app.tsx` layout's session redirect doesn't block iteration behind
+ * /login on every dev-server restart. Gated on Vite's import.meta.env.DEV,
+ * which is always false in a production build -- this code path cannot
+ * run for real users. Same convention as dualpay's use-auth.tsx.
+ */
+async function tryDevAutoLogin(): Promise<void> {
+  const email = import.meta.env.VITE_DEV_AUTO_LOGIN_EMAIL;
+  const password = import.meta.env.VITE_DEV_AUTO_LOGIN_PASSWORD;
+  if (!email || !password) return;
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) console.warn("[dev-auto-login] sign-in failed:", error.message);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -60,7 +75,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     supabase.auth
       .getSession()
-      .then(({ data }) => {
+      .then(async ({ data }) => {
+        if (!data.session && import.meta.env.DEV) {
+          await tryDevAutoLogin();
+          return;
+        }
         setSession(data.session);
       })
       .catch((error) => {
