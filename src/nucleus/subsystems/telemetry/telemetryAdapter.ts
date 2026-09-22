@@ -42,7 +42,9 @@ export class TelemetryAdapter {
       // calling deliver() before the insert lands would race the
       // dequeue against it and find nothing to claim.
       await nucleusQueue.enqueue(org, queueName, payload);
-      return await nucleusQueue.deliver(queueName, (msg) => TelemetryRuntime.emit(subsystem, msg.payload));
+      return await nucleusQueue.deliver(queueName, (msg) =>
+        TelemetryRuntime.emit(subsystem, msg.payload),
+      );
     } catch (err) {
       console.error(`[TelemetryAdapter] send(${subsystem}) failed (non-fatal):`, err);
       return null;
