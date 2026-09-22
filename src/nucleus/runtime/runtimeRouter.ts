@@ -86,33 +86,27 @@ export class RuntimeRouter {
     nucleusState.snapshot(organizationId, id);
 
     // metrics/metricsEngine.ts is the canonical metrics implementation
-    // in this codebase now -- confirmed by checking real importers,
-    // this repo actually has THREE parallel metrics modules
-    // (metrics/metricsEngine.ts, integrations/nucleusMetrics.ts,
-    // ops/nucleusMetrics.ts), all fully built, all with zero real
-    // callers anywhere. This one matches the audit+billing convention
-    // every other engine wired live this session already uses; the
-    // other two are flagged, not touched, in this PR's description.
-    // Dispatch latency per stage is a genuine metric this engine
-    // family didn't have anywhere else (telemetry carries the business
-    // event, state carries the current value, this carries how long
-    // the subsystem actually took).
+    // for dispatch-latency timeseries. It once had a genuine dead
+    // duplicate, integrations/nucleusMetrics.ts (a fully-built
+    // eventBus-subscriber aggregator with zero real callers anywhere,
+    // orphaned once eventBus.ts's own reconciliation removed its only
+    // caller) -- deleted, not just flagged, since confirming zero
+    // callers made it safe to remove outright rather than leave as
+    // confusing duplication. ops/nucleusMetrics.ts's NucleusMetrics is
+    // not a third duplicate of this: it's a distinct, smaller counters
+    // utility genuinely wired into nucleusDiagnostics.ts (health/
+    // autonomy/CLI real callers), not a timeseries engine. Dispatch
+    // latency per stage is a genuine metric this engine family didn't
+    // have anywhere else (telemetry carries the business event, state
+    // carries the current value, this carries how long the subsystem
+    // actually took).
     nucleusMetrics.record(organizationId, id, `dispatch.${contractName}.duration_ms`, durationMs);
 
-    // lineage/lineageEngine.ts is a fourth fully-built, zero-real-caller
-    // engine of this same shape (its only caller anywhere was
-    // api/nucleusApi.ts -- a parallel, incompatible constitutional
-    // contract-chain implementation with its own hardcoded fixture
-    // tenants that nothing on the real claim path ever invokes; left
-    // untouched rather than force real organization data through a
-    // check designed for "tenant-a"/"tenant-b"/"tenant-c"). This records
-    // the same real dispatch this method already validated, under the
-    // real organizationId as tenantId -- lineageStore.record() has no
-    // such fixture check, so this is safe where routing through
-    // NucleusApi/FederatedIdentityEngine was not. NucleusIdentity only
-    // recognizes the four claim-processing subsystems as valid
-    // "subsystem" values (matching nucleusApi.ts's own permission map),
-    // so "contracts"/"telemetry" dispatches -- neither on the real claim
+    // lineage/lineageEngine.ts records the same real dispatch this
+    // method already validated, under the real organizationId as
+    // tenantId. NucleusIdentity only recognizes the four
+    // claim-processing subsystems as valid "subsystem" values, so
+    // "contracts"/"telemetry" dispatches -- neither on the real claim
     // path today -- are skipped rather than force-cast.
     if ((NUCLEUS_SUBSYSTEMS as readonly string[]).includes(id)) {
       const claimId = (payload as Dynamic)?.claimId;

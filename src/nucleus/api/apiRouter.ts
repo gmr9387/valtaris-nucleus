@@ -13,6 +13,21 @@ router.get("/health", (_req, res) => {
 
 router.post("/claim", APIController.submitClaim);
 
+// FIXED: earlier drafts of the README documented a /nucleus/* route
+// surface (workflow/run, subsystem/dispatch, lineage/:org,
+// telemetry/:org, decision/evaluate) that never actually existed --
+// every one of the five was aspirational. Each now wraps the same real
+// underlying call the CLI already exercises (see apiController.ts's
+// header comment on each handler for the exact real counterpart), so
+// running a workflow, dispatching a subsystem, or reading real lineage
+// /telemetry/decision output no longer requires filesystem access to
+// this process's console.
+router.post("/nucleus/workflow/run", APIController.runWorkflow);
+router.post("/nucleus/subsystem/dispatch", APIController.dispatchSubsystem);
+router.get("/nucleus/lineage/:org", APIController.getLineage);
+router.get("/nucleus/telemetry/:org", APIController.getTelemetry);
+router.post("/nucleus/decision/evaluate", APIController.evaluateDecision);
+
 // internalStatusController.ts (see that file's header) is the first
 // real place every engine wired live this session -- Governance,
 // Certification, the Constitutional Pipeline/Adapter Registry, Recovery,
@@ -79,6 +94,89 @@ nucleusOpenApi.register(
   {
     type: "object",
     description: "See internalStatusController.ts's getInternalStatus() for the exact shape.",
+  },
+);
+
+nucleusOpenApi.register(
+  "POST",
+  "/nucleus/workflow/run",
+  "nucleus",
+  "Starts a real workflow run (the same call the CLI's `nucleus run workflow.json` command makes).",
+  {
+    type: "object",
+    required: ["organizationId", "workflowId", "versionId"],
+    properties: {
+      organizationId: { type: "string" },
+      workflowId: { type: "string" },
+      versionId: { type: "string" },
+    },
+  },
+  { type: "object", description: "The created workflow_runs row." },
+);
+
+nucleusOpenApi.register(
+  "POST",
+  "/nucleus/subsystem/dispatch",
+  "nucleus",
+  "Dispatches directly into a registered subsystem's contract handler via RuntimeRouter -- the same governed dispatch each of POST /claim's five real stages goes through.",
+  {
+    type: "object",
+    required: ["subsystem", "contractName"],
+    properties: {
+      subsystem: { type: "string", enum: ["weaver", "guardian", "glue", "dualpay", "telemetry"] },
+      contractName: { type: "string" },
+      payload: { type: "object" },
+      contractVersion: { type: "string" },
+    },
+  },
+  { type: "object", description: "The subsystem's real, contract-validated handler output." },
+);
+
+nucleusOpenApi.register(
+  "GET",
+  "/nucleus/lineage/:org",
+  "nucleus",
+  "Real lineage rows for an organization from nucleus_lineage -- the same query the CLI's `nucleus lineage <org>` command runs.",
+  undefined,
+  {
+    type: "object",
+    properties: { organizationId: { type: "string" }, lineage: { type: "array" } },
+  },
+);
+
+nucleusOpenApi.register(
+  "GET",
+  "/nucleus/telemetry/:org",
+  "nucleus",
+  "Real telemetry rows for an organization from nucleus_telemetry -- the same query the CLI's `nucleus telemetry <org>` command runs.",
+  undefined,
+  {
+    type: "object",
+    properties: { organizationId: { type: "string" }, telemetry: { type: "array" } },
+  },
+);
+
+nucleusOpenApi.register(
+  "POST",
+  "/nucleus/decision/evaluate",
+  "nucleus",
+  "Evaluates the real decision engine (governance rules + Weaver/Guardian-signal-derived confidence) against an arbitrary context -- the same engine OSPipeline now calls for every real claim.",
+  {
+    type: "object",
+    required: ["organizationId", "subsystem"],
+    properties: {
+      organizationId: { type: "string" },
+      subsystem: { type: "string" },
+      context: { type: "object" },
+    },
+  },
+  {
+    type: "object",
+    properties: {
+      allowed: { type: "boolean" },
+      confidence: { type: "number" },
+      reasons: { type: "array", items: { type: "string" } },
+    },
   },
 );
 

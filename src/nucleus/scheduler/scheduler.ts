@@ -57,10 +57,19 @@ export class Scheduler {
     console.log(`[SCHEDULER][${subsystem.toUpperCase()}] Registered: ${name}`);
 
     const timer = setInterval(() => {
-      nucleusQueue.enqueue(org, subsystem, payload);
-      if (handler) {
-        nucleusQueue.deliver(subsystem, (msg) => handler(msg.payload));
-      }
+      // enqueue()/deliver() are real DB round-trips now (queueEngine.ts) --
+      // deliver() must wait for enqueue()'s insert to land first, and
+      // both need a .catch() since nothing here awaits this tick.
+      nucleusQueue
+        .enqueue(org, subsystem, payload)
+        .then(() => {
+          if (handler) {
+            return nucleusQueue.deliver(subsystem, (msg) => handler(msg.payload));
+          }
+        })
+        .catch((err) => {
+          console.error(`[SCHEDULER][${subsystem.toUpperCase()}] Tick failed for ${name}:`, err);
+        });
     }, intervalMs);
 
     this.timers.set(id, timer);

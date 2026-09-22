@@ -290,3 +290,49 @@ export async function verifyApiKey(rawKey: string | null): Promise<VerifiedClien
     organizationId: data.organization_id as string | null,
   };
 }
+
+/**
+ * Real idempotency for the "resolved" request mode (see index.ts):
+ * the kernel is pure, so a duplicate idempotency_key within
+ * adjudication_replay_cache can return the cached run+trace instead of
+ * recomputing. This is a second, defense-in-depth layer -- the
+ * primary idempotency guard is the caller's own (e.g. DualPay's
+ * fingerprint-based replay store, which already prevents a duplicate
+ * *request* from ever being sent); this one additionally protects
+ * against a network-level retry of the exact same request reaching
+ * this function twice.
+ */
+export async function getCachedReplay(
+  idempotencyKey: string,
+): Promise<{ run: unknown; trace: unknown } | null> {
+  const { data, error } = await supabase
+    .from("adjudication_replay_cache")
+    .select("run, trace")
+    .eq("idempotency_key", idempotencyKey)
+    .maybeSingle();
+  if (error) {
+    console.error(
+      "[adjudicate-claim] replay cache lookup failed, proceeding fresh:",
+      error.message,
+    );
+    return null;
+  }
+  return data ?? null;
+}
+
+export async function saveReplayCache(
+  idempotencyKey: string,
+  clientId: string,
+  run: unknown,
+  trace: unknown,
+): Promise<void> {
+  const { error } = await supabase
+    .from("adjudication_replay_cache")
+    .upsert(
+      { idempotency_key: idempotencyKey, client_id: clientId, run, trace },
+      { onConflict: "idempotency_key" },
+    );
+  if (error) {
+    console.error("[adjudicate-claim] failed to save replay cache (non-fatal):", error.message);
+  }
+}

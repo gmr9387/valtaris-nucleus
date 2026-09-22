@@ -22,14 +22,32 @@ import type { Dynamic } from "../../types/dynamic";
  * event a real audit trail, a billing event, and queue-level failure
  * tracking it didn't have when TelemetryRuntime.emit() was called
  * directly.
+ *
+ * Both calls are now real DB operations (queueEngine.ts is backed by
+ * nucleus_queue_messages, not an in-memory Map), so they can genuinely
+ * reject -- e.g. the service-role credentials queueDB.ts needs aren't
+ * configured in this process. Every real call site (osPipeline.ts)
+ * fires this without awaiting or catching, by design: telemetry is
+ * observability, not decision-critical, and must never be able to
+ * fail a claim. Catching here, not at each call site, keeps that
+ * guarantee in one place.
  */
 export class TelemetryAdapter {
   static async send(subsystem: string, payload: Dynamic) {
     const org = payload?.organizationId ?? payload?.org ?? "unknown";
     const queueName = `telemetry.${subsystem}`;
 
-    nucleusQueue.enqueue(org, queueName, payload);
-
-    return nucleusQueue.deliver(queueName, (msg) => TelemetryRuntime.emit(subsystem, msg.payload));
+    try {
+      // Enqueue must be awaited now that it's a real DB insert --
+      // calling deliver() before the insert lands would race the
+      // dequeue against it and find nothing to claim.
+      await nucleusQueue.enqueue(org, queueName, payload);
+      return await nucleusQueue.deliver(queueName, (msg) =>
+        TelemetryRuntime.emit(subsystem, msg.payload),
+      );
+    } catch (err) {
+      console.error(`[TelemetryAdapter] send(${subsystem}) failed (non-fatal):`, err);
+      return null;
+    }
   }
 }

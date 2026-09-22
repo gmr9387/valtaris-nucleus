@@ -2,7 +2,11 @@
 
 import { RuntimeRouter } from "./runtimeRouter";
 import { TelemetryAdapter } from "../subsystems/telemetry/telemetryAdapter";
+import { NucleusDBBridge } from "../db/nucleusDBBridge";
+import { DecisionEngine } from "../decision/engine";
 import type { Dynamic } from "../types/dynamic";
+
+const dbBridge = new NucleusDBBridge();
 
 /**
  * FIXED (historical): this previously imported WeaverRuntime/
@@ -52,6 +56,28 @@ export class OSPipeline {
     });
     TelemetryAdapter.send("guardian.authorization", authorization);
 
+    // Decision — governed evaluation of Weaver + Guardian's real signals.
+    //
+    // FIXED: the decision engine (src/nucleus/decision/) previously had
+    // zero real callers -- disconnected from actual claim processing,
+    // exercised only by the CLI's `nucleus decision` command against a
+    // hand-written context.json. It is wired in here as a real, named,
+    // rule-based confirmation of Guardian's already-authoritative
+    // decision -- it does NOT gate `execution`/`payment` below (Glue
+    // already gates on `authorization` directly, and that real,
+    // established behavior is left untouched) -- so this can never
+    // introduce a second authority that might disagree with Guardian.
+    // What it adds for real: an explicit governance-rule trail (which
+    // named rule fired, if any) and a real blended confidence score,
+    // both persisted below as part of this claim's lineage.
+    const decision = new DecisionEngine(organizationId, "decision").evaluate({
+      ...base,
+      opportunity,
+      recommendation,
+      authorization,
+    });
+    TelemetryAdapter.send("decision.evaluate", decision);
+
     // Glue — Execution
     const execution = await RuntimeRouter.dispatch("glue", "execution", {
       ...base,
@@ -71,12 +97,32 @@ export class OSPipeline {
     });
     TelemetryAdapter.send("dualpay.payment", payment);
 
+    // FIXED: nucleus_lineage was a real table with a real writer
+    // (NucleusDBBridge.insertLineage) that nothing ever called -- a
+    // finished claim's full stage chain never reached Supabase, so
+    // `nucleus lineage <org>` had nothing real to show. Fire-and-forget
+    // (not awaited) so a Supabase hiccup can never add latency to, or
+    // fail, real claim processing -- lineage is a record OF the claim
+    // result, not an input to it.
+    const chain = [
+      { stage: "weaver.opportunity", result: opportunity },
+      { stage: "weaver.recommendation", result: recommendation },
+      { stage: "guardian.authorization", result: authorization },
+      { stage: "decision.evaluate", result: decision },
+      { stage: "glue.execution", result: execution },
+      { stage: "dualpay.payment", result: payment },
+    ];
+    dbBridge
+      .insertLineage(organizationId, chain, true)
+      .catch((err) => console.error("[OSPipeline] lineage persist failed (non-fatal)", err));
+
     return {
       claimId,
       organizationId,
       opportunity,
       recommendation,
       authorization,
+      decision,
       execution,
       payment,
     };
