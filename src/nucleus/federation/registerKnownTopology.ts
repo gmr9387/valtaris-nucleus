@@ -80,7 +80,7 @@
 
 import { federationEngine } from "./federationEngine";
 
-const SUPABASE_PROJECT_URL = "https://bpqukcsaoporhvdtfyza.supabase.co";
+const SUPABASE_PROJECT_URL = "https://qrqekucwdfyqqzomuble.supabase.co";
 
 let registered = false;
 
