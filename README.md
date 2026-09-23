@@ -25,6 +25,8 @@ constitutional
 
 Nucleus is the core of the Valtaris ecosystem — powering Weaver, Guardian, Glue, DualPay, and future subsystems.
 
+**DualPay is the flagship product this exists to serve.** Nucleus's real, live value today is that it's the shared adjudication backend DualPay's production claim-pricing path actually calls (§3.10) and the shared identity/database layer both DualPay and valtaris-glue now sit on (§3.11) — not a standalone product with its own end users.
+
 1. The Problem Nucleus Solves
 Modern systems are fragmented:
 
