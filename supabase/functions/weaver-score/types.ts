@@ -1,6 +1,6 @@
 // Row shape for the weaver_rules table -- ported verbatim from
 // valtaris-nucleus's src/types/weaver-rules.ts. Same table, same
-// project (bpqukcsaoporhvdtfyza); this copy exists only because Edge
+// project (qrqekucwdfyqqzomuble); this copy exists only because Edge
 // Functions run on Deno and can't import from the Vite-built src/ tree.
 export type WeaverRuleStage = "opportunity" | "recommendation";
 
