@@ -198,6 +198,14 @@ Each app's Supabase client is configured with `db.schema` pointed at its own sch
 
 This is a separate, more foundational layer than the HTTP-based Edge Function federation described in §3.10 above — that federation (API-key-gated calls into `adjudicate-claim`/`weaver-score`/`guardian-status`) is still live and unaffected by this consolidation; it's a request/response integration between apps, whereas this section is about the three apps' databases physically living in the same place. The two standalone projects DualPay and valtaris-glue used before this move are now paused rather than deleted (in case a rollback is ever needed), which also keeps the whole ecosystem within Supabase's free-tier two-active-project cap with room to spare.
 
+The first pass at this consolidation repointed DualPay's and valtaris-glue's client code but missed a spot: nucleus's own `.env`, `supabase/config.toml`, and its federation-topology registry still referenced the old, now-paused standalone project, which broke CI (telemetry writes were resolving DNS against a dead project and hanging tests to their timeout). Fixed — all four references now point at `valtaris-nucleus-2`. One piece remains manual: the service-role key in `.env` is still the old project's, since no tool available in this environment can read a project's service-role key; anything depending on it will fail to authenticate until an operator rotates it via the Supabase dashboard. Nothing on the anon-key path depends on this.
+
+3.12 Security Hardening (Supabase Advisor Audit)
+Running Supabase's security advisor against the consolidated project surfaced two real, fixed findings, distinct from the expected "RLS enabled, no policy" pattern on ~60 backend-only tables (service-role-only access by design, not a gap):
+
+- **4 `SECURITY DEFINER` functions were callable directly by `anon`/`authenticated` over the REST API** when they should only run via service-role Edge Functions or Postgres triggers: `check_rate_limit`, `claim_next_queue_message`, `handle_sso_user_org_provisioning`, `rls_auto_enable`. Worst case, `claim_next_queue_message` let any signed-in user claim items off the internal durable queue. `EXECUTE` was revoked from `anon`/`authenticated`/`PUBLIC` on all four, verified against every real caller (all service-role) to confirm nothing broke.
+- **6 functions had a mutable `search_path`** (a real SQL-injection-adjacent risk for `SECURITY DEFINER` functions) — pinned explicitly on all 6.
+
 4. Design Principles
 Sections 4–6 below describe the design intent this codebase is being built toward — not a claim that every principle is fully realized today. See §7 for a verified, code-audited status of what's actually implemented, partial, stubbed, or missing.
 
@@ -290,7 +298,8 @@ Decision engine (governance rules, confidence scoring, replay)	Implemented — r
 Telemetry/lineage persistence to Supabase for real claims	Implemented — `recordTelemetry()` and `OSPipeline.runClaim()` both persist for real now; see §3.5
 Identity — Edge Function-based API keys + SSO (`manage-api-clients`, `manage-sso`)	Implemented — real hashed keys, real `sso_configs` table, real admin UI, actually enforced; this is now the only identity implementation in the repo (the dead in-memory stub was deleted)
 Background runtime (queue + scheduler)	Implemented — QueueEngine now persists through `nucleus_queue_messages` (real DB table, atomic `FOR UPDATE SKIP LOCKED` claim function), not an in-memory Map; a restart no longer silently drops a queued or mid-retry message. Real 60s heartbeat + 5-min certification sweep on top of it, unchanged.
-Shared Supabase project + identity (nucleus/DualPay/valtaris-glue on one project, `public`/`dualpay`/`glue` schemas sharing one `auth.users`)	Implemented — schemas migrated, RLS/functions/triggers preserved, both sibling apps' Edge Functions and frontends repointed and redeployed; see §3.11
+Shared Supabase project + identity (nucleus/DualPay/valtaris-glue on one project, `public`/`dualpay`/`glue` schemas sharing one `auth.users`)	Implemented — schemas migrated, RLS/functions/triggers preserved, both sibling apps' Edge Functions and frontends repointed and redeployed, nucleus's own app code repointed too; see §3.11
+Security hardening (locked-down `SECURITY DEFINER` RPC surface, pinned `search_path`)	Implemented — 4 functions locked to service-role-only, 6 functions given an explicit `search_path`, verified against every real caller; see §3.12; service-role key rotation for `valtaris-nucleus-2` still needs an operator with dashboard access
 
 8. Project Structure
 Code
