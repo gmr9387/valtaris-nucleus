@@ -1,21 +1,24 @@
 # ADR-005: Postgres-backed durable queue instead of an in-memory queue
 
 ## Status
+
 Accepted (implemented, live).
 `supabase/migrations/20260922000000_nucleus_queue.sql`.
 
 ## Context
+
 `QueueEngine` (`src/nucleus/queue/queueEngine.ts`) is real, with real
 callers (`TelemetryAdapter`, the Scheduler, the `Nucleus` class's own
 `enqueue()`), but it originally held every queued message in a
 process-local `Map<string, QueueMessage[]>`. That's fine for
-correctness *within* one continuously-running process — it's not fine
+correctness _within_ one continuously-running process — it's not fine
 for a background runtime that has to survive a deploy, a crash, or a
 routine restart, since a process-local map is gone the instant the
 process is. Anything still queued or mid-retry at that moment is
 silently dropped, with no error surfaced anywhere.
 
 ## Decision
+
 Give the queue a real backing table, `nucleus_queue_messages`
 (`organization_id`, `queue`, `payload jsonb`, `attempts`,
 `max_attempts`, `status` constrained to
@@ -31,6 +34,7 @@ accessed exclusively through the same service-role client pattern
 (`queueDB.ts` mirrors `client.server.ts`'s existing `supabaseAdmin`).
 
 ## Alternatives considered
+
 - **Leave it in-memory, add a periodic snapshot-to-disk/DB as a backup.**
   Rejected: still loses anything queued between the last snapshot and
   the crash, and adds complexity (snapshot scheduling, restore-on-boot
@@ -47,6 +51,7 @@ accessed exclusively through the same service-role client pattern
   separate lock-id bookkeeping or explicit unlock discipline.
 
 ## Consequences
+
 - A restart, deploy, or crash mid-processing now leaves messages in
   `status = 'processing'` rather than losing them outright — but
   nothing in this migration or the runtime around it yet reaps a
@@ -64,6 +69,7 @@ accessed exclusively through the same service-role client pattern
   metrics), not that work itself.
 
 ## Failure modes / what breaks if this is wrong
+
 - **The stuck-in-`processing` gap above is the main one.** A worker
   that crashes after `claim_next_queue_message` returns a row but
   before it finishes processing leaves that row claimed forever unless
@@ -76,5 +82,5 @@ accessed exclusively through the same service-role client pattern
 - `FOR UPDATE SKIP LOCKED` correctness depends on every consumer going
   through `claim_next_queue_message` — a future code path that reads
   `nucleus_queue_messages` directly with a plain `SELECT ... WHERE
-  status = 'pending'` would reintroduce the double-claim race this
+status = 'pending'` would reintroduce the double-claim race this
   function exists to prevent.

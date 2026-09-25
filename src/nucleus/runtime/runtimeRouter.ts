@@ -28,6 +28,7 @@ import { constitution } from "../constitution/constitution";
 import { resourceGraph } from "../resources/resourceGraph";
 import type { ResourceIdentity } from "../resources/resourceIdentity";
 import type { NucleusSubsystem } from "../identity/nucleusIdentity";
+import { structuralEquals } from "./structuralEquals";
 // Side-effect import: registers the five per-stage contract
 // definitions (opportunity/recommendation/authorization/execution/
 // payment @ v1) against contractRegistry.ts. Without this,
@@ -38,6 +39,13 @@ import type { Dynamic } from "../types/dynamic";
 
 const DEFAULT_CONTRACT_VERSION = "v1";
 const NUCLEUS_SUBSYSTEMS: readonly NucleusSubsystem[] = ["weaver", "guardian", "glue", "dualpay"];
+
+// Stages that consume Guardian's authorization decision as an input,
+// keyed by (subsystem id, contract name) so this only ever gates the
+// two real constitutional consumers -- Glue's execution and DualPay's
+// payment -- not any future subsystem that happens to register a
+// contract also named "execution" or "payment".
+const GUARDIAN_GATED_STAGES: ReadonlySet<string> = new Set(["glue.execution", "dualpay.payment"]);
 
 /**
  * registerAllSubsystems() is idempotent (it just re-populates a Map),
@@ -60,6 +68,21 @@ export class RuntimeRouter {
     contractVersion: string = DEFAULT_CONTRACT_VERSION,
   ): Promise<Dynamic> {
     const subsystem = RuntimeGuards.enforceSubsystemPermission(id, payload);
+
+    // Law 6 (Boundary Integrity), enforced rather than assumed: Glue's
+    // "execution" and DualPay's "payment" both take payload.authorization
+    // as an input, but until now nothing verified that object actually
+    // came from a real guardian.authorization dispatch for this claim --
+    // GlueRuntime.handleExecution() and dualPayRuntime.ts's handler both
+    // just trust whatever the caller put in the payload. A hand-built
+    // payload with a fabricated `{ decision: "allow" }` would pass
+    // executionContract.ts's own validate() (it only checks internal
+    // consistency: "executed" requires authorization.decision === "allow",
+    // not that the authorization is genuine) and execute. This rejects
+    // that before the subsystem's handle() ever runs.
+    if (GUARDIAN_GATED_STAGES.has(`${id}.${contractName}`)) {
+      RuntimeRouter.enforceGuardianProvenance(id, contractName, payload);
+    }
 
     const startedAt = Date.now();
     const result = await subsystem.runtime.handle(contractName, payload);
@@ -84,6 +107,18 @@ export class RuntimeRouter {
     const organizationId = (payload as Dynamic)?.organizationId ?? "unknown";
     nucleusState.set(organizationId, id, contractName, result);
     nucleusState.snapshot(organizationId, id);
+
+    // Claim-scoped (not just org-scoped) so two claims for the same org
+    // in flight at once can't clobber each other's provenance record --
+    // nucleusState's general (org, subsystem, key) keying is per-org, but
+    // this specific record exists only to answer "is this the real
+    // authorization for *this* claim?", so it's keyed by claimId too.
+    if (id === "guardian" && contractName === "authorization") {
+      const claimId = (payload as Dynamic)?.claimId;
+      if (claimId) {
+        nucleusState.set(organizationId, "guardian", `authorization:${claimId}`, result);
+      }
+    }
 
     // metrics/metricsEngine.ts is the canonical metrics implementation
     // for dispatch-latency timeseries. It once had a genuine dead
@@ -166,5 +201,36 @@ export class RuntimeRouter {
     }
 
     return result;
+  }
+
+  /**
+   * Rejects a "glue.execution" or "dualpay.payment" dispatch whose
+   * payload.authorization doesn't structurally match the real
+   * guardian.authorization result this same claim already produced.
+   * Fail-closed: a claim with no recorded Guardian dispatch yet (no
+   * claimId, or Guardian genuinely hasn't run for this claim) is
+   * rejected the same as a forged one -- there is no "trust it anyway"
+   * path.
+   */
+  private static enforceGuardianProvenance(
+    id: SubsystemId,
+    contractName: string,
+    payload: Dynamic,
+  ): void {
+    const organizationId = (payload as Dynamic)?.organizationId ?? "unknown";
+    const claimId = (payload as Dynamic)?.claimId;
+    const claimedAuthorization = (payload as Dynamic)?.authorization;
+
+    const recorded = claimId
+      ? nucleusState.get(organizationId, "guardian", `authorization:${claimId}`)
+      : null;
+
+    if (!recorded || !structuralEquals(recorded.value, claimedAuthorization)) {
+      throw new Error(
+        `RuntimeRouter: boundary violation on "${id}.${contractName}" -- payload.authorization does not match ` +
+          `a real guardian.authorization dispatch result for claim "${claimId ?? "(missing claimId)"}". ` +
+          `Constitutional Law 6 (Boundary Integrity): "Nucleus never bypasses Guardian."`,
+      );
+    }
   }
 }

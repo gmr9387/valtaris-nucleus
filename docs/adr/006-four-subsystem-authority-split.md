@@ -1,9 +1,15 @@
 # ADR-006: Weaver/Guardian/Glue/DualPay as enforced boundaries, not convention
 
 ## Status
-Accepted (implemented, live, partially enforced — see Consequences).
+
+Accepted (implemented, live). The specific gap this ADR originally
+named — Law 6 asserted but not proven — is now closed for the
+`guardian` → `glue`/`dualpay` boundary; see the update at the end of
+Consequences and `src/nucleus/runtime/runtimeRouter.ts`'s
+`enforceGuardianProvenance()`.
 
 ## Context
+
 `valtaris_constitution` (repo root) states seven laws: Weaver may find
 but never authorize or execute; Guardian may authorize but never
 discover or execute; Glue may execute but never decide; DualPay
@@ -13,6 +19,7 @@ violate it — the interesting engineering question is which of these
 boundaries are actually load-bearing in code versus asserted in prose.
 
 ## Decision
+
 The boundary is enforced, not just documented, at the points that
 matter most for financial correctness: Glue's execution gate reads
 Guardian's and Weaver's real output before running anything — it
@@ -35,10 +42,11 @@ persisted and queryable" — see the README's own Capability Status table
 versus stub.
 
 ## Alternatives considered
+
 - **A single monolithic decision function that does discovery,
   authorization, and execution inline.** Rejected: this is exactly what
   Law 6 (Boundary Integrity) exists to prevent — collapsing the stages
-  makes it impossible to audit *which* stage produced a given outcome,
+  makes it impossible to audit _which_ stage produced a given outcome,
   and makes it easy for a future change to "helpfully" let execution
   logic peek at data it has no business seeing (e.g., Glue deciding to
   retry with different parameters based on its own re-assessment of
@@ -52,6 +60,7 @@ versus stub.
   stage's job) is achievable in the type signatures themselves.
 
 ## Consequences
+
 - Each subsystem's runtime function signature is itself a boundary
   enforcement mechanism: Glue's execution entry point takes Guardian's
   decision object, not the raw claim — it structurally cannot
@@ -63,17 +72,39 @@ versus stub.
   effort (turning each execution into a provenance graph, not just a
   log line) would build directly on top of — that work doesn't exist
   yet, but this ADR is what makes it tractable when it does.
-- The constitution's Law 6 promise ("Nucleus never bypasses Guardian")
-  is not currently proven by an automated adversarial test — it's true
-  because of how the code is structured today, but nothing in CI fails
-  if a future change accidentally gives Glue a code path that skips
-  the Guardian-decision argument and executes directly. That's the
-  concrete next step this ADR points at: an adversarial test suite that
-  actively tries to call Glue's execution path without a valid Guardian
-  authorization and asserts it's rejected, rather than trusting that
-  the current call graph stays that way by discipline alone.
+- **Update:** the gap described in the previous paragraph is now closed
+  for `glue.execution` and `dualpay.payment`. `RuntimeRouter.dispatch()`
+  records each claim's real `guardian.authorization` result under a
+  claim-scoped key (`nucleusState`, keyed by `${organizationId}.guardian.authorization:${claimId}`,
+  not just by org — two claims for the same org in flight at once must
+  not be able to clobber each other's provenance record) the moment
+  Guardian's dispatch succeeds, then rejects any `glue.execution` or
+  `dualpay.payment` dispatch whose `payload.authorization` doesn't
+  structurally match that recorded result — before the subsystem's own
+  `handle()` ever runs, not just at the contract-validation step after.
+  Proven by `src/nucleus/tests/runtimeRouterBoundary.test.ts`: a
+  fabricated `{ decision: "allow" }` payload with no real Guardian
+  dispatch behind it is rejected, a forged override of a claim that DID
+  go through Guardian is rejected, and the real, unmodified pipeline
+  output still passes. This was a real, exploitable gap when this ADR
+  was first written — `executionContract.ts`'s own `validate()` only
+  checked internal consistency ("executed" requires
+  `authorization.decision === "allow"`), which a fabricated object
+  satisfies trivially, so a hand-built payload really could have forced
+  an execution no real Guardian call ever authorized.
+- What's still open: this only covers the in-process call graph inside
+  this repo. It doesn't (and structurally can't) protect against a
+  compromised or buggy Edge Function deployment fabricating its own
+  `nucleusState` in a separate process, and the `nucleusState` records
+  themselves are in-memory, not persisted — a process restart mid-claim
+  loses the provenance record along with everything else `ADR-005`
+  already flags as at-risk on restart. Extending this same provenance
+  model to Weaver's `opportunity`/`recommendation` inputs (nothing today
+  stops a fabricated `opportunity` object from reaching Guardian's own
+  authorization decision) is the next natural extension, not yet done.
 
 ## Failure modes / what breaks if this is wrong
+
 - A future subsystem, or a future change to an existing one, that adds
   a convenience code path bypassing the boundary (e.g., Glue catching
   a Guardian timeout and "safely" proceeding anyway) reintroduces

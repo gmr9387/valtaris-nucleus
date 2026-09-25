@@ -1,11 +1,13 @@
 # ADR-002: Postgres RLS is the tenant-isolation enforcement point, not application code
 
 ## Status
+
 Accepted (implemented, live). Performance-hardened in
 `supabase/migrations/20260924224814_dualpay_rls_perf_and_demo_policy_fix.sql`
 (DualPay repo).
 
 ## Context
+
 Every table in the `dualpay` schema is scoped to an `organization_id`.
 The naive way to enforce that is: every query in application code
 (`src/lib/*.ts`) filters by the caller's current org. That approach has
@@ -17,6 +19,7 @@ data. There is no compiler or test that catches that omission by
 construction.
 
 ## Decision
+
 Enforce tenant isolation as Postgres Row-Level Security policies on
 every `dualpay`-schema table, driven by the caller's JWT
 (`auth.uid()`), not by application-level filtering. Application code
@@ -36,6 +39,7 @@ and reason about — an equivalent audit of scattered `.eq()` calls
 across every `src/lib/*.ts` file would be far easier to get wrong.
 
 ## Alternatives considered
+
 - **Application-layer filtering only.** Rejected for the reason above:
   correctness depends on every future engineer never forgetting a
   clause, in a codebase where "forgetting a clause" produces a
@@ -52,9 +56,10 @@ across every `src/lib/*.ts` file would be far easier to get wrong.
   kind of gap that a "mostly RLS" posture leaves room for.
 
 ## Consequences
+
 - Every new `dualpay`-schema table needs an explicit RLS policy before
   it's safe to query at all — `ALTER TABLE ... ENABLE ROW LEVEL
-  SECURITY` with no policy denies all access by default, which is the
+SECURITY` with no policy denies all access by default, which is the
   correct fail-closed default but means a forgotten policy shows up as
   "nothing works" rather than silently leaking data. That's the right
   failure direction.
@@ -68,6 +73,7 @@ across every `src/lib/*.ts` file would be far easier to get wrong.
   the `claim_assignments_update_demo` bug findable in the first place.
 
 ## Failure modes / what breaks if this is wrong
+
 - A policy with an incorrect `USING`/`WITH CHECK` clause is a silent
   cross-tenant leak or a silent cross-tenant write, exactly like the
   bug this ADR describes finding — the fix for that specific instance

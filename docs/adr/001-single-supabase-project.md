@@ -1,9 +1,11 @@
 # ADR-001: One shared Supabase project instead of one per service
 
 ## Status
+
 Accepted (implemented, live).
 
 ## Context
+
 Nucleus, DualPay, and valtaris-glue started as three independent
 Supabase projects: `qrqekucwdfyqqzomuble` (nucleus), a standalone
 DualPay project, and a standalone glue project. Each of DualPay's three
@@ -17,6 +19,7 @@ but literally unsustainable without paying for capacity the ecosystem
 didn't otherwise need.
 
 ## Decision
+
 Collapse to a single Supabase project. Each app keeps its own Postgres
 **schema** (`public` for nucleus's own tables, `dualpay`, `glue`)
 instead of its own project. DualPay's and glue's full schemas (tables,
@@ -33,6 +36,7 @@ cross-project ones — see `supabase/functions/nucleus-adjudicate/README.md`
 (and its two siblings) in the DualPay repo.
 
 ## Alternatives considered
+
 - **Keep 3 projects, pay for a higher tier.** Rejected: turns a design
   choice into a recurring cost with no functional benefit — the
   cross-project call was doing nothing a same-project call doesn't also
@@ -46,6 +50,7 @@ cross-project ones — see `supabase/functions/nucleus-adjudicate/README.md`
   client option.
 
 ## Consequences
+
 - One Supabase bill, one set of project-level settings (auth
   providers, rate limits, pooler config) to keep correct for all three
   apps at once — a misconfiguration now affects all three, not one.
@@ -57,6 +62,7 @@ cross-project ones — see `supabase/functions/nucleus-adjudicate/README.md`
   `glue.*` tables must never collide with `public.*` or each other.
 
 ## Failure modes / what breaks if this is wrong
+
 - **Noisy-neighbor risk**: a runaway query or Edge Function invocation
   spike in one app's schema competes for the same connection pool and
   compute as the other two. There's no project-level isolation left to

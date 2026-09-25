@@ -1,11 +1,13 @@
 # ADR-003: SECURITY DEFINER helper functions as the single enforcement choke point
 
 ## Status
+
 Accepted (implemented, live). Extended in
 `supabase/migrations/20260924230500_org_member_access_expiry.sql`
 (DualPay repo).
 
 ## Context
+
 Nearly every RLS policy in the `dualpay` schema needs to answer the
 same two questions: "is this caller a member of this organization?"
 and "does this caller hold at least this role in this organization?"
@@ -17,6 +19,7 @@ longer counts" — requires finding and editing every single one
 correctly.
 
 ## Decision
+
 Two `SECURITY DEFINER` SQL functions, `dualpay.is_org_member(org_id,
 user_id)` and `dualpay.has_org_role(org_id, user_id, min_role)`, are
 the only place that logic is written. Every RLS policy that needs a
@@ -29,9 +32,10 @@ that calls them inherited the new expiry check with zero per-policy
 edits — see the commit message on that migration for the exact diff.
 
 ## Alternatives considered
+
 - **Inline the membership/role subquery in every policy.** Rejected for
   the duplication problem above — demonstrated concretely by how small
-  the expiry-check change was *because* this pattern was already in
+  the expiry-check change was _because_ this pattern was already in
   place; the same change against inlined subqueries would have touched
   every policy in the schema instead of two functions.
 - **Enforce membership/role in application code before the query runs.**
@@ -41,6 +45,7 @@ edits — see the commit message on that migration for the exact diff.
   a bug.
 
 ## Consequences
+
 - These two functions are now the single most load-bearing pieces of
   authorization logic in the `dualpay` schema — nearly every policy's
   correctness reduces to their correctness. A bug in either function is
@@ -56,6 +61,7 @@ edits — see the commit message on that migration for the exact diff.
   policies didn't change, only what the functions they call return.
 
 ## Failure modes / what breaks if this is wrong
+
 - Any bug in `is_org_member`/`has_org_role` — an off-by-one in the
   expiry comparison, a role-hierarchy ordering mistake in
   `has_org_role`'s `min_role` comparison — is immediately a schema-wide
