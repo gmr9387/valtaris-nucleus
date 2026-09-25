@@ -4,6 +4,9 @@
 
 Accepted (implemented, live). Extended in
 `supabase/migrations/20260924230500_org_member_access_expiry.sql`
+(DualPay repo). The "not verified against a live inserted-row test"
+gap this ADR originally named is now closed — see the update at the
+end of Failure modes and `supabase/tests/is_org_member_and_has_org_role.sql`
 (DualPay repo).
 
 ## Context
@@ -21,7 +24,11 @@ correctly.
 ## Decision
 
 Two `SECURITY DEFINER` SQL functions, `dualpay.is_org_member(org_id,
-user_id)` and `dualpay.has_org_role(org_id, user_id, min_role)`, are
+user_id)` and `dualpay.has_org_role(org_id, user_id, roles text[])`
+(an explicit allowed-roles array, not a hierarchy/min-role comparison
+-- corrected from this ADR's original wording, which described a
+signature that doesn't match the real function; every call site passes
+an explicit array like `array['manager','admin','owner']`), are
 the only place that logic is written. Every RLS policy that needs a
 membership or role check calls one of these functions instead of
 inlining the subquery. When time-limited (contractor) access needed to
@@ -63,17 +70,32 @@ edits — see the commit message on that migration for the exact diff.
 ## Failure modes / what breaks if this is wrong
 
 - Any bug in `is_org_member`/`has_org_role` — an off-by-one in the
-  expiry comparison, a role-hierarchy ordering mistake in
-  `has_org_role`'s `min_role` comparison — is immediately a schema-wide
-  authorization bug, not a single-table one. This is the direct tradeoff
-  for the choke point's leverage: it concentrates risk exactly where it
+  expiry comparison, a typo in one call site's allowed-roles array
+  (e.g. `array['amdin']`) — is immediately a schema-wide authorization
+  bug, not a single-table one. This is the direct tradeoff for the
+  choke point's leverage: it concentrates risk exactly where it
   concentrates power.
-- These functions were **not** verified against a live inserted-row
-  test in this session — an attempted live test was abandoned because
-  the cleanup step collided with `ops_events`' append-only trigger (see
-  the RISK_REGISTER work). The expiry logic was instead verified via a
-  pure `SELECT` of the boolean predicate with no table writes. That's
-  weaker than an end-to-end test against real rows and real RLS
-  evaluation, and is a real gap: a proper integration test for this
-  function pair (real rows, real policy evaluation, real cleanup that
-  doesn't fight the audit-trail triggers) doesn't exist yet.
+- **Update:** the gap below (no live inserted-row test) is now closed.
+  `supabase/tests/is_org_member_and_has_org_role.sql` (DualPay repo)
+  inserts a real org, a real active member, and a real expired member,
+  then asserts both the function-level predicates AND real RLS policy
+  enforcement on a real table (`adjudication_runs`) by switching to the
+  `authenticated` role and setting `request.jwt.claim.sub` the same way
+  PostgREST does from a real JWT -- not just calling the function in
+  isolation. The whole thing runs inside one transaction that ends in
+  `ROLLBACK`, so it never issues a `DELETE` and never touches the
+  append-only `ops_events` triggers that blocked the earlier attempt.
+  Verified live against the real project: all 9 assertions passed, and
+  a follow-up query confirmed zero residual rows after rollback.
+- **History, for context:** an earlier attempt at this same live test,
+  in an earlier pass this session, was abandoned because its cleanup
+  step tried `DELETE FROM organizations`, which cascaded into
+  `ops_events` and hit that table's append-only
+  `prevent_ops_events_update_delete`/`prevent_ops_events_delete`
+  triggers (see the RISK_REGISTER work). That attempt fell back to
+  verifying the expiry logic via a pure `SELECT` of the boolean
+  predicate with no table writes — real logic, but not a real
+  integration test. The fix wasn't a workaround for the trigger; it was
+  restructuring the test to never issue a `DELETE` at all (see the
+  Update above) — the trigger was never actually an obstacle once the
+  test stopped trying to clean up by deleting.
