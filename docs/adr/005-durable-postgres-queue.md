@@ -3,7 +3,10 @@
 ## Status
 
 Accepted (implemented, live).
-`supabase/migrations/20260922000000_nucleus_queue.sql`.
+`supabase/migrations/20260922000000_nucleus_queue.sql`. The
+stuck-in-`processing` gap this ADR originally named as unsolved is now
+closed — see the update at the end of Consequences and
+`supabase/migrations/20260925020000_nucleus_queue_reaper.sql`.
 
 ## Context
 
@@ -53,32 +56,54 @@ accessed exclusively through the same service-role client pattern
 ## Consequences
 
 - A restart, deploy, or crash mid-processing now leaves messages in
-  `status = 'processing'` rather than losing them outright — but
-  nothing in this migration or the runtime around it yet reaps a
-  message stuck in `processing` because the worker that claimed it
-  died before marking it `delivered` or `failed`. That's a real,
-  named gap, not a solved problem — see Failure modes.
-- `attempts`/`max_attempts` give the queue a retry ceiling, but nothing
-  currently reads `attempts >= max_attempts` to route a message to a
-  dead-letter state automatically; `status = 'failed'` has to be set by
-  the caller.
+  `status = 'processing'` rather than losing them outright, and a
+  scheduled reaper now recovers those rows automatically — see the
+  update below.
+- `attempts`/`max_attempts` give the queue a retry ceiling; the reaper
+  is now the thing that actually reads `attempts >= max_attempts` to
+  route an unrecoverable message to `failed` when it's the one that
+  notices the row is stuck. A message whose _handler_ fails (as
+  opposed to whose worker crashes) still goes through
+  `markQueueMessageFailed()` in `queueRepo.ts`, unchanged.
 - Queue depth, per-queue backlog, and processing latency are now real
   SQL queries against a real table (`queue`, `status`, `created_at`)
   instead of unobservable in-process state — this is a precondition for
   the observability work described as a next step (queue-depth
   metrics), not that work itself.
+- **Update:** the stuck-in-`processing` gap and the missing dead-letter
+  view, both named below as open when this ADR was first written, are
+  now closed. `supabase/migrations/20260925020000_nucleus_queue_reaper.sql`
+  adds `reap_stuck_queue_messages(p_stuck_after interval default '5
+minutes')` — same `FOR UPDATE SKIP LOCKED` idiom as
+  `claim_next_queue_message()`, so it can never race a worker that's
+  genuinely still updating a row right now — scheduled via `pg_cron`
+  every 2 minutes (`reap-stuck-nucleus-queue-messages`, the same
+  unschedule-then-reschedule idempotent pattern
+  `cleanup-expired-org-members` established). A row under its
+  `max_attempts` goes back to `pending` for the next poller; a row that's
+  exhausted its budget goes to terminal `failed`, now readable
+  through the `nucleus_queue_dead_letters` view instead of a hand-filtered
+  query. Verified live against the real table, not just unit-tested: two
+  synthetic rows were inserted with `updated_at` backdated 10 minutes,
+  the reaper was invoked directly, and it produced exactly the expected
+  `pending`/`failed` split before the test rows were deleted.
 
 ## Failure modes / what breaks if this is wrong
 
-- **The stuck-in-`processing` gap above is the main one.** A worker
-  that crashes after `claim_next_queue_message` returns a row but
-  before it finishes processing leaves that row claimed forever unless
-  something else notices and requeues it. This needs a reaper (a
-  scheduled function that resets `processing` rows older than some
-  threshold back to `pending`, incrementing `attempts`) — not built yet.
-- No dead-letter table or view exists for messages that exhaust
-  `max_attempts` — they'd need to be found via `status = 'failed'`
-  filtering today, not surfaced automatically.
+- The reaper's 5-minute default threshold is a guess based on this
+  ecosystem's actual per-message work being sub-second HTTP calls and DB
+  writes, not measured against real production latency distributions —
+  if a legitimate handler ever needs longer than 5 minutes, the reaper
+  will requeue a message that was actually still being processed,
+  causing it to run twice. Nothing today makes delivery idempotent
+  against that double-run; `pg_cron`'s job history
+  (`cron.job_run_details`) is the only current way to notice if this is
+  happening in practice.
+- The reaper itself is a single `pg_cron` job on a 2-minute cadence —
+  if `pg_cron` stops running (extension disabled, job accidentally
+  unscheduled, the scheduler process itself wedged), stuck rows go back
+  to being silently invisible exactly as before this fix, and nothing
+  alerts on that regression.
 - `FOR UPDATE SKIP LOCKED` correctness depends on every consumer going
   through `claim_next_queue_message` — a future code path that reads
   `nucleus_queue_messages` directly with a plain `SELECT ... WHERE
