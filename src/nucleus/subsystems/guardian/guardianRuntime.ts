@@ -259,12 +259,29 @@ export class GuardianRuntime {
     const denied =
       lineResult.status === "denied" || lineResult.status === "benefit_limit_exhausted";
 
+    // FIXED: usedDemoContract/usedDemoPlan were already tracked and fed
+    // into risk_tier, but the human-readable `reason` string -- the
+    // thing a caller actually reads, not a boolean field it has to
+    // remember to check -- said nothing. A caller not inspecting
+    // usedDemoContract/usedDemoPlan saw a normal-looking dollar
+    // adjudication built on fictitious fee-schedule/plan-benefit data
+    // with no visible caveat. The dollar amounts themselves are
+    // unchanged; only the explanation now names the demo fallback.
+    const demoCaveat =
+      usedDemoContract && usedDemoPlan
+        ? "[DEMO CONTRACT + DEMO PLAN -- no real payer contract or plan benefits on file] "
+        : usedDemoContract
+          ? "[DEMO CONTRACT -- no real payer contract on file] "
+          : usedDemoPlan
+            ? "[DEMO PLAN -- no real plan benefits on file] "
+            : "";
+
     const result = {
       ...payload,
       decision: denied ? "deny" : "allow",
       reason: denied
         ? (lineResult.denial_reasons?.[0] ?? `Adjudication status: ${lineResult.status}`)
-        : `Adjudicated: plan pays $${(lineResult.plan_paid / 100).toFixed(2)}, member owes $${(lineResult.member_responsibility / 100).toFixed(2)}`,
+        : `${demoCaveat}Adjudicated: plan pays $${(lineResult.plan_paid / 100).toFixed(2)}, member owes $${(lineResult.member_responsibility / 100).toFixed(2)}`,
       adjudication: {
         status: lineResult.status,
         allowed: lineResult.allowed,
