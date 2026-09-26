@@ -4,14 +4,38 @@
  * consumes these to score a claim's opportunity/recommendation stages.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { WeaverRule, WeaverRuleStage } from "@/types/weaver-rules";
 
-export async function listWeaverRules(stage: WeaverRuleStage): Promise<WeaverRule[]> {
-  const { data, error } = await supabase
-    .from("weaver_rules")
-    .select("*")
-    .eq("stage", stage)
-    .eq("enabled", true);
+/**
+ * FIXED: this previously always used the anon-key browser client and
+ * never threaded an organizationId through, relying on weaver_rules'
+ * org-scoped SELECT policy (auth.uid() + organization_members match)
+ * for tenant isolation. But this function's only real caller,
+ * weaverRuntime.ts, runs inside nucleus's server-side Express process
+ * (apiController.ts) -- there's no Supabase Auth session there, so
+ * auth.uid() is always null and the org-scoped branch of that policy
+ * never matches. In practice, only the two global (organization_id IS
+ * NULL) seed rules ever fired for real internal claim processing --
+ * any org-specific rule an operator created via the admin UI was
+ * silently ignored.
+ *
+ * Fixed the same way supabase/functions/weaver-score/repo.ts's
+ * listWeaverRules already does it for the external API surface: use
+ * the service-role client (this is trusted server-side code, same
+ * class of caller as NucleusDBBridge) and filter explicitly by
+ * organizationId instead of depending on RLS to do it via a session
+ * that doesn't exist here.
+ */
+export async function listWeaverRules(
+  stage: WeaverRuleStage,
+  organizationId?: string | null,
+): Promise<WeaverRule[]> {
+  let query = supabaseAdmin.from("weaver_rules").select("*").eq("stage", stage).eq("enabled", true);
+  query = organizationId
+    ? query.or(`organization_id.is.null,organization_id.eq.${organizationId}`)
+    : query.is("organization_id", null);
+  const { data, error } = await query;
   if (error) {
     console.error("[weaver-rules] listWeaverRules failed", error.message);
     return [];

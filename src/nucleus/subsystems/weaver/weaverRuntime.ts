@@ -54,7 +54,7 @@ export class WeaverRuntime {
     let ruleAdjustment = 0;
     let firedRules: string[] = [];
     try {
-      const rules = await listWeaverRules("opportunity");
+      const rules = await listWeaverRules("opportunity", payload.organizationId ?? null);
       const evaluation = evaluateRules(rules, payload);
       ruleAdjustment = evaluation.totalWeight;
       firedRules = evaluation.firedRules;
@@ -100,7 +100,7 @@ export class WeaverRuntime {
     let ruleAdjustment = 0;
     let firedRules: string[] = [];
     try {
-      const rules = await listWeaverRules("recommendation");
+      const rules = await listWeaverRules("recommendation", payload.organizationId ?? null);
       const evaluation = evaluateRules(rules, payload);
       ruleAdjustment = evaluation.totalWeight;
       firedRules = evaluation.firedRules;
