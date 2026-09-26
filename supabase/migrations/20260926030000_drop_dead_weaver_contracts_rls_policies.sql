@@ -1,0 +1,23 @@
+-- Closes the last open multiple_permissive_policies advisor finding
+-- (gapMap.md item 23's sibling pattern, deliberately deferred in
+-- 20260925130000_public_schema_multiple_permissive_policies_fix.sql
+-- pending individual verification -- this is that verification).
+--
+-- "weaver-contracts" / "weaver-contracts-rec" gated INSERT on
+-- auth.jwt()->>'subsystem' = 'weaver'. Verified dead, not a live
+-- authorization path:
+--   - No code in nucleus, dualpay, or glue ever calls
+--     .from("opportunity")/.from("recommendation") to insert -- both
+--     tables have 0 rows.
+--   - No custom-access-token-hook function exists in this database, and
+--     no code anywhere manually signs a JWT -- so no request can ever
+--     carry a top-level "subsystem" claim. The condition is permanently
+--     NULL = 'weaver', i.e. always false.
+--   - The real subsystem-to-subsystem auth pattern (ADR-004, hashed
+--     api_clients keys checked inside Edge Functions) superseded this
+--     JWT-claim design; the service-role-full-{opportunity,recommendation}
+--     policies already cover the actual write path.
+-- Dropping removes dead evaluation overhead with zero behavior change
+-- for any real caller. Already applied and verified live.
+DROP POLICY "weaver-contracts" ON public.opportunity;
+DROP POLICY "weaver-contracts-rec" ON public.recommendation;
