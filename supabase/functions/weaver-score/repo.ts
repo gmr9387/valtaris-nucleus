@@ -3,6 +3,7 @@
 // project, just a runtime-appropriate client construction.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import type { WeaverRule, WeaverRuleStage } from "./types.ts";
+import { hashApiKey, orgScopeFilter } from "./pure.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -22,9 +23,8 @@ export async function listWeaverRules(
   organizationId: string | null,
 ): Promise<WeaverRule[]> {
   let query = supabase.from("weaver_rules").select("*").eq("stage", stage).eq("enabled", true);
-  query = organizationId
-    ? query.or(`organization_id.is.null,organization_id.eq.${organizationId}`)
-    : query.is("organization_id", null);
+  const scope = orgScopeFilter(organizationId);
+  query = scope.kind === "or" ? query.or(scope.value) : query.is("organization_id", null);
   const { data, error } = await query;
   if (error) throw new Error(`Failed to list weaver_rules for stage ${stage}: ${error.message}`);
   return (data ?? []) as unknown as WeaverRule[];
@@ -85,10 +85,7 @@ export interface VerifiedClient {
 export async function verifyApiKey(rawKey: string | null): Promise<VerifiedClient | null> {
   if (!rawKey) return null;
 
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(rawKey));
-  const hashHex = Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  const hashHex = await hashApiKey(rawKey);
 
   const { data, error } = await supabase
     .from("api_clients")
